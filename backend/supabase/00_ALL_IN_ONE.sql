@@ -1045,7 +1045,11 @@ set eye_test_done          = stage in ('learner_permit','theory_test','practical
     licence_issued          = stage = 'licence_issued',
     licence_issued_date     = case when stage = 'licence_issued' then updated_at::date end;
 
-alter table public.licence_tracking drop column stage;
+-- CASCADE: v_dashboard_stats (defined earlier in this file) still
+-- references this column. It's redefined without the dependency later
+-- in this same file (see "8. DASHBOARD STATS" below), so the
+-- CASCADE-dropped view is safely recreated before this transaction ends.
+alter table public.licence_tracking drop column stage cascade;
 drop type licence_stage;
 
 -- One licence record per student
