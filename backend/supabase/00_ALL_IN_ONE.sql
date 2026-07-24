@@ -1222,3 +1222,41 @@ create policy sec_students_update on public.students
   for update using (public.get_my_role() = 'secretary')
   with check (public.get_my_role() = 'secretary');
 -- No delete policy for secretary: only the manager (mgr_students, for all) can delete a student.
+
+-- ============================================================
+-- 07_custom_auth.sql  (run SEVENTH)
+-- public.users was originally 1:1 with Supabase Auth (auth.users),
+-- from before the team settled on a custom Express + JWT + bcrypt
+-- backend (ADR-002, ADR-004) that never calls Supabase Auth. That FK
+-- blocks inserting a user row without first creating a matching
+-- auth.users row, and there was nowhere to store a bcrypt hash.
+-- ============================================================
+
+alter table public.users drop constraint if exists users_id_fkey;
+alter table public.users alter column id set default gen_random_uuid();
+
+alter table public.users add column if not exists password_hash text;
+
+-- Existing rows (manager@drivepro.test, secretary@drivepro.test) were
+-- provisioned through Supabase Auth directly and have no password_hash
+-- yet — the Express login endpoint treats a null hash as "account not
+-- yet provisioned" and rejects the login rather than crashing on
+-- bcrypt.compare(password, null). Not enforced NOT NULL here so this
+-- migration stays safe to run before those rows are backfilled.
+
+-- ============================================================
+-- 08_revoked_tokens.sql  (run EIGHTH)
+-- JWTs are stateless and can't be invalidated on their own. Logout
+-- (#7) needs a denylist: every issued token carries a `jti` claim,
+-- and logging out records that jti here until the token would have
+-- expired anyway. The auth middleware checks this table on every
+-- request.
+-- ============================================================
+
+create table if not exists public.revoked_tokens (
+  jti        uuid primary key,
+  expires_at timestamptz not null,
+  revoked_at timestamptz not null default now()
+);
+
+create index if not exists idx_revoked_tokens_expires_at on public.revoked_tokens (expires_at);
