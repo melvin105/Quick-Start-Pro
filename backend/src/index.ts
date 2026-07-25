@@ -6,9 +6,8 @@ import authRoutes from './routes/auth';
 import studentRoutes from './routes/students';
 import paymentRoutes from './routes/payments';
 import receiptRoutes from './routes/receipts';
-import lessonRoutes from './routes/lessons';
-import instructorRoutes from './routes/instructors';
-import attendanceRoutes from './routes/attendance';
+import reportRoutes from './routes/reports';
+import financeRoutes from './routes/finances';
 import { ApiError } from './utils/ApiError';
 
 const app = express();
@@ -32,9 +31,8 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/receipts', receiptRoutes);
-app.use('/api/v1/lessons', lessonRoutes);
-app.use('/api/v1/instructors', instructorRoutes);
-app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/finances', financeRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
