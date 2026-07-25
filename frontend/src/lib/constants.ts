@@ -9,7 +9,7 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES]
 
 export const ROLE_LABELS: Record<Role, string> = {
-  admin:      'Administrator',
+  admin:      'Manager',
   secretary:  'Secretary',
   instructor: 'Instructor',
   student:    'Student',
@@ -29,6 +29,10 @@ export const ROUTES = {
   ATTENDANCE: '/attendance',
   PAYMENTS:   '/payments',
   RECORDS:    '/records',
+  FINANCES:   '/finances',
+  REPORTS:    '/reports',
+  STAFF:      '/staff',
+  AUDIT_LOG:  '/audit-log',
   SETTINGS:   '/settings',
 } as const
 
