@@ -4,10 +4,12 @@ import { ApiError } from '../utils/ApiError';
 const GENDERS = ['male', 'female'] as const;
 const STUDENT_STATUSES = ['active', 'completed', 'suspended', 'withdrawn'] as const;
 const ENROLMENT_TYPES = ['driving_only', 'licence_only', 'driving_and_licence'] as const;
+const EXAM_RESULTS = ['pending', 'passed', 'failed'] as const;
 
 type Gender = (typeof GENDERS)[number];
 type StudentStatus = (typeof STUDENT_STATUSES)[number];
 type EnrolmentType = (typeof ENROLMENT_TYPES)[number];
+type ExamResult = (typeof EXAM_RESULTS)[number];
 
 export interface CreateStudentInput {
   firstName: string;
@@ -48,6 +50,18 @@ export interface ListStudentsQuery {
   limit?: number;
 }
 
+export interface UpsertLicenceInput {
+  eyeTestDone?: boolean;
+  eyeTestDate?: string;
+  learnerLicenceIssued?: boolean;
+  learnerLicenceDate?: string;
+  examDate?: string;
+  examResult?: string;
+  licenceIssued?: boolean;
+  licenceIssuedDate?: string;
+  remarks?: string;
+}
+
 export interface ActingUser {
   id: string;
   role: 'manager' | 'secretary';
@@ -68,6 +82,12 @@ function assertEnrolmentType(value: string): asserts value is EnrolmentType {
 function assertStatus(value: string): asserts value is StudentStatus {
   if (!(STUDENT_STATUSES as readonly string[]).includes(value)) {
     throw new ApiError(400, 'INVALID_INPUT', `status must be one of: ${STUDENT_STATUSES.join(', ')}`);
+  }
+}
+
+function assertExamResult(value: string): asserts value is ExamResult {
+  if (!(EXAM_RESULTS as readonly string[]).includes(value)) {
+    throw new ApiError(400, 'INVALID_INPUT', `examResult must be one of: ${EXAM_RESULTS.join(', ')}`);
   }
 }
 
@@ -252,5 +272,70 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
     }
     const profile = await client.query(`select * from public.v_student_profile where id = $1`, [id]);
     return profile.rows[0];
+  });
+}
+
+const SELECT_LICENCE = `select * from public.licence_tracking where student_id = $1`;
+
+export async function upsertLicence(studentId: string, input: UpsertLicenceInput, actingUser: ActingUser) {
+  if (input.examResult) assertExamResult(input.examResult);
+
+  const fieldMap: Record<string, unknown> = {
+    eye_test_done: input.eyeTestDone,
+    eye_test_date: input.eyeTestDate,
+    learner_licence_issued: input.learnerLicenceIssued,
+    learner_licence_date: input.learnerLicenceDate,
+    exam_date: input.examDate,
+    exam_result: input.examResult,
+    licence_issued: input.licenceIssued,
+    licence_issued_date: input.licenceIssuedDate,
+    remarks: input.remarks,
+  };
+
+  const columns = Object.entries(fieldMap).filter(([, value]) => value !== undefined);
+  if (columns.length === 0) {
+    throw new ApiError(400, 'INVALID_INPUT', 'No updatable licence fields provided.');
+  }
+
+  return withUserContext(actingUser.id, async (client) => {
+    const { rows: studentRows } = await client.query(`select id from public.students where id = $1`, [studentId]);
+    if (!studentRows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+    }
+
+    const { rows: existingRows } = await client.query(
+      `select id from public.licence_tracking where student_id = $1`,
+      [studentId],
+    );
+
+    if (existingRows[0]) {
+      const params: unknown[] = [];
+      const setClauses = columns.map(([column, value]) => {
+        params.push(value);
+        return `${column} = $${params.length}`;
+      });
+      params.push(actingUser.id);
+      setClauses.push(`updated_by = $${params.length}`);
+      params.push(studentId);
+      await client.query(
+        `update public.licence_tracking set ${setClauses.join(', ')} where student_id = $${params.length}`,
+        params,
+      );
+    } else {
+      const params: unknown[] = [studentId, actingUser.id];
+      const insertColumns = ['student_id', 'updated_by', ...columns.map(([column]) => column)];
+      const values = columns.map(([, value]) => {
+        params.push(value);
+        return `$${params.length}`;
+      });
+      await client.query(
+        `insert into public.licence_tracking (${insertColumns.join(', ')})
+         values ($1, $2, ${values.join(', ')})`,
+        params,
+      );
+    }
+
+    const { rows } = await client.query(SELECT_LICENCE, [studentId]);
+    return rows[0];
   });
 }
