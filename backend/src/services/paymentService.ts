@@ -277,5 +277,19 @@ export async function getReceiptById(id: string) {
   if (!rows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Receipt not found.');
   }
-  return rows[0];
+
+  const { rows: settingRows } = await pool.query(
+    `select key, value from public.app_settings where key in ('school_name', 'business_phone', 'address', 'currency')`,
+  );
+  const settings = Object.fromEntries(settingRows.map((s) => [s.key, s.value]));
+
+  return {
+    ...rows[0],
+    school: {
+      name: settings.school_name ?? null,
+      phone: settings.business_phone ?? null,
+      address: settings.address ?? null,
+      currency: settings.currency ?? null,
+    },
+  };
 }
