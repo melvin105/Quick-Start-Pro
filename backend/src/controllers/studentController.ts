@@ -42,3 +42,11 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
   const student = await studentService.updateStudent(paramId(req), req.body, actingUser(req));
   res.json(student);
 });
+
+export const updateLicence = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.body || typeof req.body !== 'object') {
+    throw new ApiError(400, 'INVALID_INPUT', 'Request body is required.');
+  }
+  const licence = await studentService.upsertLicence(paramId(req), req.body, actingUser(req));
+  res.json(licence);
+});
