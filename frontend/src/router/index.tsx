@@ -1,15 +1,25 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
+import AppShell from '../components/layout/AppShell'
 import LoginPage from '../pages/LoginPage'
+import DashboardPage from '../pages/DashboardPage'
+import StudentsPage from '../pages/StudentsPage'
+import StudentsLicencesPage from '../pages/StudentsLicencesPage'
+import RegisterStudentPage from '../pages/RegisterStudentPage'
+import RegisterQrPage from '../pages/RegisterQrPage'
+import StudentProfilePage from '../pages/StudentProfilePage'
+import EditStudentPage from '../pages/EditStudentPage'
+import LicenceProgressPage from '../pages/LicenceProgressPage'
+import SchedulingPage from '../pages/SchedulingPage'
+import AttendancePage from '../pages/AttendancePage'
+import PaymentsPage from '../pages/PaymentsPage'
+import RecordsPage from '../pages/RecordsPage'
+import FinancesPage from '../pages/FinancesPage'
+import ReportsPage from '../pages/ReportsPage'
+import StaffPage from '../pages/StaffPage'
+import AuditLogPage from '../pages/AuditLogPage'
+import SettingsPage from '../pages/SettingsPage'
 import { ROLES, ROUTES } from '../lib/constants'
-
-function PageShell({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-      {label} — coming soon
-    </div>
-  )
-}
 
 const router = createBrowserRouter([
   {
@@ -23,18 +33,38 @@ const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
-      { path: ROUTES.DASHBOARD,  element: <PageShell label="Dashboard" /> },
-      { path: ROUTES.SCHEDULING, element: <PageShell label="Scheduling" /> },
-      { path: ROUTES.ATTENDANCE, element: <PageShell label="Attendance" /> },
-      { path: ROUTES.SETTINGS,   element: <PageShell label="Settings" /> },
-    ],
-  },
-  {
-    element: <ProtectedRoute roles={[ROLES.SECRETARY, ROLES.ADMIN]} />,
-    children: [
-      { path: ROUTES.STUDENTS, element: <PageShell label="Students" /> },
-      { path: ROUTES.PAYMENTS, element: <PageShell label="Payments" /> },
-      { path: ROUTES.RECORDS,  element: <PageShell label="Records" /> },
+      {
+        element: <AppShell />,
+        children: [
+          { path: ROUTES.DASHBOARD,  element: <DashboardPage /> },
+          { path: ROUTES.SCHEDULING, element: <SchedulingPage /> },
+          { path: ROUTES.ATTENDANCE, element: <AttendancePage /> },
+          { path: ROUTES.SETTINGS,   element: <SettingsPage /> },
+          {
+            element: <ProtectedRoute roles={[ROLES.SECRETARY, ROLES.ADMIN]} />,
+            children: [
+              { path: ROUTES.STUDENTS,             element: <StudentsPage /> },
+              { path: ROUTES.STUDENTS_LICENCES,     element: <StudentsLicencesPage /> },
+              { path: ROUTES.STUDENTS_REGISTER,     element: <RegisterStudentPage /> },
+              { path: ROUTES.STUDENTS_REGISTER_QR,  element: <RegisterQrPage /> },
+              { path: ROUTES.STUDENT_PROFILE,       element: <StudentProfilePage /> },
+              { path: ROUTES.STUDENT_EDIT,          element: <EditStudentPage /> },
+              { path: ROUTES.STUDENT_LICENCE,       element: <LicenceProgressPage /> },
+              { path: ROUTES.PAYMENTS, element: <PaymentsPage /> },
+              { path: ROUTES.RECORDS,  element: <RecordsPage /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute roles={[ROLES.ADMIN]} />,
+            children: [
+              { path: ROUTES.FINANCES,  element: <FinancesPage /> },
+              { path: ROUTES.REPORTS,   element: <ReportsPage /> },
+              { path: ROUTES.STAFF,     element: <StaffPage /> },
+              { path: ROUTES.AUDIT_LOG, element: <AuditLogPage /> },
+            ],
+          },
+        ],
+      },
     ],
   },
   {

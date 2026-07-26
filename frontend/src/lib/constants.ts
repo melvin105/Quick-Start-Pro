@@ -9,7 +9,7 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES]
 
 export const ROLE_LABELS: Record<Role, string> = {
-  admin:      'Administrator',
+  admin:      'Manager',
   secretary:  'Secretary',
   instructor: 'Instructor',
   student:    'Student',
@@ -24,11 +24,21 @@ export const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => 
 export const ROUTES = {
   LOGIN:      '/login',
   DASHBOARD:  '/dashboard',
-  STUDENTS:   '/students',
+  STUDENTS:          '/students',
+  STUDENTS_LICENCES: '/students/licences',
+  STUDENTS_REGISTER: '/students/register',
+  STUDENTS_REGISTER_QR: '/students/register/qr',
+  STUDENT_PROFILE:   '/students/:id',
+  STUDENT_EDIT:      '/students/:id/edit',
+  STUDENT_LICENCE:   '/students/:id/licence',
   SCHEDULING: '/scheduling',
   ATTENDANCE: '/attendance',
   PAYMENTS:   '/payments',
   RECORDS:    '/records',
+  FINANCES:   '/finances',
+  REPORTS:    '/reports',
+  STAFF:      '/staff',
+  AUDIT_LOG:  '/audit-log',
   SETTINGS:   '/settings',
 } as const
 
