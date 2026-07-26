@@ -49,6 +49,7 @@ const usePaymentsStore = create<PaymentsState>()(
           amount: input.amount,
           method: input.method,
           date: input.date,
+          time: new Date().toTimeString().slice(0, 5),
           notes: input.notes,
           recordedBy: input.recordedBy,
           packageFee: input.packageFee,
