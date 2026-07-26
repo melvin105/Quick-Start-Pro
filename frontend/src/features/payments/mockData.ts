@@ -1,0 +1,46 @@
+import type { PaymentRecord } from './types'
+
+// Dated across the last 7 days; each student's records sum to (packageFee -
+// current balance) on their Student record, so the ledger reconciles.
+export const INITIAL_PAYMENTS: PaymentRecord[] = [
+  {
+    id: 'R-0035', studentId: 'QS-2025-001', studentName: 'John Mensah', programme: 'Driving and Licence',
+    amount: 1500, method: 'Cash', date: '2026-07-20', recordedBy: 'Mercy Osei',
+    packageFee: 3200, totalPaidAfter: 1500, balanceAfter: 1700, status: 'partial',
+  },
+  {
+    id: 'R-0036', studentId: 'QS-2025-003', studentName: 'Kwesi Boateng', programme: 'Manual — Standard (4 weeks)',
+    amount: 2000, method: 'Cash', date: '2026-07-20', recordedBy: 'Mercy Osei',
+    packageFee: 2000, totalPaidAfter: 2000, balanceAfter: 0, status: 'paid',
+  },
+  {
+    id: 'R-0037', studentId: 'QS-2025-002', studentName: 'Mary Owusu', programme: "Learner's Licence Processing",
+    amount: 700, method: 'MoMo', date: '2026-07-21', recordedBy: 'Mercy Osei',
+    packageFee: 1200, totalPaidAfter: 700, balanceAfter: 500, status: 'partial',
+  },
+  {
+    id: 'R-0038', studentId: 'QS-2025-005', studentName: 'Yaw Darko', programme: 'Automatic — Standard (4 weeks)',
+    amount: 2000, method: 'Cash', date: '2026-07-22', recordedBy: 'Mercy Osei',
+    packageFee: 2000, totalPaidAfter: 2000, balanceAfter: 0, status: 'paid',
+  },
+  {
+    id: 'R-0039', studentId: 'QS-2025-004', studentName: 'Ama Asante', programme: 'Automatic + Licence Package',
+    amount: 2000, method: 'Cash', date: '2026-07-23', recordedBy: 'Mercy Osei',
+    packageFee: 3200, totalPaidAfter: 2000, balanceAfter: 1200, status: 'partial',
+  },
+  {
+    id: 'R-0040', studentId: 'QS-2025-006', studentName: 'Akwasi Asenso', programme: 'Manual — Standard (4 weeks)',
+    amount: 2000, method: 'MoMo', date: '2026-07-24', recordedBy: 'Mercy Osei',
+    packageFee: 2000, totalPaidAfter: 2000, balanceAfter: 0, status: 'paid',
+  },
+  {
+    id: 'R-0041', studentId: 'QS-2025-004', studentName: 'Ama Asante', programme: 'Automatic + Licence Package',
+    amount: 1050, method: 'Cash', date: '2026-07-25', recordedBy: 'Mercy Osei',
+    packageFee: 3200, totalPaidAfter: 3050, balanceAfter: 150, status: 'partial',
+  },
+  {
+    id: 'R-0042', studentId: 'QS-2025-001', studentName: 'John Mensah', programme: 'Driving and Licence',
+    amount: 1200, method: 'MoMo', date: '2026-07-26', recordedBy: 'Mercy Osei',
+    packageFee: 3200, totalPaidAfter: 2700, balanceAfter: 500, status: 'partial',
+  },
+]

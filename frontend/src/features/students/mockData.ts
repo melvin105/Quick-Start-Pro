@@ -10,11 +10,6 @@ export const STUDENTS: Student[] = [
     enrolment: 'Driving + Licence', programme: 'Driving and Licence', balance: 500, status: 'outstanding',
     registrationDate: '2025-07-01',
     packageFee: 3200, lessonsPackageTotal: 16, lessonsTaken: 10,
-    payments: [
-      { id: 'R-0041', dateLabel: '15 Jul', amount: 500,  method: 'Cash', balanceAfter: 500 },
-      { id: 'R-0028', dateLabel: '02 Jul', amount: 1200, method: 'MoMo', balanceAfter: 1000 },
-      { id: 'R-0011', dateLabel: '18 Jun', amount: 1000, method: 'Cash', balanceAfter: 2200 },
-    ],
     licenceProgress: {
       eyeTest:        { done: true, dateDone: '2026-06-02' },
       learnerLicence: { issued: true, dateIssued: '2026-06-15', licenceNo: 'GHA-LEARN-00234' },
@@ -30,6 +25,7 @@ export const STUDENTS: Student[] = [
     nextOfKin:        { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
     emergencyContact: { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
     enrolment: 'Licence Only', programme: "Learner's Licence Processing", balance: 500, status: 'outstanding',
+    packageFee: 1200,
   },
   {
     id: 'QS-2025-003', firstName: 'Kwesi', lastName: 'Boateng', name: 'Kwesi Boateng',
@@ -38,6 +34,7 @@ export const STUDENTS: Student[] = [
     nextOfKin:        { name: 'Efua Boateng', relationship: 'Sister', phone: '055 902 9981' },
     emergencyContact: { name: 'Efua Boateng', relationship: 'Sister', phone: '055 902 9981' },
     enrolment: 'Driving Only', programme: 'Manual — Standard (4 weeks)', balance: 0, status: 'active',
+    packageFee: 2000,
   },
   {
     id: 'QS-2025-004', firstName: 'Ama', lastName: 'Asante', name: 'Ama Asante',
@@ -46,6 +43,7 @@ export const STUDENTS: Student[] = [
     nextOfKin:        { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
     emergencyContact: { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
     enrolment: 'Driving + Licence', programme: 'Automatic + Licence Package', balance: 150, status: 'outstanding',
+    packageFee: 3200,
   },
   {
     id: 'QS-2025-005', firstName: 'Yaw', lastName: 'Darko', name: 'Yaw Darko',
@@ -54,6 +52,7 @@ export const STUDENTS: Student[] = [
     nextOfKin:        { name: 'Abena Darko', relationship: 'Wife', phone: '050 214 0099' },
     emergencyContact: { name: 'Abena Darko', relationship: 'Wife', phone: '050 214 0099' },
     enrolment: 'Driving Only', programme: 'Automatic — Standard (4 weeks)', balance: 0, status: 'completed',
+    packageFee: 2000,
   },
   // Seeded so the QR hand-off "simulate submission" demo can trigger the
   // name-based duplicate-detection banner on the Review step.
@@ -64,6 +63,7 @@ export const STUDENTS: Student[] = [
     nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
     emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
     enrolment: 'Driving Only', programme: 'Manual — Standard (4 weeks)', balance: 0, status: 'active',
+    packageFee: 2000,
   },
 ]
 
