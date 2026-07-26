@@ -77,24 +77,31 @@ export async function recordPayment(input: RecordPaymentInput, actingUser: Actin
   }
   assertMethod(method);
 
-  const { rows: balanceRows } = await pool.query(
-    `select balance from public.v_student_balances where id = $1`,
-    [studentId],
-  );
-  if (!balanceRows[0]) {
-    throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
-  }
-  const balance = Number(balanceRows[0].balance);
-  if (amount > balance) {
-    throw new ApiError(
-      400,
-      'EXCEEDS_BALANCE',
-      `Amount cannot exceed the outstanding balance of GHS ${balance.toFixed(2)}.`,
-    );
-  }
-
   try {
     return await withUserContext(actingUser.id, async (client) => {
+      // Lock the student row so two concurrent payments for the same student
+      // can't both read the same balance and both slip past the check below.
+      const { rows: studentRows } = await client.query(
+        `select id from public.students where id = $1 for update`,
+        [studentId],
+      );
+      if (!studentRows[0]) {
+        throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+      }
+
+      const { rows: balanceRows } = await client.query(
+        `select balance from public.v_student_balances where id = $1`,
+        [studentId],
+      );
+      const balance = Number(balanceRows[0].balance);
+      if (amount > balance) {
+        throw new ApiError(
+          400,
+          'EXCEEDS_BALANCE',
+          `Amount cannot exceed the outstanding balance of GHS ${balance.toFixed(2)}.`,
+        );
+      }
+
       const { rows } = await client.query(
         `insert into public.payments (student_id, amount, method, payment_date, recorded_by, notes)
          values ($1, $2, $3, coalesce($4, current_date), $5, $6)

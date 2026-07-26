@@ -94,29 +94,43 @@ export async function scheduleLesson(input: ScheduleLessonInput, actingUser: Act
     }
   }
 
-  // Prevent double-booking: the same instructor (or vehicle) can't have two
-  // overlapping *scheduled* lessons on the same date.
-  const conflictParams: unknown[] = [lessonDate, startTime, endTime, instructorId];
-  const targets = [`ls.instructor_id = $4`];
-  if (vehicleId) {
-    conflictParams.push(vehicleId);
-    targets.push(`ls.vehicle_id = $${conflictParams.length}`);
-  }
-  const { rows: conflictRows } = await pool.query(
-    `select id from public.lesson_schedule ls
-     where ls.lesson_date = $1
-       and ls.status = 'scheduled'
-       and ls.start_time < $3
-       and ls.end_time > $2
-       and (${targets.join(' or ')})
-     limit 1`,
-    conflictParams,
-  );
-  if (conflictRows[0]) {
-    throw new ApiError(409, 'SCHEDULE_CONFLICT', 'Instructor or vehicle is already booked for an overlapping time.');
-  }
-
   return withUserContext(actingUser.id, async (client) => {
+    // Prevent double-booking: the same instructor (or vehicle) can't have two
+    // overlapping *scheduled* lessons on the same date. An advisory lock keyed
+    // on instructor+date (and vehicle+date) serializes concurrent scheduling
+    // attempts for the same resource, so the conflict check below can't be
+    // passed by two requests before either has committed its insert — a plain
+    // row lock can't do this here since there may be no existing row yet to
+    // lock (e.g. the instructor's first lesson of the day).
+    await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [
+      `lesson:instructor:${instructorId}:${lessonDate}`,
+    ]);
+    if (vehicleId) {
+      await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [
+        `lesson:vehicle:${vehicleId}:${lessonDate}`,
+      ]);
+    }
+
+    const conflictParams: unknown[] = [lessonDate, startTime, endTime, instructorId];
+    const targets = [`ls.instructor_id = $4`];
+    if (vehicleId) {
+      conflictParams.push(vehicleId);
+      targets.push(`ls.vehicle_id = $${conflictParams.length}`);
+    }
+    const { rows: conflictRows } = await client.query(
+      `select id from public.lesson_schedule ls
+       where ls.lesson_date = $1
+         and ls.status = 'scheduled'
+         and ls.start_time < $3
+         and ls.end_time > $2
+         and (${targets.join(' or ')})
+       limit 1`,
+      conflictParams,
+    );
+    if (conflictRows[0]) {
+      throw new ApiError(409, 'SCHEDULE_CONFLICT', 'Instructor or vehicle is already booked for an overlapping time.');
+    }
+
     const { rows } = await client.query(
       `insert into public.lesson_schedule
          (student_id, instructor_id, vehicle_id, lesson_date, start_time, end_time, notes)

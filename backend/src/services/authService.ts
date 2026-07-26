@@ -20,21 +20,27 @@ export async function login(role: string, password: string): Promise<LoginResult
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid role or password.');
   }
 
+  // The login UX is role-only (no email/username field), and nothing in the
+  // schema stops more than one active account from sharing a role — so we
+  // can't just take the first active row for this role and check its hash;
+  // we have to check the password against every active account for the role
+  // and accept whichever one it actually matches.
   const { rows } = await pool.query(
     `select id, role, staff_id, password_hash
      from public.users
-     where role = $1 and status = 'active'
-     limit 1`,
+     where role = $1 and status = 'active'`,
     [role],
   );
-  const user = rows[0];
 
-  if (!user || !user.password_hash) {
-    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid role or password.');
+  let user: (typeof rows)[number] | undefined;
+  for (const candidate of rows) {
+    if (candidate.password_hash && (await bcrypt.compare(password, candidate.password_hash))) {
+      user = candidate;
+      break;
+    }
   }
 
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) {
+  if (!user) {
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid role or password.');
   }
 
