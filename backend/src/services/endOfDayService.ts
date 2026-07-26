@@ -22,18 +22,45 @@ function resolveDate(value: unknown): string {
   return value;
 }
 
+// pg returns `numeric` columns as strings (they can exceed float precision),
+// not JS numbers — convert the amount fields before they reach the API
+// response, matching the convention already used in reportService.
+const NUMERIC_FIELDS = ['opening_balance', 'total_income', 'total_expenses', 'closing_balance'] as const;
+function normalizeClosure<T extends Record<string, unknown>>(row: T) {
+  const result: Record<string, unknown> = { ...row };
+  for (const field of NUMERIC_FIELDS) {
+    if (result[field] !== null && result[field] !== undefined) {
+      result[field] = Number(result[field]);
+    }
+  }
+  return result;
+}
+
 // approve_end_of_day() raises a plain exception when there is nothing
 // pending for the given date — translate that into a clean 404.
 function isNoPendingSubmissionError(err: unknown): err is Error {
   return err instanceof Error && /No pending submission found/.test(err.message);
 }
 
+// submit_end_of_day() (migration 14) raises a plain exception when the day
+// is already closed — translate that into a clean 409.
+function isAlreadyClosedError(err: unknown): err is Error {
+  return err instanceof Error && /already been approved and closed/.test(err.message);
+}
+
 export async function submitEndOfDay(dateInput: unknown, actingUser: ActingUser) {
   const date = resolveDate(dateInput);
-  return withUserContext(actingUser.id, async (client) => {
-    const { rows } = await client.query(`select * from public.submit_end_of_day($1)`, [date]);
-    return rows[0];
-  });
+  try {
+    return await withUserContext(actingUser.id, async (client) => {
+      const { rows } = await client.query(`select * from public.submit_end_of_day($1)`, [date]);
+      return normalizeClosure(rows[0]);
+    });
+  } catch (err) {
+    if (isAlreadyClosedError(err)) {
+      throw new ApiError(409, 'DAY_ALREADY_CLOSED', `${date} has already been approved and closed.`);
+    }
+    throw err;
+  }
 }
 
 export async function approveEndOfDay(dateInput: unknown, actingUser: ActingUser) {
@@ -41,7 +68,7 @@ export async function approveEndOfDay(dateInput: unknown, actingUser: ActingUser
   try {
     return await withUserContext(actingUser.id, async (client) => {
       const { rows } = await client.query(`select * from public.approve_end_of_day($1)`, [date]);
-      return rows[0];
+      return normalizeClosure(rows[0]);
     });
   } catch (err) {
     if (isNoPendingSubmissionError(err)) {
@@ -69,5 +96,6 @@ export async function listClosures(query: ListClosuresQuery = {}) {
     `select * from public.daily_closures ${where} order by closure_date desc`,
     params,
   );
-  return rows;
+  return rows.map(normalizeClosure);
 }
+
