@@ -1,5 +1,8 @@
 import { pool } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
+
+const PACKAGE_FIELDS = ['total_fee'] as const;
 
 export interface CreatePackageInput {
   packageName: string;
@@ -39,7 +42,7 @@ export async function listPackages(query: ListPackagesQuery) {
   const { rows } = await pool.query(
     `select * from public.driving_packages ${where} order by package_name`,
   );
-  return rows;
+  return normalizeNumericRows(rows, PACKAGE_FIELDS);
 }
 
 export async function getPackageById(id: string) {
@@ -47,7 +50,7 @@ export async function getPackageById(id: string) {
   if (!rows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Package not found.');
   }
-  return rows[0];
+  return normalizeNumericFields(rows[0], PACKAGE_FIELDS);
 }
 
 export async function createPackage(input: CreatePackageInput) {
@@ -74,7 +77,7 @@ export async function createPackage(input: CreatePackageInput) {
      returning *`,
     [packageName, durationWeeks ?? null, lessonCount, totalFee, isActive ?? true],
   );
-  return rows[0];
+  return normalizeNumericFields(rows[0], PACKAGE_FIELDS);
 }
 
 export async function updatePackage(id: string, input: UpdatePackageInput) {
@@ -121,7 +124,7 @@ export async function updatePackage(id: string, input: UpdatePackageInput) {
   if (!rows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Package not found.');
   }
-  return rows[0];
+  return normalizeNumericFields(rows[0], PACKAGE_FIELDS);
 }
 
 export async function deletePackage(id: string) {

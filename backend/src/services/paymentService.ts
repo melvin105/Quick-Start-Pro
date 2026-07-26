@@ -1,6 +1,12 @@
 import { Pool, PoolClient } from 'pg';
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
+
+const PAYMENT_FIELDS = ['amount'] as const;
+const PAYMENT_ROW_FIELDS = ['amount', 'balance_after'] as const;
+const BALANCE_SUMMARY_FIELDS = ['total_fees', 'total_paid', 'balance'] as const;
+const RECEIPT_FIELDS = ['amount', 'package_fee', 'total_paid', 'balance'] as const;
 
 const PAYMENT_METHODS = ['cash', 'momo', 'bank_transfer', 'cheque'] as const;
 type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -57,7 +63,7 @@ async function fetchPaymentWithReceipt(client: Pool | PoolClient, paymentId: str
      where p.id = $1`,
     [paymentId],
   );
-  return rows[0] ?? null;
+  return rows[0] ? normalizeNumericFields(rows[0], PAYMENT_FIELDS) : null;
 }
 
 export async function recordPayment(input: RecordPaymentInput, actingUser: ActingUser) {
@@ -169,7 +175,7 @@ export async function listPayments(query: ListPaymentsQuery) {
     params,
   );
 
-  return { payments: rows, total, page, limit };
+  return { payments: normalizeNumericRows(rows, PAYMENT_FIELDS), total, page, limit };
 }
 
 export async function getStudentPaymentHistory(studentId: string) {
@@ -182,7 +188,10 @@ export async function getStudentPaymentHistory(studentId: string) {
     `select total_fees, total_paid, balance from public.v_student_balances where id = $1`,
     [studentId],
   );
-  const summary = balanceRows[0] ?? { total_fees: 0, total_paid: 0, balance: 0 };
+  const summary = normalizeNumericFields(
+    balanceRows[0] ?? { total_fees: 0, total_paid: 0, balance: 0 },
+    BALANCE_SUMMARY_FIELDS,
+  );
 
   const { rows } = await pool.query(
     `select
@@ -198,7 +207,7 @@ export async function getStudentPaymentHistory(studentId: string) {
     [studentId, summary.total_fees],
   );
 
-  return { studentId, summary, payments: rows };
+  return { studentId, summary, payments: normalizeNumericRows(rows, PAYMENT_ROW_FIELDS) };
 }
 
 export async function updatePayment(id: string, input: UpdatePaymentInput, actingUser: ActingUser) {
@@ -284,7 +293,7 @@ export async function getReceiptById(id: string) {
   const settings = Object.fromEntries(settingRows.map((s) => [s.key, s.value]));
 
   return {
-    ...rows[0],
+    ...normalizeNumericFields(rows[0], RECEIPT_FIELDS),
     school: {
       name: settings.school_name ?? null,
       phone: settings.business_phone ?? null,
