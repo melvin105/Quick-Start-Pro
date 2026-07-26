@@ -2,7 +2,7 @@ import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
 
 const GENDERS = ['male', 'female'] as const;
-const STUDENT_STATUSES = ['active', 'completed', 'suspended', 'withdrawn'] as const;
+const STUDENT_STATUSES = ['active', 'completed', 'suspended', 'withdrawn', 'archived'] as const;
 const ENROLMENT_TYPES = ['driving_only', 'licence_only', 'driving_and_licence'] as const;
 const EXAM_RESULTS = ['pending', 'passed', 'failed'] as const;
 
