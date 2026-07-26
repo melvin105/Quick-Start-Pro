@@ -24,7 +24,7 @@ export const STUDENTS: Student[] = [
     address: 'Bomso, Kumasi', ghanaCardNumber: 'GHA-000333444',
     nextOfKin:        { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
     emergencyContact: { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
-    enrolment: 'Licence Only', programme: "Learner's Licence Processing", balance: 500, status: 'outstanding',
+    enrolment: 'Licence Only', programme: "Learner's Licence Processing", balance: 0, status: 'active',
     packageFee: 1200,
   },
   {
@@ -42,7 +42,7 @@ export const STUDENTS: Student[] = [
     address: 'Ahodwo, Kumasi', ghanaCardNumber: 'GHA-000777888',
     nextOfKin:        { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
     emergencyContact: { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
-    enrolment: 'Driving + Licence', programme: 'Automatic + Licence Package', balance: 150, status: 'outstanding',
+    enrolment: 'Driving + Licence', programme: 'Automatic + Licence Package', balance: 0, status: 'active',
     packageFee: 3200,
   },
   {

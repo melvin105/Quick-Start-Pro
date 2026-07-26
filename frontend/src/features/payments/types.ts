@@ -9,6 +9,7 @@ export interface PaymentRecord {
   amount:         number
   method:         PaymentMethod
   date:           string
+  time?:          string
   notes?:         string
   recordedBy:     string
   packageFee:     number
