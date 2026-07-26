@@ -4,8 +4,19 @@ import { useAuth } from '../../features/auth/useAuth'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
+const SIDEBAR_COLLAPSED_KEY = 'qsp-sidebar-collapsed'
+
+function readStoredCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export default function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(readStoredCollapsed)
   const location = useLocation()
   const { role } = useAuth()
 
@@ -13,14 +24,26 @@ export default function AppShell() {
     setMobileNavOpen(false)
   }, [location.pathname])
 
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+      } catch {
+        // Storage can be unavailable (private browsing); collapse still works for this session.
+      }
+      return next
+    })
+  }
+
   // ProtectedRoute guarantees a signed-in user by the time AppShell mounts.
   if (!role) return null
 
   return (
     <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-64 shrink-0">
-        <Sidebar role={role} />
+      <aside className={`hidden lg:block shrink-0 transition-[width] duration-200 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
+        <Sidebar role={role} collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       </aside>
 
       {/* Mobile / tablet drawer */}
