@@ -10,5 +10,6 @@ router.post('/', studentController.create);
 router.get('/', studentController.list);
 router.get('/:id', studentController.getById);
 router.patch('/:id', studentController.update);
+router.patch('/:id/licence', studentController.updateLicence);
 
 export default router;

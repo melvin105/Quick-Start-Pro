@@ -4,12 +4,6 @@ import AppShell from '../components/layout/AppShell'
 import LoginPage from '../pages/LoginPage'
 import DashboardPage from '../pages/DashboardPage'
 import StudentsPage from '../pages/StudentsPage'
-import StudentsLicencesPage from '../pages/StudentsLicencesPage'
-import RegisterStudentPage from '../pages/RegisterStudentPage'
-import RegisterQrPage from '../pages/RegisterQrPage'
-import StudentProfilePage from '../pages/StudentProfilePage'
-import EditStudentPage from '../pages/EditStudentPage'
-import LicenceProgressPage from '../pages/LicenceProgressPage'
 import SchedulingPage from '../pages/SchedulingPage'
 import AttendancePage from '../pages/AttendancePage'
 import PaymentsPage from '../pages/PaymentsPage'
@@ -43,13 +37,7 @@ const router = createBrowserRouter([
           {
             element: <ProtectedRoute roles={[ROLES.SECRETARY, ROLES.ADMIN]} />,
             children: [
-              { path: ROUTES.STUDENTS,             element: <StudentsPage /> },
-              { path: ROUTES.STUDENTS_LICENCES,     element: <StudentsLicencesPage /> },
-              { path: ROUTES.STUDENTS_REGISTER,     element: <RegisterStudentPage /> },
-              { path: ROUTES.STUDENTS_REGISTER_QR,  element: <RegisterQrPage /> },
-              { path: ROUTES.STUDENT_PROFILE,       element: <StudentProfilePage /> },
-              { path: ROUTES.STUDENT_EDIT,          element: <EditStudentPage /> },
-              { path: ROUTES.STUDENT_LICENCE,       element: <LicenceProgressPage /> },
+              { path: ROUTES.STUDENTS, element: <StudentsPage /> },
               { path: ROUTES.PAYMENTS, element: <PaymentsPage /> },
               { path: ROUTES.RECORDS,  element: <RecordsPage /> },
             ],
