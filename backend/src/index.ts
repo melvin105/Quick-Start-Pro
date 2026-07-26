@@ -10,6 +10,7 @@ import auditRoutes from './routes/audit';
 import packageRoutes from './routes/packages';
 import reportRoutes from './routes/reports';
 import financeRoutes from './routes/finances';
+import endOfDayRoutes from './routes/endOfDay';
 import leadRoutes from './routes/leads';
 import { ApiError } from './utils/ApiError';
 
@@ -38,6 +39,7 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/packages', packageRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/finances', financeRoutes);
+app.use('/api/v1/end-of-day', endOfDayRoutes);
 app.use('/api/v1/leads', leadRoutes);
 
 app.use((req, res) => {
