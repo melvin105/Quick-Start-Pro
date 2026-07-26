@@ -1,10 +1,17 @@
+import { useMemo } from 'react'
 import type { Student } from '../types'
 import { formatGHS } from '../utils'
+import usePaymentsStore from '../../payments/store'
+import { formatDateDisplay } from '../../payments/utils'
 
 export default function PaymentsTabContent({ student }: { student: Student }) {
   const packageFee = student.packageFee ?? 0
   const totalPaid = packageFee - student.balance
-  const payments = student.payments ?? []
+  const records = usePaymentsStore((s) => s.records)
+  const sorted = useMemo(
+    () => records.filter((r) => r.studentId === student.id).sort((a, b) => b.date.localeCompare(a.date)),
+    [records, student.id],
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,7 +32,7 @@ export default function PaymentsTabContent({ student }: { student: Student }) {
         </div>
       </div>
 
-      {payments.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
           No payments recorded yet.
         </div>
@@ -43,10 +50,10 @@ export default function PaymentsTabContent({ student }: { student: Student }) {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((p) => (
+                {sorted.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 last:border-0">
                     <td className="px-4 py-3 text-[13px] font-medium text-gray-900 whitespace-nowrap">{p.id}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{p.dateLabel}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(p.date)}</td>
                     <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{formatGHS(p.amount)}</td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{p.method}</td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatGHS(p.balanceAfter)}</td>

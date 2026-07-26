@@ -1,8 +1,11 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import type { Student } from '../types'
 import { formatGHS } from '../utils'
 import { ROUTES } from '../../../lib/constants'
+import usePaymentsStore from '../../payments/store'
+import { formatDateDisplay } from '../../payments/utils'
 
 interface PaymentsCardProps {
   student: Student
@@ -10,9 +13,13 @@ interface PaymentsCardProps {
 }
 
 export default function PaymentsCard({ student, onViewReceipts }: PaymentsCardProps) {
+  const records = usePaymentsStore((s) => s.records)
   const packageFee = student.packageFee ?? 0
   const totalPaid = packageFee - student.balance
-  const lastPayment = student.payments?.[0]
+  const lastPayment = useMemo(
+    () => records.filter((r) => r.studentId === student.id).sort((a, b) => b.date.localeCompare(a.date))[0],
+    [records, student.id],
+  )
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-3">
@@ -38,7 +45,7 @@ export default function PaymentsCard({ student, onViewReceipts }: PaymentsCardPr
 
       {lastPayment && (
         <p className="text-[11.5px] text-gray-400">
-          Last payment: {lastPayment.dateLabel} ({formatGHS(lastPayment.amount)})
+          Last payment: {formatDateDisplay(lastPayment.date)} ({formatGHS(lastPayment.amount)})
         </p>
       )}
 

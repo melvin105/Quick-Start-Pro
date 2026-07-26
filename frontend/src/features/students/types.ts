@@ -15,14 +15,6 @@ export interface EmergencyContact {
   relationship: string
 }
 
-export interface PaymentReceipt {
-  id:           string
-  dateLabel:    string
-  amount:       number
-  method:       'Cash' | 'MoMo'
-  balanceAfter: number
-}
-
 // Sequential licence pipeline — each stage unlocks once the previous one is
 // complete; Exam Result additionally waits for the exam date itself to pass.
 export interface LicenceProgress {
@@ -56,7 +48,6 @@ export interface Student {
   packageFee?:         number
   lessonsPackageTotal?: number
   lessonsTaken?:        number
-  payments?:            PaymentReceipt[]
   licenceProgress?:     LicenceProgress
 }
 

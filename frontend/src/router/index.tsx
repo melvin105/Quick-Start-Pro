@@ -15,6 +15,7 @@ import SchedulingPage from '../pages/SchedulingPage'
 import AttendancePage from '../pages/AttendancePage'
 import AttendanceHistoryPage from '../pages/AttendanceHistoryPage'
 import PaymentsPage from '../pages/PaymentsPage'
+import ReceiptPage from '../pages/ReceiptPage'
 import RecordsPage from '../pages/RecordsPage'
 import FinancesPage from '../pages/FinancesPage'
 import ReportsPage from '../pages/ReportsPage'
@@ -40,6 +41,8 @@ const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      // Printable receipt — auth required, but no sidebar/topbar chrome.
+      { path: ROUTES.PAYMENT_RECEIPT, element: <ReceiptPage /> },
       {
         element: <AppShell />,
         children: [
