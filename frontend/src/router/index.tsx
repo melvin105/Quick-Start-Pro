@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 import AppShell from '../components/layout/AppShell'
 import LoginPage from '../pages/LoginPage'
+import CheckInPage from '../pages/CheckInPage'
 import DashboardPage from '../pages/DashboardPage'
 import StudentsPage from '../pages/StudentsPage'
 import StudentsLicencesPage from '../pages/StudentsLicencesPage'
@@ -12,6 +13,7 @@ import EditStudentPage from '../pages/EditStudentPage'
 import LicenceProgressPage from '../pages/LicenceProgressPage'
 import SchedulingPage from '../pages/SchedulingPage'
 import AttendancePage from '../pages/AttendancePage'
+import AttendanceHistoryPage from '../pages/AttendanceHistoryPage'
 import PaymentsPage from '../pages/PaymentsPage'
 import RecordsPage from '../pages/RecordsPage'
 import FinancesPage from '../pages/FinancesPage'
@@ -27,6 +29,11 @@ const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
+    // Public, unauthenticated student self check-in — no AppShell/sidebar.
+    path: ROUTES.CHECK_IN,
+    element: <CheckInPage />,
+  },
+  {
     path: '/',
     element: <Navigate to={ROUTES.DASHBOARD} replace />,
   },
@@ -39,6 +46,7 @@ const router = createBrowserRouter([
           { path: ROUTES.DASHBOARD,  element: <DashboardPage /> },
           { path: ROUTES.SCHEDULING, element: <SchedulingPage /> },
           { path: ROUTES.ATTENDANCE, element: <AttendancePage /> },
+          { path: ROUTES.ATTENDANCE_HISTORY, element: <AttendanceHistoryPage /> },
           { path: ROUTES.SETTINGS,   element: <SettingsPage /> },
           {
             element: <ProtectedRoute roles={[ROLES.SECRETARY, ROLES.ADMIN]} />,

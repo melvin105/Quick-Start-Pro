@@ -1,2 +1,11 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
+
+/* Keeps a container scrollable while hiding the visible scrollbar track. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
