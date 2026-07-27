@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useAuthStore from '../../store/authStore'
-import type { User } from '../../services/authService'
+import useAuthStore from './authStore'
+import type { User } from './authService'
 import { ROLE_HOME, type Role } from '../../lib/constants'
 
 interface LoginParams {

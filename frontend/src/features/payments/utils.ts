@@ -27,6 +27,7 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Payments is a secretary-only feature — no role-prefixed variant needed.
 export function paymentReceiptPath(id: string) {
-  return `/payments/${id}/receipt`
+  return `/secretary/payments/${id}/receipt`
 }

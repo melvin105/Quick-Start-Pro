@@ -1,5 +1,5 @@
 import { CheckCircle2 } from 'lucide-react'
-import { formatTodayLong } from '../utils'
+import { formatTodayLong } from '../shared/utils'
 
 interface ConfirmedScreenProps {
   studentName: string
