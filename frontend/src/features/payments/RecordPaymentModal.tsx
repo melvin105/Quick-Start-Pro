@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import useStudentsStore from '../students/store'
+import useStudentsStore from '../students/shared/store'
 import usePaymentsStore from './store'
 import { formatGHS, todayIso } from './utils'
 import type { PaymentMethod, PaymentRecord } from './types'

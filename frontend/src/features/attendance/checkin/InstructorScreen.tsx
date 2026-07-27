@@ -1,4 +1,4 @@
-import { INSTRUCTORS } from '../mockData'
+import { INSTRUCTORS } from '../shared/mockData'
 
 interface InstructorScreenProps {
   onSelect: (name: string) => void

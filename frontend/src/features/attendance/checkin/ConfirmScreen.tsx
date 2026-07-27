@@ -1,5 +1,5 @@
-import { getInitials } from '../utils'
-import type { Student } from '../../students/types'
+import { getInitials } from '../shared/utils'
+import type { Student } from '../../students/shared/types'
 
 interface ConfirmScreenProps {
   student: Student

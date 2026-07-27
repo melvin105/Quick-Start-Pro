@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import useAuthStore from '../store/authStore'
+import useAuthStore from '../features/auth/authStore'
 import { ROUTES, type Role } from '../lib/constants'
 
 interface ProtectedRouteProps {

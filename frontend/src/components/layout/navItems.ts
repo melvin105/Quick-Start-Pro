@@ -21,22 +21,27 @@ export interface NavItem {
   roles?: Role[]
 }
 
-// Scrollable main navigation. Manager-only routes are appended inline
-// (no section header) and filtered per role in the sidebar.
-export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',  to: ROUTES.DASHBOARD,  icon: LayoutDashboard },
-  { label: 'Students',   to: ROUTES.STUDENTS,   icon: Users },
-  { label: 'Scheduling', to: ROUTES.SCHEDULING, icon: CalendarClock },
-  { label: 'Attendance', to: ROUTES.ATTENDANCE, icon: ClipboardCheck },
-  { label: 'Payments',   to: ROUTES.PAYMENTS,   icon: CreditCard },
-  { label: 'Records',    to: ROUTES.RECORDS,    icon: FileText },
-  { label: 'Finances',   to: ROUTES.FINANCES,   icon: Wallet,    roles: [ROLES.ADMIN] },
-  { label: 'Reports',    to: ROUTES.REPORTS,    icon: BarChart3, roles: [ROLES.ADMIN] },
-  { label: 'Staff',      to: ROUTES.STAFF,      icon: UserCog,   roles: [ROLES.ADMIN] },
-  { label: 'Audit Log',  to: ROUTES.AUDIT_LOG,  icon: History,   roles: [ROLES.ADMIN] },
-]
+// ROUTES.X below resolves to the currently signed-in user's role-prefixed
+// path, so this must be built fresh per render (via a function) rather than
+// as a static module-level array — otherwise it would freeze whatever path
+// was current at first import, before login.
+export function getNavItems(role: Role): NavItem[] {
+  const items: NavItem[] = [
+    { label: 'Dashboard',  to: ROUTES.DASHBOARD,  icon: LayoutDashboard },
+    { label: 'Students',   to: ROUTES.STUDENTS,   icon: Users },
+    { label: 'Scheduling', to: ROUTES.SCHEDULING, icon: CalendarClock },
+    { label: 'Attendance', to: ROUTES.ATTENDANCE, icon: ClipboardCheck },
+    { label: 'Payments',   to: ROUTES.PAYMENTS,   icon: CreditCard, roles: [ROLES.SECRETARY] },
+    { label: 'Records',    to: ROUTES.RECORDS,    icon: FileText },
+    { label: 'Finances',   to: ROUTES.FINANCES,   icon: Wallet,    roles: [ROLES.ADMIN] },
+    { label: 'Reports',    to: ROUTES.REPORTS,    icon: BarChart3, roles: [ROLES.ADMIN] },
+    { label: 'Staff',      to: ROUTES.STAFF,      icon: UserCog,   roles: [ROLES.ADMIN] },
+    { label: 'Audit Log',  to: ROUTES.AUDIT_LOG,  icon: History,   roles: [ROLES.ADMIN] },
+  ]
+  return items.filter((item) => !item.roles || item.roles.includes(role))
+}
 
-// Pinned to the bottom of the sidebar, below the scrollable nav.
+// Pinned to the bottom of the sidebar, below the scrollable nav. Manager-only.
 export const SETTINGS_ITEM: NavItem = {
   label: 'Settings',
   to:    ROUTES.SETTINGS,

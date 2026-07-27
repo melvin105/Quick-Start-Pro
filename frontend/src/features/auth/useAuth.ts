@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import useAuthStore from '../../store/authStore'
+import useAuthStore from './authStore'
 import { ROUTES } from '../../lib/constants'
 
 export function useAuth() {

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { PaymentMethod, PaymentRecord } from './types'
 import { INITIAL_PAYMENTS } from './mockData'
-import useStudentsStore from '../students/store'
+import useStudentsStore from '../students/shared/store'
 
 interface RecordPaymentInput {
   studentId:   string

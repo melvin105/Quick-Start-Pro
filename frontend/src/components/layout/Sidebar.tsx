@@ -1,8 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { Car, LogOut, ChevronsLeft, ChevronsRight } from 'lucide-react'
-import { NAV_ITEMS, SETTINGS_ITEM } from './navItems'
+import { getNavItems, SETTINGS_ITEM } from './navItems'
 import { useAuth } from '../../features/auth/useAuth'
-import type { Role } from '../../lib/constants'
+import { ROLES, type Role } from '../../lib/constants'
 
 interface SidebarProps {
   role: Role
@@ -23,7 +23,7 @@ function navLinkClasses({ isActive }: { isActive: boolean }, collapsed: boolean)
 
 export default function Sidebar({ role, onNavigate, collapsed = false, onToggleCollapse }: SidebarProps) {
   const { logout } = useAuth()
-  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
+  const items = getNavItems(role)
 
   return (
     <div className="flex h-full flex-col bg-white border-r border-gray-200">
@@ -67,15 +67,17 @@ export default function Sidebar({ role, onNavigate, collapsed = false, onToggleC
             {!collapsed && 'Collapse'}
           </button>
         )}
-        <NavLink
-          to={SETTINGS_ITEM.to}
-          onClick={onNavigate}
-          title={collapsed ? SETTINGS_ITEM.label : undefined}
-          className={(state) => navLinkClasses(state, collapsed)}
-        >
-          <SETTINGS_ITEM.icon size={17} className="shrink-0" />
-          {!collapsed && SETTINGS_ITEM.label}
-        </NavLink>
+        {role === ROLES.ADMIN && (
+          <NavLink
+            to={SETTINGS_ITEM.to}
+            onClick={onNavigate}
+            title={collapsed ? SETTINGS_ITEM.label : undefined}
+            className={(state) => navLinkClasses(state, collapsed)}
+          >
+            <SETTINGS_ITEM.icon size={17} className="shrink-0" />
+            {!collapsed && SETTINGS_ITEM.label}
+          </NavLink>
+        )}
         <button
           type="button"
           onClick={logout}
