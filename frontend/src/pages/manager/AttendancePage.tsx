@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Plus } from 'lucide-react'
 import useAttendanceStore from '../../features/attendance/shared/store'
-import AttendanceTable from '../../features/attendance/shared/AttendanceTable'
-import AttendanceCardList from '../../features/attendance/shared/AttendanceCardList'
-import UnscheduledArrivals from '../../features/attendance/secretary/UnscheduledArrivals'
-import QrCodePanel from '../../features/attendance/secretary/QrCodePanel'
-import ManualMarkModal from '../../features/attendance/secretary/ManualMarkModal'
+import ManagerAttendanceTable from '../../features/attendance/manager/ManagerAttendanceTable'
+import ManagerAttendanceCardList from '../../features/attendance/manager/ManagerAttendanceCardList'
+import ManagerUnscheduledArrivals from '../../features/attendance/manager/ManagerUnscheduledArrivals'
+import AttendanceSummaryRow from '../../features/attendance/manager/AttendanceSummaryRow'
 import { formatTodayLong } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
 
@@ -18,9 +16,6 @@ export default function AttendancePage() {
   const simulateSelfCheckIn = useAttendanceStore((s) => s.simulateSelfCheckIn)
   const lastLiveUpdateAt = useAttendanceStore((s) => s.lastLiveUpdateAt)
 
-  const [showQr, setShowQr] = useState(false)
-  const [showManualMark, setShowManualMark] = useState(false)
-  const [showWalkIn, setShowWalkIn] = useState(false)
   const [pulse, setPulse] = useState(false)
 
   // Stand-in for a real-time feed: poll for newly self-checked-in students.
@@ -61,31 +56,15 @@ export default function AttendancePage() {
           >
             History
           </Link>
-          <button
-            type="button"
-            onClick={() => setShowQr(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Camera size={15} /> Show QR Code
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowManualMark(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
-          >
-            <Plus size={15} /> Mark Manually
-          </button>
         </div>
       </div>
 
-      <AttendanceTable records={scheduled} />
-      <AttendanceCardList records={scheduled} />
+      <AttendanceSummaryRow records={records} totalExpected={scheduled.length} />
 
-      <UnscheduledArrivals records={unscheduled} onAddWalkIn={() => setShowWalkIn(true)} />
+      <ManagerAttendanceTable records={scheduled} />
+      <ManagerAttendanceCardList records={scheduled} />
 
-      {showQr && <QrCodePanel onClose={() => setShowQr(false)} />}
-      {showManualMark && <ManualMarkModal onClose={() => setShowManualMark(false)} />}
-      {showWalkIn && <ManualMarkModal title="Add Walk-In" onClose={() => setShowWalkIn(false)} />}
+      <ManagerUnscheduledArrivals records={unscheduled} />
     </div>
   )
 }

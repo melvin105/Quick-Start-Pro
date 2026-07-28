@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import type { Student } from '../shared/types'
-import StatusBadge from '../shared/StatusBadge'
-import { getInitials, formatGHS, studentProfilePath } from '../shared/utils'
+import type { Student } from './types'
+import StatusBadge from './StatusBadge'
+import { getInitials, formatGHS, studentProfilePath } from './utils'
 
 interface StudentCardListProps {
   students: Student[]

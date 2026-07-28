@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
 import { DEFAULT_LICENCE_PROGRESS, buildLicenceSteps, type LicenceStepKey } from '../../features/students/shared/licence'
-import FilterDropdown from '../../features/students/secretary/FilterDropdown'
+import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import { formatDateShort, studentProfilePath, studentLicencePath } from '../../features/students/shared/utils'
 import type { EnrolmentType } from '../../features/students/shared/types'
 

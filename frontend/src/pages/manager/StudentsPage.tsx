@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { QrCode, Plus, Search, Filter, GraduationCap } from 'lucide-react'
+import { Search, Filter } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
-import StudentsTable from '../../features/students/secretary/StudentsTable'
-import StudentCardList from '../../features/students/secretary/StudentCardList'
-import PendingSubmissions from '../../features/students/secretary/PendingSubmissions'
-import FilterDropdown from '../../features/students/secretary/FilterDropdown'
-import { ROUTES } from '../../lib/constants'
+import ManagerStudentsTable from '../../features/students/manager/ManagerStudentsTable'
+import StudentCardList from '../../features/students/shared/StudentCardList'
+import ManagerLicencesTable from '../../features/students/manager/ManagerLicencesTable'
+import ManagerPendingList from '../../features/students/manager/ManagerPendingList'
+import FilterDropdown from '../../features/students/shared/FilterDropdown'
 
-type TabKey = 'active' | 'pending' | 'archived'
+type TabKey = 'active' | 'pending' | 'licences' | 'archived'
 
 const ENROLMENT_OPTIONS = [
   { value: '', label: 'Enrolment' },
@@ -25,7 +24,6 @@ const STATUS_OPTIONS = [
 ]
 
 export default function StudentsPage() {
-  const navigate = useNavigate()
   const students = useStudentsStore((s) => s.students)
   const pending = useStudentsStore((s) => s.pending)
 
@@ -45,53 +43,23 @@ export default function StudentsPage() {
     })
   }, [students, search, enrolmentFilter, statusFilter])
 
+  const licenceEligible = useMemo(
+    () => students.filter((s) => s.enrolment !== 'Driving Only'),
+    [students],
+  )
+
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning' }[] = [
-    { key: 'active',   label: 'Active',   count: students.length },
-    { key: 'pending',  label: 'Pending',  count: pending.length, tone: 'warning' },
-    { key: 'archived', label: 'Archived' },
+    { key: 'active',    label: 'Active',    count: students.length },
+    { key: 'pending',   label: 'Pending',   count: pending.length, tone: 'warning' },
+    { key: 'licences',  label: 'Licences',  count: licenceEligible.length },
+    { key: 'archived',  label: 'Archived' },
   ]
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <p className="text-[12px] text-gray-500">Dashboard / Students</p>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Students</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              to={ROUTES.STUDENTS_LICENCES}
-              aria-label="Students — Licences"
-              title="Students — Licences"
-              className="flex items-center justify-center w-9 h-9 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <GraduationCap size={16} />
-            </Link>
-            <button
-              type="button"
-              className="hidden sm:flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 hover:bg-brand-800 rounded-lg transition-colors"
-            >
-              <QrCode size={15} />
-              Export QR Code
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.STUDENTS_REGISTER)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
-            >
-              <Plus size={15} />
-              <span className="sm:hidden">Register</span>
-              <span className="hidden sm:inline">Register Student</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen((p) => !p)}
-              className="sm:hidden flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg"
-            >
-              <Filter size={14} />
-              Filter
-            </button>
-          </div>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Students</h1>
       </div>
 
       {/* Tabs */}
@@ -135,6 +103,14 @@ export default function StudentsPage() {
                   focus:outline-none focus:border-brand-600/40 focus:ring-2 focus:ring-brand-600/10 transition-colors"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen((p) => !p)}
+              className="sm:hidden flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg"
+            >
+              <Filter size={14} />
+              Filter
+            </button>
             <div
               className={`${mobileFiltersOpen ? 'flex flex-col items-stretch' : 'hidden'} gap-2 sm:flex sm:flex-row sm:items-center`}
             >
@@ -143,7 +119,7 @@ export default function StudentsPage() {
             </div>
           </div>
 
-          <StudentsTable students={filteredStudents} />
+          <ManagerStudentsTable students={filteredStudents} />
           <StudentCardList students={filteredStudents} />
 
           <p className="text-[12.5px] text-gray-500">
@@ -152,7 +128,9 @@ export default function StudentsPage() {
         </>
       )}
 
-      {tab === 'pending' && <PendingSubmissions items={pending} />}
+      {tab === 'pending' && <ManagerPendingList items={pending} />}
+
+      {tab === 'licences' && <ManagerLicencesTable students={licenceEligible} />}
 
       {tab === 'archived' && (
         <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
