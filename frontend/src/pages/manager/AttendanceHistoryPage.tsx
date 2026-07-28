@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Search } from 'lucide-react'
+import { ArrowLeft, Search, Download } from 'lucide-react'
 import useAttendanceStore from '../../features/attendance/shared/store'
 import { HISTORICAL_ATTENDANCE, INSTRUCTORS } from '../../features/attendance/shared/mockData'
-import Dropdown from '../../features/attendance/secretary/Dropdown'
+import Dropdown from '../../features/attendance/shared/Dropdown'
 import StatusBadge from '../../features/attendance/shared/StatusBadge'
 import SourceBadge from '../../features/attendance/shared/SourceBadge'
 import { formatDateDisplay } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
+import type { AttendanceRecord } from '../../features/attendance/shared/types'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Status' },
@@ -21,6 +22,32 @@ const RANGE_OPTIONS = [
   { value: '30',  label: 'Last 30 days' },
   { value: 'all', label: 'All time' },
 ]
+
+function csvEscape(value: string) {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+}
+
+function exportCsv(records: AttendanceRecord[]) {
+  const header = ['Date', 'Student', 'Time', 'Driver', 'Lessons Left', 'Source', 'Status']
+  const lines = records.map((r) => [
+    formatDateDisplay(r.date),
+    r.studentName,
+    r.checkInTime ?? '',
+    r.driverName ?? '',
+    String(r.lessonsLeft),
+    r.source ?? '',
+    r.status ?? 'unmarked',
+  ].map(csvEscape).join(','))
+
+  const csv = [header.join(','), ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'attendance-history.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 export default function AttendanceHistoryPage() {
   const todayRecords = useAttendanceStore((s) => s.records)
@@ -92,6 +119,13 @@ export default function AttendanceHistoryPage() {
           <Dropdown label="Date Range" value={range} options={RANGE_OPTIONS} onChange={setRange} />
           <Dropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
         </div>
+        <button
+          type="button"
+          onClick={() => exportCsv(filtered)}
+          className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 hover:bg-brand-800 rounded-lg transition-colors sm:ml-auto"
+        >
+          <Download size={15} /> Export CSV
+        </button>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">

@@ -1,16 +1,21 @@
 import { useState } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
+import { useParams, useSearchParams, Navigate } from 'react-router-dom'
 import useStudentsStore from '../../features/students/shared/store'
-import ProfileHeader from '../../features/students/shared/profile/ProfileHeader'
-import SummaryCards from '../../features/students/shared/profile/SummaryCards'
-import ProfileTabs, { type ProfileTabKey } from '../../features/students/shared/profile/ProfileTabs'
+import ManagerProfileHeader from '../../features/students/manager/ManagerProfileHeader'
+import ManagerSummaryCards from '../../features/students/manager/ManagerSummaryCards'
+import ManagerProfileTabs, { type ManagerProfileTabKey } from '../../features/students/manager/ManagerProfileTabs'
 import NotesCard from '../../features/students/shared/profile/NotesCard'
 import { ROUTES } from '../../lib/constants'
 
+const VALID_TABS: ManagerProfileTabKey[] = ['overview', 'payments', 'lessons', 'attendance', 'licence', 'activity']
+
 export default function StudentProfilePage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const student = useStudentsStore((s) => s.students.find((st) => st.id === id))
-  const [tab, setTab] = useState<ProfileTabKey>('overview')
+
+  const initialTab = VALID_TABS.find((t) => t === searchParams.get('tab')) ?? 'overview'
+  const [tab, setTab] = useState<ManagerProfileTabKey>(initialTab)
 
   if (!student) {
     return <Navigate to={ROUTES.STUDENTS} replace />
@@ -18,9 +23,9 @@ export default function StudentProfilePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileHeader student={student} />
-      <SummaryCards student={student} onViewReceipts={() => setTab('payments')} />
-      <ProfileTabs student={student} tab={tab} onTabChange={setTab} />
+      <ManagerProfileHeader student={student} />
+      <ManagerSummaryCards student={student} onViewReceipts={() => setTab('payments')} />
+      <ManagerProfileTabs student={student} tab={tab} onTabChange={setTab} />
       <NotesCard student={student} />
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import useSchedulingStore from '../../features/scheduling/shared/store'
-import { useBreakpoint } from '../../features/scheduling/secretary/useBreakpoint'
+import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
 import { DAY_FULL, getTodayColumn, slotKey } from '../../features/scheduling/shared/utils'
 import ScheduleGrid from '../../features/scheduling/shared/ScheduleGrid'
 import DayScheduleList from '../../features/scheduling/secretary/DayScheduleList'
