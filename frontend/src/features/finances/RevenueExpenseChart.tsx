@@ -9,10 +9,7 @@ import {
 } from 'recharts'
 import type { TooltipContentProps } from 'recharts/types/component/Tooltip'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
-
-const MONTHS = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
-const REVENUE  = [12400, 13800, 15200, 16100, 17300, 18200]
-const EXPENSES = [7200, 7600, 8100, 8400, 8900, 9580]
+import { MONTHLY_FINANCE } from './mockData'
 
 // Validated with the dataviz palette validator (light mode): passes lightness,
 // chroma, and CVD-separation checks for a 2-series categorical pair. The
@@ -21,11 +18,7 @@ const EXPENSES = [7200, 7600, 8100, 8400, 8900, 9580]
 const REVENUE_COLOR = '#4D78C8'
 const EXPENSE_COLOR = '#F39C12'
 
-const data = MONTHS.map((month, i) => ({
-  month,
-  revenue:  REVENUE[i],
-  expenses: EXPENSES[i],
-}))
+const data = MONTHLY_FINANCE.map((m) => ({ month: m.month, revenue: m.revenue, expenses: m.expenses }))
 
 function formatGHS(value: number) {
   return `GHS ${value.toLocaleString()}`
