@@ -12,7 +12,10 @@ import AttendanceHistoryPage from '../pages/manager/AttendanceHistoryPage'
 import RecordsPage from '../pages/manager/RecordsPage'
 import FinancesPage from '../pages/manager/FinancesPage'
 import ReportsPage from '../pages/manager/ReportsPage'
+import DriverReportPage from '../pages/manager/reports/DriverReportPage'
+import ReportPlaceholderPage from '../features/reports/ReportPlaceholderPage'
 import StaffPage from '../pages/manager/StaffPage'
+import StaffProfilePage from '../pages/manager/StaffProfilePage'
 import AuditLogPage from '../pages/manager/AuditLogPage'
 import SettingsPage from '../pages/manager/SettingsPage'
 
@@ -34,7 +37,14 @@ const managerRoutes: RouteObject = {
         { path: 'records', element: <RecordsPage /> },
         { path: 'finances', element: <FinancesPage /> },
         { path: 'reports', element: <ReportsPage /> },
+        { path: 'reports/driver', element: <DriverReportPage /> },
+        { path: 'reports/students', element: <ReportPlaceholderPage title="Student Reports" /> },
+        { path: 'reports/attendance', element: <ReportPlaceholderPage title="Attendance Reports" /> },
+        { path: 'reports/revenue', element: <ReportPlaceholderPage title="Revenue Reports" /> },
+        { path: 'reports/expenses', element: <ReportPlaceholderPage title="Expense Reports" /> },
+        { path: 'reports/schedule', element: <ReportPlaceholderPage title="Schedule Reports" /> },
         { path: 'staff', element: <StaffPage /> },
+        { path: 'staff/:id', element: <StaffProfilePage /> },
         { path: 'audit-log', element: <AuditLogPage /> },
         { path: 'settings', element: <SettingsPage /> },
       ],

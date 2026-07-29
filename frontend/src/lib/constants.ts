@@ -57,11 +57,16 @@ export const ROUTES = {
   get RECORDS()    { return `${currentBase()}/records` },
 
   // Manager-only screens — no secretary equivalent exists.
-  FINANCES:  '/manager/finances',
-  REPORTS:   '/manager/reports',
-  STAFF:     '/manager/staff',
-  AUDIT_LOG: '/manager/audit-log',
-  SETTINGS:  '/manager/settings',
+  FINANCES:       '/manager/finances',
+  REPORTS:        '/manager/reports',
+  REPORTS_DRIVER: '/manager/reports/driver',
+  STAFF:          '/manager/staff',
+  AUDIT_LOG:      '/manager/audit-log',
+  SETTINGS:       '/manager/settings',
+}
+
+export function staffProfilePath(id: string) {
+  return `/manager/staff/${id}`
 }
 
 // ─── Role → default redirect after login ──────────────────────────────────────
