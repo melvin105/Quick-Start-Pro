@@ -2,21 +2,23 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import useStudentsStore from '../students/shared/store'
 import usePaymentsStore from './store'
+import DatePicker from '../../components/ui/DatePicker'
 import { formatGHS, todayIso } from './utils'
 import type { PaymentMethod, PaymentRecord } from './types'
 
 interface RecordPaymentModalProps {
   onClose: () => void
   onRecorded: (record: PaymentRecord) => void
+  initialStudentId?: string
 }
 
-export default function RecordPaymentModal({ onClose, onRecorded }: RecordPaymentModalProps) {
+export default function RecordPaymentModal({ onClose, onRecorded, initialStudentId }: RecordPaymentModalProps) {
   const students = useStudentsStore((s) => s.students)
   const recordPayment = usePaymentsStore((s) => s.recordPayment)
   const nextReceiptNo = usePaymentsStore((s) => s.nextReceiptNo)
 
   const [query, setQuery] = useState('')
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId ?? null)
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('Cash')
   const [date, setDate] = useState(todayIso())
@@ -174,12 +176,7 @@ export default function RecordPaymentModal({ onClose, onRecorded }: RecordPaymen
                 <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
                   Date <span className="text-danger">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                />
+                <DatePicker value={date} onChange={setDate} maxDate={todayIso()} className="w-full" />
               </div>
 
               <div>

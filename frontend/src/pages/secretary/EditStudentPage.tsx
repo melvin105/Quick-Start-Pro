@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { ArrowLeft } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
+import usePackagesStore from '../../features/settings/packagesStore'
+import { deriveEnrolment } from '../../features/settings/enrolment'
 import { detailsSchema, type DetailsFormValues } from '../../features/students/secretary/registration/schema'
 import PersonalDetailsSection from '../../features/students/secretary/registration/PersonalDetailsSection'
 import NextOfKinSection from '../../features/students/secretary/registration/NextOfKinSection'
@@ -16,6 +18,7 @@ export default function EditStudentPage() {
   const navigate = useNavigate()
   const student = useStudentsStore((s) => s.students.find((st) => st.id === id))
   const updateStudent = useStudentsStore((s) => s.updateStudent)
+  const packages = usePackagesStore((s) => s.packages)
 
   const {
     register, control, handleSubmit, watch, setValue, formState: { errors },
@@ -26,22 +29,22 @@ export default function EditStudentPage() {
           firstName: student.firstName,
           lastName:  student.lastName,
           dob:       student.dob,
-          gender:    student.gender,
+          gender:    student.gender === 'other' ? 'male' : student.gender,
           phone:     student.phone,
           email:     student.email ?? '',
           address:   student.address ?? '',
-          ghanaCardNumber: student.ghanaCardNumber ?? '',
+          passportPhoto: student.photo ?? '',
+          idCardType:   student.idCardType ?? '',
+          idCardNumber: student.idCardNumber ?? '',
           nokName:         student.nextOfKin.name,
           nokRelationship: student.nextOfKin.relationship,
           nokPhone:        student.nextOfKin.phone,
-          nokAddress:      student.nextOfKin.address ?? '',
+          nokEmail:        student.nextOfKin.email ?? '',
           sameAsNok: false,
           ecName:         student.emergencyContact.name,
           ecPhone:        student.emergencyContact.phone,
           ecRelationship: student.emergencyContact.relationship,
-          enrolment:    student.enrolment,
           programme:    student.programme ?? '',
-          assignedSlot: student.assignedSlot ?? '',
           notes:        student.notes ?? '',
         }
       : undefined,
@@ -52,6 +55,7 @@ export default function EditStudentPage() {
   }
 
   const onSave = handleSubmit((values) => {
+    const matchedPackage = packages.find((p) => p.name === values.programme)
     updateStudent(student.id, {
       firstName: values.firstName,
       lastName:  values.lastName,
@@ -61,22 +65,24 @@ export default function EditStudentPage() {
       phone:     values.phone,
       email:     values.email || undefined,
       address:   values.address || undefined,
-      ghanaCardNumber: values.ghanaCardNumber || undefined,
+      photo:        values.passportPhoto || undefined,
+      idCardType:   (values.idCardType as typeof student.idCardType) || undefined,
+      idCardNumber: values.idCardNumber || undefined,
       nextOfKin: {
         name: values.nokName,
         relationship: values.nokRelationship,
         phone: values.nokPhone,
-        address: values.nokAddress || undefined,
+        email: values.nokEmail || undefined,
       },
       emergencyContact: {
         name: values.ecName,
         phone: values.ecPhone,
         relationship: values.ecRelationship,
       },
-      enrolment:    values.enrolment,
+      enrolment:    deriveEnrolment(values.programme),
       programme:    values.programme,
-      assignedSlot: values.assignedSlot || undefined,
       notes:        values.notes || undefined,
+      packageFee: matchedPackage?.price ?? student.packageFee,
     })
     navigate(studentProfilePath(student.id))
   })

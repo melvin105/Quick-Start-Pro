@@ -6,6 +6,7 @@ import FilterDropdown from '../../../features/students/shared/FilterDropdown'
 import useAttendanceStore from '../../../features/attendance/shared/store'
 import { HISTORICAL_ATTENDANCE } from '../../../features/attendance/shared/mockData'
 import { computePeriodRange } from '../../../features/finances/period'
+import DatePicker from '../../../components/ui/DatePicker'
 import { ROUTES } from '../../../lib/constants'
 
 const INSTRUCTOR_OPTIONS = [
@@ -98,23 +99,11 @@ export default function DriverReportPage() {
       <div className="flex items-end gap-3 flex-wrap">
         <div>
           <label className="block text-[12px] font-medium text-gray-700 mb-1">From</label>
-          <input
-            type="date"
-            value={fromDraft}
-            max={toDraft}
-            onChange={(e) => setFromDraft(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-          />
+          <DatePicker value={fromDraft} onChange={setFromDraft} maxDate={toDraft} />
         </div>
         <div>
           <label className="block text-[12px] font-medium text-gray-700 mb-1">To</label>
-          <input
-            type="date"
-            value={toDraft}
-            min={fromDraft}
-            onChange={(e) => setToDraft(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-          />
+          <DatePicker value={toDraft} onChange={setToDraft} minDate={fromDraft} />
         </div>
         <FilterDropdown label="All Instructors" value={instructorDraft} options={INSTRUCTOR_OPTIONS} onChange={setInstructorDraft} />
         <button

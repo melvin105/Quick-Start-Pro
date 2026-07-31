@@ -5,20 +5,18 @@ import type { CoursePackage } from './types'
 interface PackageModalProps {
   editing?: CoursePackage
   onClose:  () => void
-  onSave:   (input: { name: string; lessons: number; price: number; status: 'active' | 'inactive' }) => void
+  onSave:   (input: { name: string; price: number }) => void
 }
 
 export default function PackageModal({ editing, onClose, onSave }: PackageModalProps) {
   const [name, setName] = useState(editing?.name ?? '')
-  const [lessons, setLessons] = useState(String(editing?.lessons ?? ''))
   const [price, setPrice] = useState(String(editing?.price ?? ''))
-  const [status, setStatus] = useState<'active' | 'inactive'>(editing?.status ?? 'active')
 
-  const canSave = name.trim() !== '' && Number(lessons) > 0 && Number(price) > 0
+  const canSave = name.trim() !== '' && Number(price) > 0
 
   const handleSave = () => {
     if (!canSave) return
-    onSave({ name: name.trim(), lessons: Number(lessons), price: Number(price), status })
+    onSave({ name: name.trim(), price: Number(price) })
   }
 
   return (
@@ -38,50 +36,20 @@ export default function PackageModal({ editing, onClose, onSave }: PackageModalP
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Manual – Standard"
+            placeholder="e.g. Driving Only"
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Lessons</label>
-            <input
-              type="number"
-              min={1}
-              value={lessons}
-              onChange={(e) => setLessons(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            />
-          </div>
-          <div>
-            <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Price (GHS)</label>
-            <input
-              type="number"
-              min={1}
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            />
-          </div>
-        </div>
-
         <div>
-          <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Status</label>
-          <div className="flex gap-2">
-            {(['active', 'inactive'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatus(s)}
-                className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-medium border-2 capitalize transition-colors ${
-                  status === s ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Price (GHS)</label>
+          <input
+            type="number"
+            min={1}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+          />
         </div>
 
         <div className="flex justify-end gap-2 mt-1">

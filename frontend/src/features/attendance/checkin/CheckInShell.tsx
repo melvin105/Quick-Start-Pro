@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Car } from 'lucide-react'
+import logo from '../../../assets/Logo.svg'
 
 export default function CheckInShell({ children }: { children: ReactNode }) {
   return (
@@ -9,8 +9,8 @@ export default function CheckInShell({ children }: { children: ReactNode }) {
           className="flex flex-col items-center gap-2 px-6 pt-10 pb-6"
           style={{ background: 'linear-gradient(155deg, #12294F, #1B3A6B)' }}
         >
-          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center">
-            <Car size={22} className="text-white" />
+          <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center">
+            <img src={logo} alt="" className="w-8 h-8" />
           </div>
           <span className="text-white text-[15px] font-semibold">Quick Start Driving School</span>
         </div>

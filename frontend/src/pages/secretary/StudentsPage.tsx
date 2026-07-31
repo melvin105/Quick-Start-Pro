@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { QrCode, Plus, Search, Filter, GraduationCap } from 'lucide-react'
+import { QrCode, Plus, Search, Filter, IdCard } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
 import StudentsTable from '../../features/students/secretary/StudentsTable'
 import StudentCardList from '../../features/students/shared/StudentCardList'
 import PendingSubmissions from '../../features/students/secretary/PendingSubmissions'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
+import SelfRegisterQrModal from '../../features/students/secretary/SelfRegisterQrModal'
 import { ROUTES } from '../../lib/constants'
 
 type TabKey = 'active' | 'pending' | 'archived'
@@ -34,6 +35,7 @@ export default function StudentsPage() {
   const [enrolmentFilter, setEnrolmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -64,14 +66,15 @@ export default function StudentsPage() {
               title="Students — Licences"
               className="flex items-center justify-center w-9 h-9 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <GraduationCap size={16} />
+              <IdCard size={16} />
             </Link>
             <button
               type="button"
+              onClick={() => setShowQrModal(true)}
               className="hidden sm:flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 hover:bg-brand-800 rounded-lg transition-colors"
             >
               <QrCode size={15} />
-              Export QR Code
+              Show QR Code
             </button>
             <button
               type="button"
@@ -159,6 +162,8 @@ export default function StudentsPage() {
           Archived students will appear here.
         </div>
       )}
+
+      {showQrModal && <SelfRegisterQrModal onClose={() => setShowQrModal(false)} />}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from './authStore'
+import useStaffStore from '../staff/store'
 import type { User } from './authService'
 import { ROLE_HOME, type Role } from '../../lib/constants'
 
@@ -10,14 +11,16 @@ interface LoginParams {
 }
 
 // No backend auth endpoint yet — any password is accepted, only the
-// selected role determines the mock user that gets signed in.
+// selected role determines the mock user that gets signed in. The secretary's
+// name is editable in the Staff directory, so it's read live from there
+// (rather than hardcoded) so the greeting reflects whoever holds the role.
 const MOCK_NAMES: Partial<Record<Role, string>> = {
-  admin:     'John Mensah',
-  secretary: 'Mercy Osei',
+  admin: 'John Mensah',
 }
 
 function buildMockUser(role: Role): User {
-  const name = MOCK_NAMES[role] ?? role
+  const secretaryName = useStaffStore.getState().staff.find((m) => m.role === 'secretary')?.name
+  const name = (role === 'secretary' ? secretaryName : undefined) ?? MOCK_NAMES[role] ?? role
   return {
     id:    `mock-${role}`,
     name,

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Search, AlertTriangle } from 'lucide-react'
+import { Search, Users } from 'lucide-react'
 import useSchedulingStore from '../shared/store'
-import { MOCK_STUDENTS } from '../shared/mockData'
-import { findStudentSlot, formatSlotLabel } from '../shared/utils'
+import useStudentsStore from '../../students/shared/store'
+import { findStudentSlots, formatSlotLabel, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
+import AssignConfirmation from './AssignConfirmation'
 import type { Day } from '../shared/types'
 
 interface AssignFormProps {
@@ -15,19 +16,53 @@ interface AssignFormProps {
 
 export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }: AssignFormProps) {
   const grid = useSchedulingStore((s) => s.grid)
+  const students = useStudentsStore((s) => s.students)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return MOCK_STUDENTS
+    return students
+      .filter((s) => s.status !== 'completed')
+      .filter((s) => s.enrolment !== 'Licence Only')
       .filter((s) => !excludeIds.includes(s.id))
       .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
-  }, [query, excludeIds])
+  }, [students, query, excludeIds])
 
-  const conflict = selectedId ? findStudentSlot(grid, selectedId) : undefined
-  const conflictIsSameSlot = conflict && conflict.day === day && conflict.hour === hour
-  const selectedStudent = selectedId ? MOCK_STUDENTS.find((s) => s.id === selectedId) : undefined
+  const selectedStudent = selectedId ? students.find((s) => s.id === selectedId) : undefined
+  const slotFull = excludeIds.length >= MAX_STUDENTS_PER_SLOT
+
+  if (slotFull) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-4 text-center">
+        <Users size={20} className="text-gray-300" />
+        <p className="text-[13px] font-medium text-gray-700">This slot is full</p>
+        <p className="text-[12px] text-gray-500">
+          Max {MAX_STUDENTS_PER_SLOT} student{MAX_STUDENTS_PER_SLOT === 1 ? '' : 's'} per hour — one per instructor.
+        </p>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-1 px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    )
+  }
+
+  if (confirming && selectedStudent) {
+    return (
+      <AssignConfirmation
+        studentName={selectedStudent.name}
+        targetLabel={formatSlotLabel(day, hour, true)}
+        existingSlots={findStudentSlots(grid, selectedStudent.id)}
+        onConfirm={() => onAssign(selectedStudent.id)}
+        onCancel={() => setConfirming(false)}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -62,16 +97,6 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
         )}
       </div>
 
-      {conflict && !conflictIsSameSlot && selectedStudent && (
-        <div className="flex items-start gap-1.5 bg-warning-bg text-warning text-[12px] px-2.5 py-2 rounded-lg">
-          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-          <span>
-            {selectedStudent.name} already has a slot on {formatSlotLabel(conflict.day, conflict.hour, true)}.
-            Assign to this slot as well?
-          </span>
-        </div>
-      )}
-
       <div className="flex justify-end gap-2 mt-1">
         <button
           type="button"
@@ -83,7 +108,7 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
         <button
           type="button"
           disabled={!selectedId}
-          onClick={() => selectedId && onAssign(selectedId)}
+          onClick={() => selectedId && setConfirming(true)}
           className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
         >
           Assign

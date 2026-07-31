@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, UserX } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarX, CheckCircle2, UserX } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
 import useAttendanceStore from '../../features/attendance/shared/store'
-import { isTodayCode, normalizePhone } from '../../features/attendance/shared/utils'
+import { normalizePhone } from '../../features/attendance/shared/utils'
 import CheckInShell from '../../features/attendance/checkin/CheckInShell'
 import InfoScreen from '../../features/attendance/checkin/InfoScreen'
 import PhoneScreen from '../../features/attendance/checkin/PhoneScreen'
@@ -15,33 +14,19 @@ import type { Student } from '../../features/students/shared/types'
 type Screen =
   | { name: 'phone' }
   | { name: 'not-found' }
+  | { name: 'no-schedule'; studentName: string }
   | { name: 'already'; studentName: string; checkInTime: string }
   | { name: 'confirm'; student: Student }
   | { name: 'instructor'; student: Student }
   | { name: 'confirmed'; studentName: string; checkInTime: string; instructorName?: string }
 
 export default function CheckInPage() {
-  const { code } = useParams<{ code: string }>()
   const students = useStudentsStore((s) => s.students)
   const findTodayRecord = useAttendanceStore((s) => s.findTodayRecordByStudentId)
   const selfCheckIn = useAttendanceStore((s) => s.selfCheckIn)
+  const syncFromSchedule = useAttendanceStore((s) => s.syncFromSchedule)
 
   const [screen, setScreen] = useState<Screen>({ name: 'phone' })
-
-  const expired = useMemo(() => !code || !isTodayCode(code), [code])
-
-  if (expired) {
-    return (
-      <CheckInShell>
-        <InfoScreen
-          icon={AlertTriangle}
-          tone="warning"
-          heading="This QR code has expired."
-          description="Please scan the current code on display at reception."
-        />
-      </CheckInShell>
-    )
-  }
 
   const handlePhoneSubmit = (phone: string) => {
     const target = normalizePhone(phone)
@@ -50,9 +35,17 @@ export default function CheckInPage() {
       setScreen({ name: 'not-found' })
       return
     }
+    // Picks up anything scheduled for today that doesn't have a row yet, so
+    // "no record" below reliably means "genuinely not expected today" rather
+    // than "just hasn't been synced from the schedule."
+    syncFromSchedule()
     const existing = findTodayRecord(student.id)
     if (existing?.checkInTime) {
       setScreen({ name: 'already', studentName: student.name, checkInTime: existing.checkInTime })
+      return
+    }
+    if (!existing) {
+      setScreen({ name: 'no-schedule', studentName: student.name })
       return
     }
     setScreen({ name: 'confirm', student })
@@ -84,6 +77,15 @@ export default function CheckInPage() {
           tone="warning"
           heading="We couldn't find a student with that number."
           description="Please see the secretary."
+        />
+      )}
+
+      {screen.name === 'no-schedule' && (
+        <InfoScreen
+          icon={CalendarX}
+          tone="warning"
+          heading="No lesson scheduled for you today."
+          description={`${screen.studentName} — please see the secretary at the desk if you think this is a mistake.`}
         />
       )}
 

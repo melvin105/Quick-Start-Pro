@@ -13,6 +13,8 @@ interface AddStaffInput {
 interface StaffState {
   staff: StaffMember[]
   addStaff: (input: AddStaffInput) => StaffMember
+  removeStaff: (id: string) => void
+  updateStaff: (id: string, patch: Partial<Pick<StaffMember, 'name' | 'phone'>>) => void
 }
 
 const useStaffStore = create<StaffState>()(
@@ -32,6 +34,14 @@ const useStaffStore = create<StaffState>()(
         set((state) => ({ staff: [...state.staff, member] }))
         return member
       },
+
+      removeStaff: (id) => set((state) => ({
+        staff: state.staff.filter((m) => m.id !== id),
+      })),
+
+      updateStaff: (id, patch) => set((state) => ({
+        staff: state.staff.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+      })),
     }),
     { name: 'qsp-staff' },
   ),

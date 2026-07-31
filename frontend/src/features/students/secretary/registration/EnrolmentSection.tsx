@@ -1,16 +1,10 @@
 import { Controller } from 'react-hook-form'
-import FormField from './FormField'
-import Dropdown from './Dropdown'
-import { PROGRAMMES_BY_ENROLMENT } from '../../shared/mockData'
-import type { EnrolmentType } from '../../shared/types'
+import usePackagesStore from '../../../settings/packagesStore'
+import { formatGHS } from '../../../payments/utils'
 import type { FormSectionProps } from './formTypes'
 
-const ENROLMENT_TYPES: EnrolmentType[] = ['Driving Only', 'Licence Only', 'Driving + Licence']
-
-export default function EnrolmentSection({ register, control, errors, watch, setValue }: FormSectionProps) {
-  const enrolment = watch('enrolment')
-  const programme = watch('programme')
-  const programmeOptions = enrolment ? PROGRAMMES_BY_ENROLMENT[enrolment] : []
+export default function EnrolmentSection({ register, control, errors }: FormSectionProps) {
+  const packages = usePackagesStore((s) => s.packages)
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
@@ -18,63 +12,34 @@ export default function EnrolmentSection({ register, control, errors, watch, set
 
       <div className="mb-4">
         <label className="block text-[13px] font-medium text-gray-800 mb-2">
-          Enrolment Type <span className="text-danger">*</span>
+          Package <span className="text-danger">*</span>
         </label>
         <Controller
-          name="enrolment"
+          name="programme"
           control={control}
           render={({ field }) => (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {ENROLMENT_TYPES.map((type) => (
+              {packages.map((pkg) => (
                 <button
-                  key={type}
+                  key={pkg.id}
                   type="button"
-                  onClick={() => {
-                    field.onChange(type)
-                    if (programme && !PROGRAMMES_BY_ENROLMENT[type].includes(programme)) {
-                      setValue('programme', '')
-                    }
-                  }}
+                  onClick={() => field.onChange(pkg.name)}
                   className={`text-left px-4 py-3 rounded-xl border-2 transition-colors ${
-                    field.value === type ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                    field.value === pkg.name ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <p className={`text-[13.5px] font-medium ${field.value === type ? 'text-brand-600' : 'text-gray-800'}`}>
-                    {type}
+                  <p className={`text-[13.5px] font-medium ${field.value === pkg.name ? 'text-brand-600' : 'text-gray-800'}`}>
+                    {pkg.name}
+                  </p>
+                  <p className={`text-[12px] mt-0.5 ${field.value === pkg.name ? 'text-brand-600/80' : 'text-gray-500'}`}>
+                    {formatGHS(pkg.price)}
                   </p>
                 </button>
               ))}
             </div>
           )}
         />
-        {errors.enrolment && <p className="text-[12px] text-danger mt-1">{errors.enrolment.message}</p>}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
-            Programme <span className="text-danger">*</span>
-          </label>
-          <Controller
-            name="programme"
-            control={control}
-            render={({ field }) => (
-              <Dropdown
-                value={field.value}
-                onChange={field.onChange}
-                disabled={!enrolment}
-                placeholder={enrolment ? 'Select a programme' : 'Select an enrolment type first'}
-                options={programmeOptions.map((p) => ({ value: p, label: p }))}
-              />
-            )}
-          />
-          {errors.programme && <p className="text-[12px] text-danger mt-1">{errors.programme.message}</p>}
-        </div>
-        <FormField
-          label="Assigned Slot (optional)"
-          placeholder="Can be set later in Schedule"
-          registration={register('assignedSlot')}
-        />
+        {errors.programme && <p className="text-[12px] text-danger mt-1">{errors.programme.message}</p>}
       </div>
 
       <div className="mt-4">

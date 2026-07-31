@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { Eye } from 'lucide-react'
 import type { Student } from '../shared/types'
 import StatusBadge from '../shared/StatusBadge'
-import { getInitials, formatGHS, studentProfilePath } from '../shared/utils'
+import StudentAvatar from '../shared/StudentAvatar'
+import { formatGHS, studentProfilePath } from '../shared/utils'
 
 interface ManagerStudentsTableProps {
   students: Student[]
@@ -36,9 +37,7 @@ export default function ManagerStudentsTable({ students }: ManagerStudentsTableP
                 <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">{student.id}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-[11px] font-semibold shrink-0">
-                      {getInitials(student.name)}
-                    </div>
+                    <StudentAvatar name={student.name} photo={student.photo} className="w-8 h-8 text-[11px]" />
                     <span className="text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{student.name}</span>
                   </div>
                 </td>

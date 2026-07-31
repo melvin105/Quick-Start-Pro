@@ -1,13 +1,9 @@
 import { useState } from 'react'
-import { Bell, ChevronDown, LogOut, Menu, Search } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Search } from 'lucide-react'
 import { useAuth } from '../../features/auth/useAuth'
 import { ROLE_LABELS } from '../../lib/constants'
 
-interface TopbarProps {
-  onMenuClick: () => void
-}
-
-export default function Topbar({ onMenuClick }: TopbarProps) {
+export default function Topbar() {
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -19,16 +15,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     .toUpperCase()
 
   return (
-    <header className="h-16 shrink-0 flex items-center gap-3 sm:gap-4 px-4 sm:px-6 border-b border-gray-200 bg-white">
-      <button
-        type="button"
-        onClick={onMenuClick}
-        className="lg:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-        aria-label="Open menu"
-      >
-        <Menu size={20} />
-      </button>
-
+    <header className="h-16 shrink-0 flex items-center gap-3 sm:gap-4 px-4 sm:px-6 bg-white">
       <div className="flex-1 max-w-md hidden sm:block">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

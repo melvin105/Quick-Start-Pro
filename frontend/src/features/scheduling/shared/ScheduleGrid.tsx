@@ -1,6 +1,7 @@
-import { DAYS, START_HOURS, formatRangeShort, slotKey } from './utils'
+import { DAYS, START_HOURS, formatRangeShort, slotKey, isSlotFull } from './utils'
 import StudentChip from '../secretary/StudentChip'
-import { MOCK_STUDENTS } from './mockData'
+import DroppableCell from '../secretary/DroppableCell'
+import useStudentsStore from '../../students/shared/store'
 import type { Day, SlotAssignment } from './types'
 
 interface ScheduleGridProps {
@@ -10,6 +11,8 @@ interface ScheduleGridProps {
 }
 
 export default function ScheduleGrid({ grid, todayColumn, onCellClick }: ScheduleGridProps) {
+  const students = useStudentsStore((s) => s.students)
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden h-full flex flex-col">
       <div className="flex-1 min-h-0 overflow-auto">
@@ -40,22 +43,44 @@ export default function ScheduleGrid({ grid, todayColumn, onCellClick }: Schedul
                 const key = slotKey(day, hour)
                 const assignments = grid[key] ?? []
                 const isEmpty = assignments.length === 0
+
+                if (isEmpty) {
+                  return (
+                    <DroppableCell
+                      key={day}
+                      day={day}
+                      hour={hour}
+                      onClick={(el) => onCellClick(day, hour, el)}
+                    />
+                  )
+                }
+
                 return (
                   <button
                     key={day}
                     type="button"
                     onClick={(e) => onCellClick(day, hour, e.currentTarget)}
-                    className={`min-h-[72px] p-1.5 flex flex-col gap-1 text-left transition-colors ${
-                      isEmpty
-                        ? 'm-0.5 rounded-md border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100'
-                        : `hover:bg-gray-50 ${day === todayColumn ? 'bg-brand-50/30' : ''}`
+                    className={`min-h-[72px] p-1.5 flex flex-col gap-1 text-left transition-colors hover:bg-gray-50 ${
+                      day === todayColumn ? 'bg-brand-50/30' : ''
                     }`}
                   >
                     {assignments.map((a) => {
-                      const student = MOCK_STUDENTS.find((s) => s.id === a.studentId)
+                      const student = students.find((s) => s.id === a.studentId)
                       if (!student) return null
-                      return <StudentChip key={a.studentId} name={student.name} assignment={a} />
+                      return (
+                        <StudentChip
+                          key={a.studentId}
+                          name={student.name}
+                          assignment={a}
+                          day={day}
+                          hour={hour}
+                          draggable
+                        />
+                      )
                     })}
+                    {isSlotFull(assignments) && (
+                      <span className="mt-auto text-[9.5px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
+                    )}
                   </button>
                 )
               })}

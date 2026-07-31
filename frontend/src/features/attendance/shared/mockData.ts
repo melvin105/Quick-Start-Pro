@@ -68,7 +68,7 @@ export const HISTORICAL_ATTENDANCE: AttendanceRecord[] = [
     id: 'hist-2', studentId: 'QS-2025-002', studentName: 'Mary Owusu',
     date: daysAgoIso(1), slotLabel: '9-10am', hasSlot: true,
     checkInTime: '9:20am', source: 'manual', driverName: 'Patrick',
-    lessonsLeft: 9, status: 'late',
+    lessonsLeft: 9, status: 'present',
   },
   {
     id: 'hist-3', studentId: 'QS-2025-003', studentName: 'Kwesi Boateng',

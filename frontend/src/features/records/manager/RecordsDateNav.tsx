@@ -1,6 +1,5 @@
-import { useRef } from 'react'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { formatDateWithWeekday } from '../shared/utils'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import DatePicker from '../../../components/ui/DatePicker'
 
 function shiftDay(iso: string, delta: number) {
   const d = new Date(iso)
@@ -20,7 +19,6 @@ interface RecordsDateNavProps {
 }
 
 export default function RecordsDateNav({ date, onChange, submittedBy, submittedAt }: RecordsDateNavProps) {
-  const pickerRef = useRef<HTMLInputElement>(null)
   const isToday = date === todayIso()
 
   const submittedLabel = submittedBy && submittedAt
@@ -38,9 +36,7 @@ export default function RecordsDateNav({ date, onChange, submittedBy, submittedA
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-[13.5px] font-medium text-gray-900 whitespace-nowrap">
-          {formatDateWithWeekday(date)}
-        </span>
+        <DatePicker value={date} onChange={onChange} maxDate={todayIso()} />
         <button
           type="button"
           onClick={() => onChange(shiftDay(date, 1))}
@@ -50,26 +46,6 @@ export default function RecordsDateNav({ date, onChange, submittedBy, submittedA
         >
           <ChevronRight size={16} />
         </button>
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => pickerRef.current?.showPicker?.()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Calendar size={14} /> Pick Date
-          </button>
-          <input
-            ref={pickerRef}
-            type="date"
-            value={date}
-            max={todayIso()}
-            onChange={(e) => e.target.value && onChange(e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-        </div>
 
         {!isToday && (
           <button

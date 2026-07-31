@@ -3,6 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom'
 import { Check, Lock, ArrowLeft } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
 import { DEFAULT_LICENCE_PROGRESS, buildLicenceSteps } from '../../features/students/shared/licence'
+import DatePicker from '../../components/ui/DatePicker'
 import type { LicenceProgress } from '../../features/students/shared/types'
 import { ROUTES } from '../../lib/constants'
 import { studentProfilePath } from '../../features/students/shared/utils'
@@ -18,12 +19,9 @@ export default function LicenceProgressPage() {
 
   const [eyeTestDate, setEyeTestDate] = useState(today())
   const [learnerDate, setLearnerDate] = useState(today())
-  const [learnerNo, setLearnerNo] = useState('')
   const [examDate, setExamDate] = useState('')
   const [examVenue, setExamVenue] = useState('')
   const [examDateError, setExamDateError] = useState('')
-  const [examResult, setExamResult] = useState<'passed' | 'failed' | ''>('')
-  const [examResultDate, setExamResultDate] = useState(today())
   const [fullLicenceNo, setFullLicenceNo] = useState('')
   const [fullLicenceDate, setFullLicenceDate] = useState(today())
 
@@ -106,12 +104,7 @@ export default function LicenceProgressPage() {
                 <div className="pl-8 flex flex-col gap-3">
                   <div className="max-w-xs">
                     <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date done</label>
-                    <input
-                      type="date"
-                      value={eyeTestDate}
-                      onChange={(e) => setEyeTestDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                    />
+                    <DatePicker value={eyeTestDate} onChange={setEyeTestDate} maxDate={today()} className="w-full" />
                   </div>
                   <button
                     type="button"
@@ -125,32 +118,14 @@ export default function LicenceProgressPage() {
 
               {step.status === 'active' && step.key === 'learnerLicence' && (
                 <div className="pl-8 flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date issued</label>
-                      <input
-                        type="date"
-                        value={learnerDate}
-                        onChange={(e) => setLearnerDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Licence No.</label>
-                      <input
-                        type="text"
-                        value={learnerNo}
-                        onChange={(e) => setLearnerNo(e.target.value)}
-                        placeholder="e.g. GHA-LEARN-00234"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                      />
-                    </div>
+                  <div className="max-w-xs">
+                    <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date issued</label>
+                    <DatePicker value={learnerDate} onChange={setLearnerDate} maxDate={today()} className="w-full" />
                   </div>
                   <button
                     type="button"
-                    disabled={!learnerNo.trim()}
-                    onClick={() => save({ learnerLicence: { issued: true, dateIssued: learnerDate, licenceNo: learnerNo } })}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-lg transition-colors"
+                    onClick={() => save({ learnerLicence: { issued: true, dateIssued: learnerDate } })}
+                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
                   >
                     Save
                   </button>
@@ -164,16 +139,11 @@ export default function LicenceProgressPage() {
                       <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
                         Exam date * (today or future)
                       </label>
-                      <input
-                        type="date"
-                        min={today()}
+                      <DatePicker
                         value={examDate}
-                        onChange={(e) => { setExamDate(e.target.value); setExamDateError('') }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
-                          examDateError
-                            ? 'border-danger focus:ring-danger/20'
-                            : 'border-gray-200 focus:ring-brand-600/20 focus:border-brand-600'
-                        }`}
+                        onChange={(v) => { setExamDate(v); setExamDateError('') }}
+                        minDate={today()}
+                        className="w-full"
                       />
                       {examDateError && <p className="text-[12px] text-danger mt-1">{examDateError}</p>}
                     </div>
@@ -202,60 +172,12 @@ export default function LicenceProgressPage() {
                 </div>
               )}
 
-              {step.status === 'active' && step.key === 'examResult' && (
-                <div className="pl-8 flex flex-col gap-3">
-                  <div>
-                    <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Result</label>
-                    <div className="flex gap-2">
-                      {(['passed', 'failed'] as const).map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setExamResult(r)}
-                          className={`px-4 py-2 rounded-lg text-[13px] font-medium border-2 transition-colors ${
-                            examResult === r
-                              ? r === 'passed'
-                                ? 'border-success bg-success-bg text-success'
-                                : 'border-danger bg-danger-bg text-danger'
-                              : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                          }`}
-                        >
-                          {r === 'passed' ? 'Passed' : 'Failed'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="max-w-xs">
-                    <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date</label>
-                    <input
-                      type="date"
-                      value={examResultDate}
-                      onChange={(e) => setExamResultDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!examResult}
-                    onClick={() => save({ examResult: { passed: examResult === 'passed', date: examResultDate } })}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-lg transition-colors"
-                  >
-                    Save
-                  </button>
-                </div>
-              )}
-
               {step.status === 'active' && step.key === 'fullLicence' && (
                 <div className="pl-8 flex flex-col gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
                     <div>
                       <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date issued</label>
-                      <input
-                        type="date"
-                        value={fullLicenceDate}
-                        onChange={(e) => setFullLicenceDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                      />
+                      <DatePicker value={fullLicenceDate} onChange={setFullLicenceDate} maxDate={today()} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Licence No.</label>

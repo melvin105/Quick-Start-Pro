@@ -6,8 +6,10 @@ export interface NextOfKin {
   name:         string
   relationship: string
   phone:        string
-  address?:     string
+  email?:       string
 }
+
+export type IdCardType = 'Ghana Card' | 'Voter ID' | 'Passport' | "Driver's Licence" | 'Other'
 
 export interface EmergencyContact {
   name:         string
@@ -16,12 +18,11 @@ export interface EmergencyContact {
 }
 
 // Sequential licence pipeline — each stage unlocks once the previous one is
-// complete; Exam Result additionally waits for the exam date itself to pass.
+// complete; Full Licence additionally waits for the exam date itself to pass.
 export interface LicenceProgress {
   eyeTest:        { done: boolean; dateDone?: string }
-  learnerLicence: { issued: boolean; dateIssued?: string; licenceNo?: string }
+  learnerLicence: { issued: boolean; dateIssued?: string }
   examDate:       { date?: string; venue?: string }
-  examResult:     { passed?: boolean; date?: string }
   fullLicence:    { issued: boolean; dateIssued?: string; licenceNo?: string }
 }
 
@@ -35,12 +36,13 @@ export interface Student {
   phone:            string
   email?:           string
   address?:         string
-  ghanaCardNumber?: string
+  photo?:           string
+  idCardType?:      IdCardType
+  idCardNumber?:    string
   nextOfKin:        NextOfKin
   emergencyContact: EmergencyContact
   enrolment:        EnrolmentType
   programme?:       string
-  assignedSlot?:    string
   notes?:           string
   balance:          number
   status:           StudentStatus
@@ -64,7 +66,9 @@ export interface PendingSubmission {
   gender:           Gender
   email?:           string
   address?:         string
-  ghanaCardNumber?: string
+  photo?:           string
+  idCardType?:      IdCardType
+  idCardNumber?:    string
   nextOfKin:        NextOfKin
   emergencyContact: EmergencyContact
 }

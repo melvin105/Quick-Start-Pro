@@ -31,3 +31,23 @@ export function todayIso() {
 export function paymentReceiptPath(id: string) {
   return `/secretary/payments/${id}/receipt`
 }
+
+// Public, unauthenticated route — safe to hand to anyone (no login required).
+export function receiptShareUrl(id: string) {
+  return `${window.location.origin}/receipt/${id}`
+}
+
+// Prefers the native share sheet where available, otherwise copies to clipboard.
+export async function shareReceipt(id: string): Promise<'shared' | 'copied'> {
+  const url = receiptShareUrl(id)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Payment Receipt', url })
+      return 'shared'
+    } catch {
+      // user cancelled or the share sheet failed — fall back to clipboard
+    }
+  }
+  await navigator.clipboard.writeText(url)
+  return 'copied'
+}

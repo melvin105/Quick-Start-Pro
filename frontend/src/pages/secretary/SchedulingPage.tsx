@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import useSchedulingStore from '../../features/scheduling/shared/store'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
 import { DAY_FULL, getTodayColumn, slotKey } from '../../features/scheduling/shared/utils'
@@ -9,6 +10,7 @@ import AssignModal from '../../features/scheduling/secretary/AssignModal'
 import SlotDetailDrawer from '../../features/scheduling/secretary/SlotDetailDrawer'
 import SlotDetailBottomDrawer from '../../features/scheduling/secretary/SlotDetailBottomDrawer'
 import MobileSlotSheet from '../../features/scheduling/secretary/MobileSlotSheet'
+import DragAssignModal from '../../features/scheduling/secretary/DragAssignModal'
 import type { Day } from '../../features/scheduling/shared/types'
 
 interface AssignTarget {
@@ -22,17 +24,44 @@ interface DetailTarget {
   hour: number
 }
 
-const DEFAULT_LESSONS_REMAINING = 10
+interface DragAssignTarget {
+  day: Day
+  hour: number
+  studentId: string
+  fromDay: Day
+  fromHour: number
+}
 
 export default function SchedulingPage() {
   const grid = useSchedulingStore((s) => s.grid)
   const assign = useSchedulingStore((s) => s.assign)
   const clear = useSchedulingStore((s) => s.clear)
+  const move = useSchedulingStore((s) => s.move)
   const breakpoint = useBreakpoint()
   const todayColumn = getTodayColumn()
 
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null)
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
+  const [dragAssignTarget, setDragAssignTarget] = useState<DragAssignTarget | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const overData = event.over?.data.current as { day: Day; hour: number } | undefined
+    const activeData = event.active.data.current as { studentId: string; day: Day; hour: number } | undefined
+    if (!overData || !activeData) return
+    if (overData.day === activeData.day && overData.hour === activeData.hour) return
+    setDragAssignTarget({
+      day: overData.day,
+      hour: overData.hour,
+      studentId: activeData.studentId,
+      fromDay: activeData.day,
+      fromHour: activeData.hour,
+    })
+  }
 
   const handleGridCellClick = (day: Day, hour: number, el: HTMLElement) => {
     const assignments = grid[slotKey(day, hour)] ?? []
@@ -45,13 +74,13 @@ export default function SchedulingPage() {
 
   const handleAssign = (studentId: string) => {
     if (!assignTarget) return
-    assign(assignTarget.day, assignTarget.hour, studentId, DEFAULT_LESSONS_REMAINING)
+    assign(assignTarget.day, assignTarget.hour, studentId)
     setAssignTarget(null)
   }
 
   const handleMobileAssign = (studentId: string) => {
     if (!detailTarget) return
-    assign(detailTarget.day, detailTarget.hour, studentId, DEFAULT_LESSONS_REMAINING)
+    assign(detailTarget.day, detailTarget.hour, studentId)
   }
 
   const handleClear = (studentId: string) => {
@@ -75,7 +104,9 @@ export default function SchedulingPage() {
 
       {/* Desktop / tablet grid — fills remaining height, scrolls internally with a sticky day header */}
       <div className="hidden md:block flex-1 min-h-0">
-        <ScheduleGrid grid={grid} todayColumn={todayColumn} onCellClick={handleGridCellClick} />
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <ScheduleGrid grid={grid} todayColumn={todayColumn} onCellClick={handleGridCellClick} />
+        </DndContext>
       </div>
 
       {/* Mobile day list */}
@@ -139,6 +170,21 @@ export default function SchedulingPage() {
           onAssign={handleMobileAssign}
           onRemove={handleClear}
           onClose={() => setDetailTarget(null)}
+        />
+      )}
+
+      {dragAssignTarget && (
+        <DragAssignModal
+          day={dragAssignTarget.day}
+          hour={dragAssignTarget.hour}
+          studentId={dragAssignTarget.studentId}
+          fromDay={dragAssignTarget.fromDay}
+          fromHour={dragAssignTarget.fromHour}
+          onConfirm={() => {
+            move(dragAssignTarget.fromDay, dragAssignTarget.fromHour, dragAssignTarget.day, dragAssignTarget.hour, dragAssignTarget.studentId)
+            setDragAssignTarget(null)
+          }}
+          onCancel={() => setDragAssignTarget(null)}
         />
       )}
     </div>

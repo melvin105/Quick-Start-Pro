@@ -12,7 +12,6 @@ const STAGE_OPTIONS = [
   { value: 'eyeTest', label: 'Eye Test' },
   { value: 'learnerLicence', label: 'Learner Licence' },
   { value: 'examDate', label: 'Exam Date' },
-  { value: 'examResult', label: 'Exam Result' },
   { value: 'fullLicence', label: 'Full Licence' },
 ]
 

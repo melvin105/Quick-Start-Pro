@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, ChevronDown, Loader2, Car } from 'lucide-react'
+import { Eye, EyeOff, ChevronDown, Loader2 } from 'lucide-react'
 import { useLogin } from '../../features/auth/useLogin'
 import { ROLE_OPTIONS } from '../../lib/constants'
 import type { Role } from '../../lib/constants'
+import logo from '../../assets/Logo.svg'
 
 const LOGIN_ROLE_OPTIONS = ROLE_OPTIONS.filter(
   (opt) => opt.value === 'admin' || opt.value === 'secretary',
@@ -227,8 +228,8 @@ export default function LoginPage() {
           style={{ background: 'linear-gradient(155deg, #12294F 0%, #1B3A6B 55%, #1B3A6B 100%)' }}
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
-              <Car size={20} className="text-white" />
+            <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-modal">
+              <img src={logo} alt="" className="w-7 h-7" />
             </div>
             <span className="text-base font-semibold text-white">Quick Start Pro</span>
           </div>
@@ -252,8 +253,8 @@ export default function LoginPage() {
           className="flex flex-col items-center gap-2.5 px-6 pt-10 pb-7"
           style={{ background: 'linear-gradient(155deg, #12294F, #1B3A6B)' }}
         >
-          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center">
-            <Car size={24} className="text-white" />
+          <div className="w-14 h-14 rounded-xl bg-white flex items-center justify-center shadow-modal">
+            <img src={logo} alt="" className="w-9 h-9" />
           </div>
           <span className="text-[17px] font-semibold text-white">Quick Start Pro</span>
         </div>

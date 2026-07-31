@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { ChevronDown, Calendar, Download } from 'lucide-react'
+import DatePicker from '../../components/ui/DatePicker'
 import type { PeriodKey, PeriodRange } from './period'
 
 const PRESET_OPTIONS: { value: PeriodKey; label: string }[] = [
+  { value: 'today',         label: 'Today' },
   { value: 'this-month',    label: 'This Month' },
   { value: 'last-month',    label: 'Last Month' },
   { value: 'last-3-months', label: 'Last 3 Months' },
@@ -79,23 +81,11 @@ export default function PeriodControls({ period, onPeriodChange, customRange, on
             <div className="absolute right-0 z-20 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-card p-3 flex flex-col gap-2.5">
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 mb-1">From</label>
-                <input
-                  type="date"
-                  value={draftFrom}
-                  max={draftTo || undefined}
-                  onChange={(e) => setDraftFrom(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                />
+                <DatePicker value={draftFrom} onChange={setDraftFrom} maxDate={draftTo || undefined} dropdownAlign="right" className="w-full" />
               </div>
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 mb-1">To</label>
-                <input
-                  type="date"
-                  value={draftTo}
-                  min={draftFrom || undefined}
-                  onChange={(e) => setDraftTo(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                />
+                <DatePicker value={draftTo} onChange={setDraftTo} minDate={draftFrom || undefined} dropdownAlign="right" className="w-full" />
               </div>
               <button
                 type="button"

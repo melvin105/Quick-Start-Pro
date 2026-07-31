@@ -1,14 +1,15 @@
 import { NavLink } from 'react-router-dom'
-import { Car, LogOut, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { getNavItems, SETTINGS_ITEM } from './navItems'
 import { useAuth } from '../../features/auth/useAuth'
 import { ROLES, type Role } from '../../lib/constants'
+import logo from '../../assets/Logo.svg'
 
 interface SidebarProps {
-  role: Role
+  role:       Role
   onNavigate?: () => void
   collapsed?: boolean
-  onToggleCollapse?: () => void
+  showHeader?: boolean
 }
 
 function navLinkClasses({ isActive }: { isActive: boolean }, collapsed: boolean) {
@@ -21,24 +22,22 @@ function navLinkClasses({ isActive }: { isActive: boolean }, collapsed: boolean)
   }`
 }
 
-export default function Sidebar({ role, onNavigate, collapsed = false, onToggleCollapse }: SidebarProps) {
+export default function Sidebar({ role, onNavigate, collapsed = false, showHeader = false }: SidebarProps) {
   const { logout } = useAuth()
   const items = getNavItems(role)
 
   return (
     <div className="flex h-full flex-col bg-white border-r border-gray-200">
-      <div
-        className={`flex items-center h-16 shrink-0 border-b border-gray-200 ${
-          collapsed ? 'justify-center px-2' : 'gap-2.5 px-5'
-        }`}
-      >
-        <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center shrink-0">
-          <Car size={18} className="text-white" />
+      {/* Standalone (mobile drawer) usage needs its own brand header — the
+          desktop aside gets one from AppShell's TopBrandBar instead. */}
+      {showHeader && (
+        <div className="flex items-center h-16 shrink-0 gap-2.5 px-5 border-b border-gray-200">
+          <img src={logo} alt="Quick Start Pro" className="w-7 h-7 shrink-0" />
+          <span className="text-[15px] font-semibold text-gray-900 truncate">Quick Start Pro</span>
         </div>
-        {!collapsed && <span className="text-[15px] font-semibold text-gray-900 truncate">Quick Start Pro</span>}
-      </div>
+      )}
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4 space-y-1">
         {items.map(({ label, to, icon: Icon }) => (
           <NavLink
             key={to}
@@ -54,19 +53,6 @@ export default function Sidebar({ role, onNavigate, collapsed = false, onToggleC
       </nav>
 
       <div className="px-3 py-3 border-t border-gray-200 space-y-1 shrink-0">
-        {onToggleCollapse && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title={collapsed ? 'Expand sidebar' : undefined}
-            className={`w-full flex items-center rounded-lg text-[13.5px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors ${
-              collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
-            }`}
-          >
-            {collapsed ? <ChevronsRight size={17} className="shrink-0" /> : <ChevronsLeft size={17} className="shrink-0" />}
-            {!collapsed && 'Collapse'}
-          </button>
-        )}
         {role === ROLES.ADMIN && (
           <NavLink
             to={SETTINGS_ITEM.to}

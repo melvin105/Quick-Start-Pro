@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
 import StatusBadge from '../shared/StatusBadge'
 import SourceBadge from '../shared/SourceBadge'
 import { getInitials } from '../shared/utils'
@@ -19,10 +18,7 @@ function Card({ record }: { record: AttendanceRecord }) {
           </Link>
           <p className="text-[12px] text-gray-500">{record.slotLabel ?? 'No slot'}</p>
         </div>
-        <span className={`text-[12px] inline-flex items-center gap-1 shrink-0 ${record.lessonsLeft <= 3 ? 'text-warning font-medium' : 'text-gray-500'}`}>
-          {record.lessonsLeft <= 3 && <AlertTriangle size={12} />}
-          {record.lessonsLeft} left
-        </span>
+        <span className="text-[12px] text-gray-500 shrink-0">{record.lessonsLeft} left</span>
       </div>
 
       {record.checkInTime && (
@@ -33,7 +29,7 @@ function Card({ record }: { record: AttendanceRecord }) {
       )}
 
       <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        {record.status ? <StatusBadge status={record.status} /> : <span className="text-[12px] text-gray-400">Unmarked</span>}
+        {record.status ? <StatusBadge status={record.status} autoMarked={record.autoMarked} /> : <span className="text-[12px] text-gray-400">Unmarked</span>}
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 import { createBrowserRouter, redirect } from 'react-router-dom'
 import LoginPage from '../pages/auth/LoginPage'
 import CheckInPage from '../pages/public/CheckInPage'
+import RegisterPage from '../pages/public/RegisterPage'
+import ReceiptPage from '../pages/public/ReceiptPage'
 import secretaryRoutes from './SecretaryRoutes'
 import managerRoutes from './ManagerRoutes'
 import { ROUTES } from '../lib/constants'
@@ -21,6 +23,16 @@ const router = createBrowserRouter([
     // Public, unauthenticated student self check-in — no AppShell/sidebar.
     path: ROUTES.CHECK_IN,
     element: <CheckInPage />,
+  },
+  {
+    // Public, unauthenticated student self-registration — no AppShell/sidebar.
+    path: ROUTES.REGISTER,
+    element: <RegisterPage />,
+  },
+  {
+    // Public, unauthenticated shareable receipt — no login required.
+    path: '/receipt/:id',
+    element: <ReceiptPage />,
   },
   {
     path: '/',

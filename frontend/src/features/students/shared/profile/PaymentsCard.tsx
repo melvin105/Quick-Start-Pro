@@ -50,7 +50,7 @@ export default function PaymentsCard({ student, onViewReceipts }: PaymentsCardPr
       )}
 
       <Link
-        to={ROUTES.PAYMENTS}
+        to={`${ROUTES.PAYMENTS}?studentId=${student.id}`}
         className="mt-1 text-center px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-[12.5px] font-medium rounded-lg transition-colors"
       >
         + Record Payment

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
 import StatusBadge from '../shared/StatusBadge'
 import SourceBadge from '../shared/SourceBadge'
 import { getInitials } from '../shared/utils'
@@ -27,17 +26,12 @@ function Row({ record }: { record: AttendanceRecord }) {
       <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{record.slotLabel ?? '—'}</td>
       <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{record.checkInTime ?? '—'}</td>
       <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{record.driverName ?? '—'}</td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`text-[13px] inline-flex items-center gap-1 ${record.lessonsLeft <= 3 ? 'text-warning font-medium' : 'text-gray-900'}`}>
-          {record.lessonsLeft <= 3 && <AlertTriangle size={12} />}
-          {record.lessonsLeft} left
-        </span>
-      </td>
+      <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{record.lessonsLeft} left</td>
       <td className="px-4 py-3 whitespace-nowrap">
         {record.source ? <SourceBadge source={record.source} /> : <span className="text-gray-400 text-[12px]">—</span>}
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
-        {record.status ? <StatusBadge status={record.status} /> : <span className="text-[12px] text-gray-400">Unmarked</span>}
+        {record.status ? <StatusBadge status={record.status} autoMarked={record.autoMarked} /> : <span className="text-[12px] text-gray-400">Unmarked</span>}
       </td>
     </tr>
   )

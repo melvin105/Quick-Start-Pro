@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
-import { DAYS, DAY_FULL, START_HOURS, formatRangeShort, slotKey, lessonTone } from '../shared/utils'
-import { MOCK_STUDENTS } from '../shared/mockData'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import { DAYS, DAY_FULL, START_HOURS, formatRangeShort, slotKey, isSlotFull } from '../shared/utils'
+import useStudentsStore from '../../students/shared/store'
 import type { Day, SlotAssignment } from '../shared/types'
 
 interface DayScheduleListProps {
@@ -12,6 +12,7 @@ interface DayScheduleListProps {
 
 export default function DayScheduleList({ grid, todayColumn, onSlotTap }: DayScheduleListProps) {
   const [openDay, setOpenDay] = useState<Day | null>(todayColumn)
+  const students = useStudentsStore((s) => s.students)
 
   return (
     <div className="flex flex-col gap-3">
@@ -48,21 +49,17 @@ export default function DayScheduleList({ grid, todayColumn, onSlotTap }: DaySch
                       ) : (
                         <div className="flex-1 flex flex-col items-end gap-0.5 min-w-0">
                           {assignments.map((a) => {
-                            const student = MOCK_STUDENTS.find((s) => s.id === a.studentId)
+                            const student = students.find((s) => s.id === a.studentId)
                             if (!student) return null
-                            const tone = lessonTone(a.lessonsRemaining)
                             return (
-                              <span
-                                key={a.studentId}
-                                className={`text-[12.5px] font-medium truncate flex items-center gap-1 ${
-                                  tone === 'amber' ? 'text-warning' : tone === 'grey' ? 'text-gray-400' : 'text-gray-900'
-                                }`}
-                              >
-                                {tone === 'amber' && <AlertTriangle size={11} />}
+                              <span key={a.studentId} className="text-[12.5px] font-medium text-gray-900 truncate">
                                 {student.name}
                               </span>
                             )
                           })}
+                          {isSlotFull(assignments) && (
+                            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
+                          )}
                         </div>
                       )}
                     </button>

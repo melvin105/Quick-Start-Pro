@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { UserPlus, CreditCard, Eye, IdCard, CalendarClock, GraduationCap } from 'lucide-react'
+import { UserPlus, CreditCard, Eye, IdCard, CalendarClock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Student } from '../shared/types'
 import { formatDate } from '../shared/utils'
@@ -33,13 +33,6 @@ function buildActivity(student: Student, payments: ReturnType<typeof usePayments
   }
   if (progress?.examDate.date) {
     entries.push({ date: progress.examDate.date, icon: CalendarClock, text: 'DVLA exam scheduled' })
-  }
-  if (progress?.examResult.passed !== undefined && progress.examResult.date) {
-    entries.push({
-      date: progress.examResult.date,
-      icon: GraduationCap,
-      text: `DVLA exam result — ${progress.examResult.passed ? 'Passed' : 'Failed'}`,
-    })
   }
   if (progress?.fullLicence.issued && progress.fullLicence.dateIssued) {
     entries.push({ date: progress.fullLicence.dateIssued, icon: IdCard, text: 'Full licence issued' })

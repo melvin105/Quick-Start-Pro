@@ -1,4 +1,4 @@
-export type PeriodKey = 'this-month' | 'last-month' | 'last-3-months' | 'custom'
+export type PeriodKey = 'today' | 'this-month' | 'last-month' | 'last-3-months' | 'custom'
 
 export interface PeriodRange {
   from: string
@@ -17,6 +17,10 @@ export function computePeriodRange(period: PeriodKey, custom?: PeriodRange): Per
   const today = todayDate()
 
   if (period === 'custom' && custom) return custom
+
+  if (period === 'today') {
+    return { from: toIso(today), to: toIso(today) }
+  }
 
   if (period === 'last-month') {
     const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)

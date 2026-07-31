@@ -1,6 +1,6 @@
-import { DAYS, START_HOURS, formatRangeShort, slotKey } from '../shared/utils'
+import { DAYS, START_HOURS, formatRangeShort, slotKey, isSlotFull } from '../shared/utils'
 import StudentChip from '../secretary/StudentChip'
-import { MOCK_STUDENTS } from '../shared/mockData'
+import useStudentsStore from '../../students/shared/store'
 import type { Day, SlotAssignment } from '../shared/types'
 
 interface ManagerScheduleGridProps {
@@ -10,6 +10,8 @@ interface ManagerScheduleGridProps {
 }
 
 export default function ManagerScheduleGrid({ grid, todayColumn, onCellClick }: ManagerScheduleGridProps) {
+  const students = useStudentsStore((s) => s.students)
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden h-full flex flex-col">
       <div className="flex-1 min-h-0 overflow-auto">
@@ -61,10 +63,13 @@ export default function ManagerScheduleGrid({ grid, todayColumn, onCellClick }: 
                     }`}
                   >
                     {assignments.map((a) => {
-                      const student = MOCK_STUDENTS.find((s) => s.id === a.studentId)
+                      const student = students.find((s) => s.id === a.studentId)
                       if (!student) return null
                       return <StudentChip key={a.studentId} name={student.name} assignment={a} />
                     })}
+                    {isSlotFull(assignments) && (
+                      <span className="mt-auto text-[9.5px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
+                    )}
                   </button>
                 )
               })}

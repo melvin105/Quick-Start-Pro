@@ -38,7 +38,7 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-200">
-                {['Package Name', 'Lessons', 'Price', 'Status', 'Edit'].map((col) => (
+                {['Package Name', 'Price', 'Edit'].map((col) => (
                   <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {col}
                   </th>
@@ -49,15 +49,7 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
               {packages.map((pkg) => (
                 <tr key={pkg.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{pkg.name}</td>
-                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{pkg.lessons} lessons</td>
                   <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{formatGHS(pkg.price)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex items-center text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${
-                      pkg.status === 'active' ? 'bg-success-bg text-success' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {pkg.status === 'active' ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"

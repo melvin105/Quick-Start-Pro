@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Check, RotateCcw } from 'lucide-react'
 import usePaymentsStore from '../../features/payments/store'
 import useStudentsStore from '../../features/students/shared/store'
@@ -8,14 +9,9 @@ import PaymentsCardList from '../../features/payments/PaymentsCardList'
 import Dropdown from '../../features/payments/Dropdown'
 import RecordPaymentModal from '../../features/payments/RecordPaymentModal'
 import PaymentDetailDrawer from '../../features/payments/PaymentDetailDrawer'
+import DatePicker from '../../components/ui/DatePicker'
 import { todayIso } from '../../features/payments/utils'
 import type { PaymentRecord } from '../../features/payments/types'
-
-const RANGE_OPTIONS = [
-  { value: '',    label: 'Date Range' },
-  { value: '7',   label: 'Last 7 days' },
-  { value: '30',  label: 'Last 30 days' },
-]
 
 const METHOD_OPTIONS = [
   { value: '', label: 'Payment Method' },
@@ -33,37 +29,36 @@ export default function PaymentsPage() {
   const records = usePaymentsStore((s) => s.records)
   const students = useStudentsStore((s) => s.students)
 
-  const [showRecordModal, setShowRecordModal] = useState(false)
+  // Arriving from a student profile's "+ Record Payment" link pre-fills and
+  // opens the modal directly, instead of landing here with no context and
+  // making the secretary search for the student a second time.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialStudentId = searchParams.get('studentId') ?? undefined
+
+  const [showRecordModal, setShowRecordModal] = useState(!!initialStudentId)
   const [detailRecord, setDetailRecord] = useState<PaymentRecord | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const [range, setRange] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
   const [methodFilter, setMethodFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const hasActiveFilters = range !== '' || methodFilter !== '' || statusFilter !== ''
+  const hasActiveFilters = dateFilter !== '' || methodFilter !== '' || statusFilter !== ''
 
   const resetFilters = () => {
-    setRange('')
+    setDateFilter('')
     setMethodFilter('')
     setStatusFilter('')
   }
 
-  const filtered = useMemo(() => {
-    const cutoff = range === '' ? null : (() => {
-      const d = new Date()
-      d.setDate(d.getDate() - Number(range))
-      return d
-    })()
-    return records
-      .filter((r) => {
-        if (cutoff && new Date(r.date) < cutoff) return false
-        if (methodFilter && r.method !== methodFilter) return false
-        if (statusFilter && r.status !== statusFilter) return false
-        return true
-      })
-      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
-  }, [records, range, methodFilter, statusFilter])
+  const filtered = useMemo(() => records
+    .filter((r) => {
+      if (dateFilter && r.date !== dateFilter) return false
+      if (methodFilter && r.method !== methodFilter) return false
+      if (statusFilter && r.status !== statusFilter) return false
+      return true
+    })
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)), [records, dateFilter, methodFilter, statusFilter])
 
   const stats = useMemo(() => {
     const today = todayIso()
@@ -75,8 +70,13 @@ export default function PaymentsPage() {
     return { todayIncome, monthIncome, outstanding, studentsWithBalance }
   }, [records, students])
 
-  const handleRecorded = (record: PaymentRecord) => {
+  const closeRecordModal = () => {
     setShowRecordModal(false)
+    if (initialStudentId) setSearchParams({}, { replace: true })
+  }
+
+  const handleRecorded = (record: PaymentRecord) => {
+    closeRecordModal()
     setToast(`Payment recorded — receipt ${record.id}`)
     setTimeout(() => setToast(null), 3000)
   }
@@ -101,7 +101,7 @@ export default function PaymentsPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-gray-500 font-medium">Filter:</span>
-        <Dropdown label="Date Range" value={range} options={RANGE_OPTIONS} onChange={setRange} />
+        <DatePicker value={dateFilter} onChange={setDateFilter} maxDate={todayIso()} />
         <Dropdown label="Payment Method" value={methodFilter} options={METHOD_OPTIONS} onChange={setMethodFilter} />
         <Dropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
         {hasActiveFilters && (
@@ -128,7 +128,7 @@ export default function PaymentsPage() {
       </button>
 
       {showRecordModal && (
-        <RecordPaymentModal onClose={() => setShowRecordModal(false)} onRecorded={handleRecorded} />
+        <RecordPaymentModal onClose={closeRecordModal} onRecorded={handleRecorded} initialStudentId={initialStudentId} />
       )}
 
       {detailRecord && (
