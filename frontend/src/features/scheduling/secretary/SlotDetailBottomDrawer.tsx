@@ -1,6 +1,6 @@
 import { X, Plus } from 'lucide-react'
 import SlotOccupantsList from './SlotOccupantsList'
-import { formatSlotLabel } from '../shared/utils'
+import { formatSlotLabel, isSlotFull, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
 import type { Day, SlotAssignment } from '../shared/types'
 
 interface SlotDetailBottomDrawerProps {
@@ -15,6 +15,8 @@ interface SlotDetailBottomDrawerProps {
 export default function SlotDetailBottomDrawer({
   day, hour, assignments, onClear, onAssignAnother, onClose,
 }: SlotDetailBottomDrawerProps) {
+  const full = isSlotFull(assignments)
+
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-gray-900/40" onClick={onClose} />
@@ -38,11 +40,17 @@ export default function SlotDetailBottomDrawer({
         <div className="p-4 border-t border-gray-200 shrink-0">
           <button
             type="button"
+            disabled={full}
             onClick={onAssignAnother}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-lg transition-colors"
           >
             <Plus size={15} /> Assign Another Student
           </button>
+          {full && (
+            <p className="text-[11.5px] text-gray-500 text-center mt-2">
+              Slot full — max {MAX_STUDENTS_PER_SLOT} per hour (one per instructor)
+            </p>
+          )}
         </div>
       </div>
     </div>

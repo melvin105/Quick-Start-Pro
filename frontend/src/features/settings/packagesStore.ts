@@ -4,10 +4,8 @@ import type { CoursePackage } from './types'
 import { PACKAGES } from './mockData'
 
 interface PackageInput {
-  name:    string
-  lessons: number
-  price:   number
-  status:  'active' | 'inactive'
+  name:  string
+  price: number
 }
 
 interface PackagesState {

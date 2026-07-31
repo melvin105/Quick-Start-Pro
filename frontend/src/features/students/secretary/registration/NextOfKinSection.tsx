@@ -9,7 +9,7 @@ export default function NextOfKinSection({ register, errors }: FormSectionProps)
         <FormField label="Name" required error={errors.nokName?.message} registration={register('nokName')} />
         <FormField label="Relationship" required error={errors.nokRelationship?.message} registration={register('nokRelationship')} />
         <FormField label="Phone Number" required error={errors.nokPhone?.message} registration={register('nokPhone')} />
-        <FormField label="Address" error={errors.nokAddress?.message} registration={register('nokAddress')} />
+        <FormField label="Email Address" type="email" error={errors.nokEmail?.message} registration={register('nokEmail')} />
       </div>
     </div>
   )

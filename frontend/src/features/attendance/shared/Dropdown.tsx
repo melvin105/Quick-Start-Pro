@@ -11,18 +11,21 @@ interface DropdownProps {
   value: string
   options: DropdownOption[]
   onChange: (value: string) => void
+  fullWidth?: boolean
 }
 
-export default function Dropdown({ label, value, options, onChange }: DropdownProps) {
+export default function Dropdown({ label, value, options, onChange, fullWidth = false }: DropdownProps) {
   const [open, setOpen] = useState(false)
   const selected = options.find((o) => o.value === value && o.value !== '')
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className={`relative w-full ${fullWidth ? '' : 'sm:w-auto'}`}>
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full sm:w-auto flex items-center justify-between gap-2 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors ${
+          fullWidth ? '' : 'sm:w-auto'
+        }`}
       >
         {selected ? selected.label : label}
         <ChevronDown size={14} className={`text-gray-400 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />

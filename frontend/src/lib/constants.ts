@@ -20,6 +20,11 @@ export const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => 
   label,
 }))
 
+// ─── App base URL (for QR codes) ────────────────────────────────────────────────
+// Falls back to the current origin so QR codes resolve correctly even if
+// VITE_APP_URL isn't set (e.g. a fresh clone or an unfamiliar deploy target).
+export const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin
+
 // ─── Route paths ──────────────────────────────────────────────────────────────
 // Every app route lives under a role-prefixed base ('/secretary' or '/manager').
 // ROUTES.X below are getters so that a single call site (used by both the
@@ -40,7 +45,8 @@ function currentBase(): string {
 
 export const ROUTES = {
   LOGIN:    '/login',
-  CHECK_IN: '/check-in/:code',
+  CHECK_IN: '/check-in',
+  REGISTER: '/register',
 
   get DASHBOARD()  { return `${currentBase()}/dashboard` },
   get STUDENTS()   { return `${currentBase()}/students` },

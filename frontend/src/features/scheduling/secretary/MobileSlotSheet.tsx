@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, X } from 'lucide-react'
-import { MOCK_STUDENTS } from '../shared/mockData'
-import { formatSlotLabel } from '../shared/utils'
+import { Search, X, Users } from 'lucide-react'
+import useStudentsStore from '../../students/shared/store'
+import { formatSlotLabel, isSlotFull, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
 import type { Day, SlotAssignment } from '../shared/types'
 
 interface MobileSlotSheetProps {
@@ -14,19 +14,23 @@ interface MobileSlotSheetProps {
 }
 
 export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRemove, onClose }: MobileSlotSheetProps) {
+  const students = useStudentsStore((s) => s.students)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const assignedIds = assignments.map((a) => a.studentId)
+  const full = isSlotFull(assignments)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return MOCK_STUDENTS
+    return students
+      .filter((s) => s.status !== 'completed')
+      .filter((s) => s.enrolment !== 'Licence Only')
       .filter((s) => !assignedIds.includes(s.id))
       .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
       .slice(0, 6)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, assignments])
+  }, [students, query, assignments])
 
   return (
     <div className="fixed inset-0 z-50">
@@ -40,21 +44,10 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search student..."
-              className="w-full pl-8 pr-3 py-2.5 text-[13.5px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            />
-          </div>
-
           {assignments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {assignments.map((a) => {
-                const student = MOCK_STUDENTS.find((s) => s.id === a.studentId)
+                const student = students.find((s) => s.id === a.studentId)
                 if (!student) return null
                 const [first, last] = student.name.split(' ')
                 return (
@@ -72,24 +65,47 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
             </div>
           )}
 
-          <div className="flex flex-col gap-1">
-            {results.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSelectedId(s.id)}
-                className={`text-left px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
-                  selectedId === s.id ? 'bg-brand-50 text-brand-600' : 'hover:bg-gray-50 text-gray-800'
-                }`}
-              >
-                <p className="font-medium">{s.name}</p>
-                <p className="text-[11.5px] text-gray-500">{s.id} · {s.enrolment}</p>
-              </button>
-            ))}
-            {query.trim() !== '' && results.length === 0 && (
-              <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">No matching students.</p>
-            )}
-          </div>
+          {full ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <Users size={20} className="text-gray-300" />
+              <p className="text-[13px] font-medium text-gray-700">This slot is full</p>
+              <p className="text-[12px] text-gray-500">
+                Max {MAX_STUDENTS_PER_SLOT} student{MAX_STUDENTS_PER_SLOT === 1 ? '' : 's'} per hour — one per instructor.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search student..."
+                  className="w-full pl-8 pr-3 py-2.5 text-[13.5px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                {results.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedId(s.id)}
+                    className={`text-left px-2.5 py-2 rounded-lg text-[13px] transition-colors ${
+                      selectedId === s.id ? 'bg-brand-50 text-brand-600' : 'hover:bg-gray-50 text-gray-800'
+                    }`}
+                  >
+                    <p className="font-medium">{s.name}</p>
+                    <p className="text-[11.5px] text-gray-500">{s.id} · {s.enrolment}</p>
+                  </button>
+                ))}
+                {query.trim() !== '' && results.length === 0 && (
+                  <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">No matching students.</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="p-4 border-t border-gray-200 shrink-0 flex gap-2">
@@ -102,7 +118,7 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
           </button>
           <button
             type="button"
-            disabled={!selectedId}
+            disabled={!selectedId || full}
             onClick={() => { if (selectedId) { onAssign(selectedId); setSelectedId(null); setQuery('') } }}
             className="flex-1 px-4 py-2.5 text-[13.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >

@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import type { Student } from './types'
 import StatusBadge from './StatusBadge'
-import { getInitials, formatGHS, studentProfilePath } from './utils'
+import StudentAvatar from './StudentAvatar'
+import { formatGHS, studentProfilePath } from './utils'
 
 interface StudentCardListProps {
   students: Student[]
@@ -19,9 +20,7 @@ export default function StudentCardList({ students }: StudentCardListProps) {
           onClick={() => navigate(studentProfilePath(student.id))}
           className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-4 text-left w-full hover:border-gray-300 transition-colors"
         >
-          <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-[12px] font-semibold shrink-0">
-            {getInitials(student.name)}
-          </div>
+          <StudentAvatar name={student.name} photo={student.photo} className="w-10 h-10 text-[12px]" />
           <div className="min-w-0 flex-1">
             <p className="text-[14px] font-medium text-gray-900 truncate">{student.name}</p>
             <p className="text-[12.5px] text-gray-500 truncate">

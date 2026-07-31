@@ -11,7 +11,7 @@ export default function PersonalDetailsCard({ student }: { student: Student }) {
         <DetailRow label="Email" value={student.email} />
         <DetailRow label="Address" value={student.address} />
         <DetailRow label="Date of Birth" value={formatDate(student.dob)} />
-        <DetailRow label="ID" value={student.ghanaCardNumber ? `Ghana Card - ${student.ghanaCardNumber}` : undefined} />
+        <DetailRow label="ID" value={student.idCardNumber ? `${student.idCardType ?? 'ID'} - ${student.idCardNumber}` : undefined} />
       </div>
     </div>
   )

@@ -1,19 +1,29 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
-import { Printer, FileDown, X } from 'lucide-react'
+import { Printer, FileDown, X, Link2, Check } from 'lucide-react'
 import usePaymentsStore from '../../features/payments/store'
-import { formatGHS, formatDateLong } from '../../features/payments/utils'
+import { formatGHS, formatDateLong, shareReceipt } from '../../features/payments/utils'
 import { ROUTES } from '../../lib/constants'
 
 export default function ReceiptPage() {
   const { id } = useParams<{ id: string }>()
   const record = usePaymentsStore((s) => s.records.find((r) => r.id === id))
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     if (!record) return
     const t = setTimeout(() => window.print(), 400)
     return () => clearTimeout(t)
   }, [record])
+
+  const handleShare = async () => {
+    if (!id) return
+    const result = await shareReceipt(id)
+    if (result === 'copied') {
+      setToast('Link copied')
+      setTimeout(() => setToast(null), 3000)
+    }
+  }
 
   if (!record) {
     return <Navigate to={ROUTES.PAYMENTS} replace />
@@ -94,6 +104,13 @@ export default function ReceiptPage() {
           </button>
           <button
             type="button"
+            onClick={handleShare}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"
+          >
+            <Link2 size={15} /> Share
+          </button>
+          <button
+            type="button"
             onClick={() => window.close()}
             className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"
             aria-label="Close"
@@ -102,6 +119,13 @@ export default function ReceiptPage() {
           </button>
         </div>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-gray-900 text-white text-[13px] font-medium rounded-lg shadow-modal print:hidden">
+          <Check size={15} className="text-success" />
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

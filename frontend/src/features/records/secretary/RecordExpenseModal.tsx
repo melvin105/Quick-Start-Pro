@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import useRecordsStore from '../shared/store'
+import Dropdown from '../shared/Dropdown'
+import DatePicker from '../../../components/ui/DatePicker'
+import { todayIso } from '../../payments/utils'
 import { EXPENSE_CATEGORIES } from '../shared/types'
 import type { ExpenseCategory, ExpenseEntry } from '../shared/types'
 
@@ -47,15 +50,11 @@ export default function RecordExpenseModal({ date, editing, onClose, onSaved }: 
             <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
               Category <span className="text-danger">*</span>
             </label>
-            <select
+            <Dropdown
               value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(v) => setCategory(v as ExpenseCategory)}
+              options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))}
+            />
             <p className="text-[11px] text-gray-400 mt-1">{EXPENSE_CATEGORIES.join(' · ')}</p>
           </div>
 
@@ -95,13 +94,7 @@ export default function RecordExpenseModal({ date, editing, onClose, onSaved }: 
             <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
               Date <span className="text-danger">*</span>
             </label>
-            <input
-              type="date"
-              value={entryDate}
-              onChange={(e) => setEntryDate(e.target.value)}
-              disabled={!!editing}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            />
+            <DatePicker value={entryDate} onChange={setEntryDate} maxDate={todayIso()} disabled={!!editing} className="w-full" />
           </div>
 
           <div>

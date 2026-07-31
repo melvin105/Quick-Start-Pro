@@ -14,6 +14,13 @@ export default function ReviewSummary({ values }: { values: DetailsFormValues })
     <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-5">
       <div>
         <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Personal &amp; Identity</h2>
+        {values.passportPhoto && (
+          <img
+            src={values.passportPhoto}
+            alt="Passport preview"
+            className="w-16 h-16 rounded-full object-cover border border-gray-200 mb-3"
+          />
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
           <Row label="Name" value={`${values.firstName} ${values.lastName}`} />
           <Row label="Gender" value={values.gender} />
@@ -21,7 +28,8 @@ export default function ReviewSummary({ values }: { values: DetailsFormValues })
           <Row label="Phone" value={values.phone} />
           <Row label="Email" value={values.email} />
           <Row label="Address" value={values.address} />
-          <Row label="Ghana Card" value={values.ghanaCardNumber} />
+          <Row label="ID Type" value={values.idCardType} />
+          <Row label="Identity Number" value={values.idCardNumber} />
         </div>
       </div>
 
@@ -31,7 +39,7 @@ export default function ReviewSummary({ values }: { values: DetailsFormValues })
           <Row label="Name" value={values.nokName} />
           <Row label="Relationship" value={values.nokRelationship} />
           <Row label="Phone" value={values.nokPhone} />
-          <Row label="Address" value={values.nokAddress} />
+          <Row label="Email" value={values.nokEmail} />
         </div>
       </div>
 
@@ -45,11 +53,9 @@ export default function ReviewSummary({ values }: { values: DetailsFormValues })
       </div>
 
       <div>
-        <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Programme</h2>
+        <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Enrolment</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-          <Row label="Enrolment Type" value={values.enrolment} />
-          <Row label="Programme" value={values.programme} />
-          <Row label="Assigned Slot" value={values.assignedSlot} />
+          <Row label="Package" value={values.programme} />
         </div>
         {values.notes && (
           <p className="text-[13px] text-gray-600 mt-2">

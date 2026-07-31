@@ -1,4 +1,4 @@
-export type AttendanceStatus = 'present' | 'absent' | 'late'
+export type AttendanceStatus = 'present' | 'absent'
 export type CheckInSource = 'self' | 'manual'
 
 export interface AttendanceRecord {
@@ -13,6 +13,9 @@ export interface AttendanceRecord {
   driverName?:   string
   lessonsLeft:   number
   status?:       AttendanceStatus
+  // True when the 60-minute no-show rule marked this Absent automatically,
+  // rather than a secretary/manager doing it via Mark Manually.
+  autoMarked?:   boolean
   notes?:        string
 }
 

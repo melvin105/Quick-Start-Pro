@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { X, Printer } from 'lucide-react'
+import { X, Printer, Link2, Check } from 'lucide-react'
 import StatusBadge from './StatusBadge'
-import { formatGHS, formatDateDisplay, paymentReceiptPath } from './utils'
+import { formatGHS, formatDateDisplay, paymentReceiptPath, shareReceipt } from './utils'
 import type { PaymentRecord } from './types'
 
 interface PaymentDetailDrawerProps {
@@ -10,6 +11,16 @@ interface PaymentDetailDrawerProps {
 }
 
 export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDrawerProps) {
+  const [toast, setToast] = useState<string | null>(null)
+
+  const handleShare = async () => {
+    const result = await shareReceipt(record.id)
+    if (result === 'copied') {
+      setToast('Link copied')
+      setTimeout(() => setToast(null), 3000)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-gray-900/50" onClick={onClose} />
@@ -76,17 +87,31 @@ export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDr
           <p className="text-[11.5px] text-gray-400">Recorded by {record.recordedBy}</p>
         </div>
 
-        <div className="p-5 border-t border-gray-200 shrink-0">
+        <div className="p-5 border-t border-gray-200 shrink-0 flex gap-2">
           <Link
             to={paymentReceiptPath(record.id)}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
           >
-            <Printer size={15} /> Print Receipt
+            <Printer size={15} /> Print
           </Link>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"
+          >
+            <Link2 size={15} /> Share Receipt
+          </button>
         </div>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-3 bg-gray-900 text-white text-[13px] font-medium rounded-lg shadow-modal">
+          <Check size={15} className="text-success" />
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

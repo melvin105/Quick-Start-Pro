@@ -1,10 +1,6 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, SquarePen } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import SourceBadge from './SourceBadge'
-import MarkDropdown from '../secretary/MarkDropdown'
-import InlineLessonsEdit from '../secretary/InlineLessonsEdit'
-import { useAttendanceRow } from '../secretary/useAttendanceRow'
 import { getInitials } from './utils'
 import { studentProfilePath } from '../../students/shared/utils'
 import type { AttendanceRecord } from './types'
@@ -12,8 +8,6 @@ import type { AttendanceRecord } from './types'
 const COLUMNS = ['Student', 'Slot', 'Check-in Time', 'Driver', 'Lessons Left', 'Status']
 
 function Row({ record }: { record: AttendanceRecord }) {
-  const { editing, setEditing, handleMark, handleSaveLessons, showEditableLessons } = useAttendanceRow(record)
-
   return (
     <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3">
@@ -41,31 +35,12 @@ function Row({ record }: { record: AttendanceRecord }) {
         )}
       </td>
       <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{record.driverName ?? '—'}</td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`text-[13px] inline-flex items-center gap-1 ${record.lessonsLeft <= 3 ? 'text-warning font-medium' : 'text-gray-900'}`}>
-          {record.lessonsLeft <= 3 && <AlertTriangle size={12} />}
-          {record.lessonsLeft} left
-        </span>
-      </td>
+      <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{record.lessonsLeft} left</td>
       <td className="px-4 py-3">
-        {!record.status || editing ? (
-          <MarkDropdown onMark={handleMark} />
+        {record.status ? (
+          <StatusBadge status={record.status} autoMarked={record.autoMarked} />
         ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={record.status} />
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="text-[11.5px] font-medium text-gray-500 hover:text-brand-600 flex items-center gap-0.5"
-              >
-                <SquarePen size={11} /> Edit
-              </button>
-            </div>
-            {showEditableLessons && (
-              <InlineLessonsEdit initialValue={record.lessonsLeft} onSave={handleSaveLessons} />
-            )}
-          </div>
+          <span className="text-[12px] text-gray-400">Unmarked</span>
         )}
       </td>
     </tr>

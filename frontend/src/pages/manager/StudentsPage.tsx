@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, Filter } from 'lucide-react'
+import { Search, Filter, IdCard } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
 import ManagerStudentsTable from '../../features/students/manager/ManagerStudentsTable'
 import StudentCardList from '../../features/students/shared/StudentCardList'
@@ -48,10 +48,10 @@ export default function StudentsPage() {
     [students],
   )
 
-  const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning' }[] = [
+  const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning'; icon?: typeof IdCard }[] = [
     { key: 'active',    label: 'Active',    count: students.length },
     { key: 'pending',   label: 'Pending',   count: pending.length, tone: 'warning' },
-    { key: 'licences',  label: 'Licences',  count: licenceEligible.length },
+    { key: 'licences',  label: 'Licences',  count: licenceEligible.length, icon: IdCard },
     { key: 'archived',  label: 'Archived' },
   ]
 
@@ -75,6 +75,7 @@ export default function StudentsPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-800'
             }`}
           >
+            {t.icon && <t.icon size={14} />}
             {t.label}
             {typeof t.count === 'number' && (
               <span

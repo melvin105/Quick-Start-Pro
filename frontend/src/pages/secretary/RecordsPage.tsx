@@ -10,6 +10,7 @@ import RecordExpenseModal from '../../features/records/secretary/RecordExpenseMo
 import EndOfDaySummaryModal from '../../features/records/secretary/EndOfDaySummaryModal'
 import ReviewPanel from '../../features/records/manager/ReviewPanel'
 import DayStatusBadge from '../../features/records/secretary/DayStatusBadge'
+import DatePicker from '../../components/ui/DatePicker'
 import { computeDay, formatDateWithWeekday } from '../../features/records/shared/utils'
 import { formatGHS, todayIso } from '../../features/payments/utils'
 import type { ExpenseEntry, LedgerRow } from '../../features/records/shared/types'
@@ -123,13 +124,7 @@ export default function RecordsPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="date"
-          value={selectedDate}
-          max={todayIso()}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-        />
+        <DatePicker value={selectedDate} onChange={setSelectedDate} maxDate={todayIso()} />
         <DayStatusBadge status={day.status} />
         <p className="text-[12.5px] text-gray-500">
           Opening Balance: <span className="font-medium text-gray-800">{formatGHS(day.openingBalance)}</span>

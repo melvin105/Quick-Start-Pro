@@ -9,3 +9,21 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Used by QrCodeDisplay's Print button — isolates the QR block so a modal's
+   backdrop/overlay chrome doesn't end up on the printed page. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}

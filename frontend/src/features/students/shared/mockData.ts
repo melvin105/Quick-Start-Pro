@@ -1,31 +1,30 @@
-import type { Student, PendingSubmission, EnrolmentType } from './types'
+import type { Student, PendingSubmission } from './types'
 
 export const STUDENTS: Student[] = [
   {
     id: 'QS-2025-001', firstName: 'John', lastName: 'Mensah', name: 'John Mensah',
     dob: '2001-03-12', gender: 'male', phone: '024 111 2233', email: 'john.mensah@gmail.com',
-    address: 'East Legon, Accra', ghanaCardNumber: 'GHA-023456789-0',
+    address: 'East Legon, Accra', idCardType: 'Ghana Card', idCardNumber: 'GHA-023456789-0',
     nextOfKin:        { name: 'Grace Mensah',  relationship: 'Mother', phone: '024 555 7788' },
     emergencyContact: { name: 'Grace Mensah',  relationship: 'Mother', phone: '024 555 7788' },
-    enrolment: 'Driving + Licence', programme: 'Driving and Licence', balance: 500, status: 'outstanding',
+    enrolment: 'Driving + Licence', programme: 'Driving + Licence', balance: 500, status: 'outstanding',
     registrationDate: '2025-07-01',
-    packageFee: 3200, lessonsPackageTotal: 16, lessonsTaken: 10,
+    packageFee: 3200, lessonsPackageTotal: 15, lessonsTaken: 10,
     licenceProgress: {
       eyeTest:        { done: true, dateDone: '2026-06-02' },
-      learnerLicence: { issued: true, dateIssued: '2026-06-15', licenceNo: 'GHA-LEARN-00234' },
+      learnerLicence: { issued: true, dateIssued: '2026-06-15' },
       examDate:       {},
-      examResult:     {},
       fullLicence:    { issued: false },
     },
   },
   {
     id: 'QS-2025-002', firstName: 'Mary', lastName: 'Owusu', name: 'Mary Owusu',
     dob: '2000-09-03', gender: 'female', phone: '020 445 8871', email: 'mary.owusu@example.com',
-    address: 'Bomso, Kumasi', ghanaCardNumber: 'GHA-000333444',
+    address: 'Bomso, Kumasi', idCardType: 'Ghana Card', idCardNumber: 'GHA-000333444',
     nextOfKin:        { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
     emergencyContact: { name: 'Samuel Owusu', relationship: 'Father', phone: '020 445 1120' },
-    enrolment: 'Licence Only', programme: "Learner's Licence Processing", balance: 0, status: 'active',
-    packageFee: 1200,
+    enrolment: 'Licence Only', programme: 'Licence Only', balance: 0, status: 'active',
+    packageFee: 1200, lessonsPackageTotal: 15, lessonsTaken: 3,
   },
   {
     id: 'QS-2025-003', firstName: 'Kwesi', lastName: 'Boateng', name: 'Kwesi Boateng',
@@ -33,17 +32,17 @@ export const STUDENTS: Student[] = [
     address: 'Kotei, Kumasi',
     nextOfKin:        { name: 'Efua Boateng', relationship: 'Sister', phone: '055 902 9981' },
     emergencyContact: { name: 'Efua Boateng', relationship: 'Sister', phone: '055 902 9981' },
-    enrolment: 'Driving Only', programme: 'Manual — Standard (4 weeks)', balance: 0, status: 'active',
-    packageFee: 2000,
+    enrolment: 'Driving Only', programme: 'Driving Only', balance: 0, status: 'active',
+    packageFee: 2000, lessonsPackageTotal: 15, lessonsTaken: 12,
   },
   {
     id: 'QS-2025-004', firstName: 'Ama', lastName: 'Asante', name: 'Ama Asante',
     dob: '1999-11-08', gender: 'female', phone: '027 883 0092',
-    address: 'Ahodwo, Kumasi', ghanaCardNumber: 'GHA-000777888',
+    address: 'Ahodwo, Kumasi', idCardType: 'Ghana Card', idCardNumber: 'GHA-000777888',
     nextOfKin:        { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
     emergencyContact: { name: 'Yaw Asante', relationship: 'Brother', phone: '027 883 1200' },
-    enrolment: 'Driving + Licence', programme: 'Automatic + Licence Package', balance: 0, status: 'active',
-    packageFee: 3200,
+    enrolment: 'Driving + Licence', programme: 'Driving + Licence', balance: 0, status: 'active',
+    packageFee: 3200, lessonsPackageTotal: 15, lessonsTaken: 8,
   },
   {
     id: 'QS-2025-005', firstName: 'Yaw', lastName: 'Darko', name: 'Yaw Darko',
@@ -51,8 +50,8 @@ export const STUDENTS: Student[] = [
     address: 'Deduako, Kumasi',
     nextOfKin:        { name: 'Abena Darko', relationship: 'Wife', phone: '050 214 0099' },
     emergencyContact: { name: 'Abena Darko', relationship: 'Wife', phone: '050 214 0099' },
-    enrolment: 'Driving Only', programme: 'Automatic — Standard (4 weeks)', balance: 0, status: 'completed',
-    packageFee: 2000,
+    enrolment: 'Driving Only', programme: 'Driving Only', balance: 0, status: 'completed',
+    packageFee: 2000, lessonsPackageTotal: 15, lessonsTaken: 15,
   },
   // Seeded so the QR hand-off "simulate submission" demo can trigger the
   // name-based duplicate-detection banner on the Review step.
@@ -62,8 +61,8 @@ export const STUDENTS: Student[] = [
     address: 'Kotei, Kumasi',
     nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
     emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
-    enrolment: 'Driving Only', programme: 'Manual — Standard (4 weeks)', balance: 0, status: 'active',
-    packageFee: 2000,
+    enrolment: 'Driving Only', programme: 'Driving Only', balance: 0, status: 'active',
+    packageFee: 2000, lessonsPackageTotal: 15, lessonsTaken: 1,
   },
 ]
 
@@ -84,22 +83,6 @@ export const PENDING_SUBMISSIONS: PendingSubmission[] = [
   },
 ]
 
-export const PROGRAMMES_BY_ENROLMENT: Record<EnrolmentType, string[]> = {
-  'Driving Only': [
-    'Manual — Standard (4 weeks)',
-    'Manual — Intensive (2 weeks)',
-    'Automatic — Standard (4 weeks)',
-  ],
-  'Licence Only': [
-    "Learner's Licence Processing",
-    'Provisional → Full Licence Upgrade',
-  ],
-  'Driving + Licence': [
-    'Manual + Licence Package',
-    'Automatic + Licence Package',
-  ],
-}
-
 // Demo data used by the QR hand-off "Simulate Student Submission" button —
 // intentionally the same name as QS-2025-006 to demonstrate duplicate detection.
 export function buildSimulatedSubmission(phone: string): PendingSubmission {
@@ -114,7 +97,8 @@ export function buildSimulatedSubmission(phone: string): PendingSubmission {
     gender: 'male',
     email: 'akwasi.asenso@example.com',
     address: 'Ayeduase Gate, Kumasi',
-    ghanaCardNumber: 'GHA-0011223344',
+    idCardType: 'Ghana Card',
+    idCardNumber: 'GHA-0011223344',
     nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
     emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
   }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import useAttendanceStore from '../shared/store'
 import useStudentsStore from '../../students/shared/store'
+import Dropdown from '../shared/Dropdown'
 import { INSTRUCTORS } from '../shared/mockData'
 import type { AttendanceStatus } from '../shared/types'
 
@@ -13,7 +14,6 @@ interface ManualMarkModalProps {
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
   { value: 'present', label: 'Present' },
   { value: 'absent',  label: 'Absent' },
-  { value: 'late',    label: 'Late' },
 ]
 
 function nowTimeInputValue() {
@@ -139,9 +139,7 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
                     status === opt.value
                       ? opt.value === 'present'
                         ? 'border-success bg-success-bg text-success'
-                        : opt.value === 'absent'
-                          ? 'border-danger bg-danger-bg text-danger'
-                          : 'border-warning bg-warning-bg text-warning'
+                        : 'border-danger bg-danger-bg text-danger'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
@@ -179,16 +177,13 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
           {status !== 'absent' && (
             <div>
               <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Driver</label>
-              <select
+              <Dropdown
+                label="Select instructor (optional)"
                 value={driver}
-                onChange={(e) => setDriver(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-              >
-                <option value="">Select instructor (optional)</option>
-                {INSTRUCTORS.filter((i) => i.active).map((i) => (
-                  <option key={i.id} value={i.name}>{i.name}</option>
-                ))}
-              </select>
+                onChange={setDriver}
+                options={INSTRUCTORS.filter((i) => i.active).map((i) => ({ value: i.name, label: i.name }))}
+                fullWidth
+              />
             </div>
           )}
 

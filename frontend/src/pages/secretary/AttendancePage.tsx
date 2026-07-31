@@ -4,7 +4,6 @@ import { Camera, Plus } from 'lucide-react'
 import useAttendanceStore from '../../features/attendance/shared/store'
 import AttendanceTable from '../../features/attendance/shared/AttendanceTable'
 import AttendanceCardList from '../../features/attendance/shared/AttendanceCardList'
-import UnscheduledArrivals from '../../features/attendance/secretary/UnscheduledArrivals'
 import QrCodePanel from '../../features/attendance/secretary/QrCodePanel'
 import ManualMarkModal from '../../features/attendance/secretary/ManualMarkModal'
 import { formatTodayLong } from '../../features/attendance/shared/utils'
@@ -20,10 +19,10 @@ export default function AttendancePage() {
 
   const [showQr, setShowQr] = useState(false)
   const [showManualMark, setShowManualMark] = useState(false)
-  const [showWalkIn, setShowWalkIn] = useState(false)
   const [pulse, setPulse] = useState(false)
 
   // Stand-in for a real-time feed: poll for newly self-checked-in students.
+  // (The 60-minute no-show auto-absent sweep runs globally in AppShell.)
   useEffect(() => {
     const interval = setInterval(() => simulateSelfCheckIn(), POLL_INTERVAL_MS)
     return () => clearInterval(interval)
@@ -37,7 +36,6 @@ export default function AttendancePage() {
   }, [lastLiveUpdateAt])
 
   const scheduled = records.filter((r) => r.hasSlot)
-  const unscheduled = records.filter((r) => !r.hasSlot)
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,17 +73,24 @@ export default function AttendancePage() {
           >
             <Plus size={15} /> Mark Manually
           </button>
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              onClick={() => simulateSelfCheckIn()}
+              title="Dev only — simulates a student scanning the QR and checking in, without needing a second device"
+              className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-warning bg-warning-bg border border-warning/30 rounded-lg hover:bg-warning-bg/70 transition-colors"
+            >
+              🧪 Simulate Check-In
+            </button>
+          )}
         </div>
       </div>
 
       <AttendanceTable records={scheduled} />
       <AttendanceCardList records={scheduled} />
 
-      <UnscheduledArrivals records={unscheduled} onAddWalkIn={() => setShowWalkIn(true)} />
-
       {showQr && <QrCodePanel onClose={() => setShowQr(false)} />}
       {showManualMark && <ManualMarkModal onClose={() => setShowManualMark(false)} />}
-      {showWalkIn && <ManualMarkModal title="Add Walk-In" onClose={() => setShowWalkIn(false)} />}
     </div>
   )
 }

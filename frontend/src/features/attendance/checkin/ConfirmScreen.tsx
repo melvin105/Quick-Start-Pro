@@ -1,4 +1,4 @@
-import { getInitials } from '../shared/utils'
+import StudentAvatar from '../../students/shared/StudentAvatar'
 import type { Student } from '../../students/shared/types'
 
 interface ConfirmScreenProps {
@@ -11,9 +11,7 @@ export default function ConfirmScreen({ student, onConfirm, onNotMe }: ConfirmSc
   return (
     <>
       <h1 className="text-[18px] font-semibold text-gray-900">Is this you?</h1>
-      <div className="w-16 h-16 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-[20px] font-semibold">
-        {getInitials(student.name)}
-      </div>
+      <StudentAvatar name={student.name} photo={student.photo} className="w-16 h-16 text-[20px]" />
       <div>
         <p className="text-[16px] font-semibold text-gray-900">{student.name}</p>
         <p className="text-[13px] text-gray-500 mt-0.5">{student.enrolment}</p>

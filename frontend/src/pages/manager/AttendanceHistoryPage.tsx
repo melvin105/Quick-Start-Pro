@@ -6,6 +6,7 @@ import { HISTORICAL_ATTENDANCE, INSTRUCTORS } from '../../features/attendance/sh
 import Dropdown from '../../features/attendance/shared/Dropdown'
 import StatusBadge from '../../features/attendance/shared/StatusBadge'
 import SourceBadge from '../../features/attendance/shared/SourceBadge'
+import DatePicker from '../../components/ui/DatePicker'
 import { formatDateDisplay } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
 import type { AttendanceRecord } from '../../features/attendance/shared/types'
@@ -14,14 +15,11 @@ const STATUS_OPTIONS = [
   { value: '', label: 'Status' },
   { value: 'present', label: 'Present' },
   { value: 'absent',  label: 'Absent' },
-  { value: 'late',    label: 'Late' },
 ]
 
-const RANGE_OPTIONS = [
-  { value: '7',   label: 'Last 7 days' },
-  { value: '30',  label: 'Last 30 days' },
-  { value: 'all', label: 'All time' },
-]
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 function csvEscape(value: string) {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
@@ -54,15 +52,9 @@ export default function AttendanceHistoryPage() {
   const allRecords = useMemo(() => [...todayRecords, ...HISTORICAL_ATTENDANCE], [todayRecords])
 
   const [search, setSearch] = useState('')
-  const [studentFilter, setStudentFilter] = useState('')
   const [driverFilter, setDriverFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [range, setRange] = useState('7')
-
-  const studentOptions = useMemo(() => {
-    const names = Array.from(new Set(allRecords.map((r) => r.studentName))).sort()
-    return [{ value: '', label: 'Student' }, ...names.map((n) => ({ value: n, label: n }))]
-  }, [allRecords])
+  const [date, setDate] = useState(todayIso())
 
   const driverOptions = [
     { value: '', label: 'Driver' },
@@ -70,24 +62,18 @@ export default function AttendanceHistoryPage() {
   ]
 
   const filtered = useMemo(() => {
-    const cutoff = range === 'all' ? null : (() => {
-      const d = new Date()
-      d.setDate(d.getDate() - Number(range))
-      return d
-    })()
     const q = search.trim().toLowerCase()
 
     return allRecords
       .filter((r) => {
-        if (cutoff && new Date(r.date) < cutoff) return false
-        if (studentFilter && r.studentName !== studentFilter) return false
+        if (date && r.date !== date) return false
         if (driverFilter && r.driverName !== driverFilter) return false
         if (statusFilter && r.status !== statusFilter) return false
         if (q && !r.studentName.toLowerCase().includes(q)) return false
         return true
       })
       .sort((a, b) => b.date.localeCompare(a.date))
-  }, [allRecords, search, studentFilter, driverFilter, statusFilter, range])
+  }, [allRecords, search, driverFilter, statusFilter, date])
 
   return (
     <div className="flex flex-col gap-5">
@@ -113,10 +99,9 @@ export default function AttendanceHistoryPage() {
               focus:outline-none focus:border-brand-600/40 focus:ring-2 focus:ring-brand-600/10 transition-colors"
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Dropdown label="Student" value={studentFilter} options={studentOptions} onChange={setStudentFilter} />
+        <div className="flex flex-wrap items-center gap-2">
+          <DatePicker value={date} onChange={setDate} maxDate={todayIso()} />
           <Dropdown label="Driver" value={driverFilter} options={driverOptions} onChange={setDriverFilter} />
-          <Dropdown label="Date Range" value={range} options={RANGE_OPTIONS} onChange={setRange} />
           <Dropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
         </div>
         <button
@@ -152,7 +137,7 @@ export default function AttendanceHistoryPage() {
                     {r.source ? <SourceBadge source={r.source} /> : <span className="text-gray-400 text-[12px]">—</span>}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {r.status ? <StatusBadge status={r.status} /> : <span className="text-gray-400 text-[12px]">Unmarked</span>}
+                    {r.status ? <StatusBadge status={r.status} autoMarked={r.autoMarked} /> : <span className="text-gray-400 text-[12px]">Unmarked</span>}
                   </td>
                 </tr>
               ))}

@@ -4,16 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
+import usePackagesStore from '../../features/settings/packagesStore'
+import { deriveEnrolment } from '../../features/settings/enrolment'
 import { detailsSchema, DETAILS_DEFAULTS, type DetailsFormValues } from '../../features/students/secretary/registration/schema'
 import StepIndicator from '../../features/students/secretary/registration/StepIndicator'
-import PathSelector from '../../features/students/secretary/registration/PathSelector'
 import PersonalDetailsSection from '../../features/students/secretary/registration/PersonalDetailsSection'
 import NextOfKinSection from '../../features/students/secretary/registration/NextOfKinSection'
 import EmergencyContactSection from '../../features/students/secretary/registration/EmergencyContactSection'
 import EnrolmentSection from '../../features/students/secretary/registration/EnrolmentSection'
 import ReviewSummary from '../../features/students/secretary/registration/ReviewSummary'
+import StudentAvatar from '../../features/students/shared/StudentAvatar'
 import { ROUTES } from '../../lib/constants'
-import { studentProfilePath } from '../../features/students/shared/utils'
+import { studentProfilePath, MAX_LESSONS } from '../../features/students/shared/utils'
 import type { Student } from '../../features/students/shared/types'
 
 type Phase = 'details' | 'review'
@@ -28,13 +30,13 @@ export default function RegisterStudentPage() {
   const addStudent = useStudentsStore((s) => s.addStudent)
   const removePending = useStudentsStore((s) => s.removePending)
   const nextStudentId = useStudentsStore((s) => s.nextStudentId)
+  const packages = usePackagesStore((s) => s.packages)
 
   const resumeRecord = resumeId ? pending.find((p) => p.id === resumeId) : undefined
 
   const [phase, setPhase] = useState<Phase>('details')
-  const [path, setPath] = useState<'self' | 'qr'>('self')
-  const [qrPhone, setQrPhone] = useState('')
   const [duplicateConfirmed, setDuplicateConfirmed] = useState(false)
+  const [finishing, setFinishing] = useState(false)
 
   const {
     register, control, handleSubmit, watch, setValue, formState: { errors },
@@ -46,15 +48,17 @@ export default function RegisterStudentPage() {
           firstName: resumeRecord.firstName,
           lastName:  resumeRecord.lastName,
           dob:       resumeRecord.dob,
-          gender:    resumeRecord.gender,
+          gender:    resumeRecord.gender === 'other' ? 'male' : resumeRecord.gender,
           phone:     resumeRecord.phone,
           email:     resumeRecord.email ?? '',
           address:   resumeRecord.address ?? '',
-          ghanaCardNumber: resumeRecord.ghanaCardNumber ?? '',
+          passportPhoto: resumeRecord.photo ?? '',
+          idCardType:   resumeRecord.idCardType ?? '',
+          idCardNumber: resumeRecord.idCardNumber ?? '',
           nokName:         resumeRecord.nextOfKin.name,
           nokRelationship: resumeRecord.nextOfKin.relationship,
           nokPhone:        resumeRecord.nextOfKin.phone,
-          nokAddress:      resumeRecord.nextOfKin.address ?? '',
+          nokEmail:        resumeRecord.nextOfKin.email ?? '',
           ecName:         resumeRecord.emergencyContact.name,
           ecPhone:        resumeRecord.emergencyContact.phone,
           ecRelationship: resumeRecord.emergencyContact.relationship,
@@ -74,9 +78,9 @@ export default function RegisterStudentPage() {
   const fullName = `${firstName ?? ''} ${lastName ?? ''}`.trim()
 
   const duplicateMatch = useMemo(() => {
-    if (phase !== 'review' || !fullName) return undefined
+    if (finishing || phase !== 'review' || !fullName) return undefined
     return students.find((s) => s.name.trim().toLowerCase() === fullName.toLowerCase())
-  }, [phase, fullName, students])
+  }, [finishing, phase, fullName, students])
 
   const onContinueToReview = handleSubmit(() => {
     setDuplicateConfirmed(false)
@@ -84,8 +88,15 @@ export default function RegisterStudentPage() {
   })
 
   const onFinish = () => {
+    // addStudent() below adds the new student to the same `students` array
+    // duplicateMatch watches — without this guard, the name-match memo would
+    // recompute against the record that was just created (matching itself)
+    // and flash the "possible duplicate" banner for a render before the
+    // route change away from this page takes effect.
+    setFinishing(true)
     const values = watch()
     const id = nextStudentId()
+    const matchedPackage = packages.find((p) => p.name === values.programme)
     const student: Student = {
       id,
       firstName: values.firstName,
@@ -96,33 +107,32 @@ export default function RegisterStudentPage() {
       phone:     values.phone,
       email:     values.email || undefined,
       address:   values.address || undefined,
-      ghanaCardNumber: values.ghanaCardNumber || undefined,
+      photo:        values.passportPhoto || undefined,
+      idCardType:   (values.idCardType as Student['idCardType']) || undefined,
+      idCardNumber: values.idCardNumber || undefined,
       nextOfKin: {
         name: values.nokName,
         relationship: values.nokRelationship,
         phone: values.nokPhone,
-        address: values.nokAddress || undefined,
+        email: values.nokEmail || undefined,
       },
       emergencyContact: {
         name: values.ecName,
         phone: values.ecPhone,
         relationship: values.ecRelationship,
       },
-      enrolment:    values.enrolment,
+      enrolment:    deriveEnrolment(values.programme),
       programme:    values.programme,
-      assignedSlot: values.assignedSlot || undefined,
       notes:        values.notes || undefined,
-      balance: 0,
+      packageFee:          matchedPackage?.price,
+      lessonsPackageTotal: MAX_LESSONS,
+      lessonsTaken:        0,
+      balance: matchedPackage?.price ?? 0,
       status: 'active',
     }
     addStudent(student)
     if (resumeRecord) removePending(resumeRecord.id)
     navigate(studentProfilePath(id))
-  }
-
-  const handleGenerateQr = () => {
-    if (!qrPhone.trim()) return
-    navigate(ROUTES.STUDENTS_REGISTER_QR, { state: { phone: qrPhone.trim() } })
   }
 
   const canFinish = !duplicateMatch || duplicateConfirmed
@@ -147,74 +157,47 @@ export default function RegisterStudentPage() {
 
       {phase === 'details' && (
         <div className="flex flex-col gap-4">
-          {!resumeRecord && <PathSelector value={path} onChange={setPath} />}
-
-          {!resumeRecord && path === 'qr' && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-3 max-w-sm">
-              <div>
-                <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
-                  Student's Phone Number <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={qrPhone}
-                  onChange={(e) => setQrPhone(e.target.value)}
-                  placeholder="e.g. 024 111 2233"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                />
+          {resumeRecord && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Submitted by Student
+              </h2>
+              <div className="flex items-center gap-3 mb-4">
+                <StudentAvatar name={resumeRecord.name} photo={resumeRecord.photo} className="w-14 h-14 text-[17px]" />
+                <p className="text-[15px] font-semibold text-gray-900">{resumeRecord.name}</p>
               </div>
-              <button
-                type="button"
-                disabled={!qrPhone.trim()}
-                onClick={handleGenerateQr}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13.5px] font-medium rounded-lg transition-colors"
-              >
-                Generate QR Code
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13.5px]">
+                <p><span className="text-gray-500">Name:</span> <span className="text-gray-900 font-medium">{resumeRecord.name}</span></p>
+                <p><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{resumeRecord.phone}</span></p>
+                <p><span className="text-gray-500">Date of Birth:</span> <span className="text-gray-900">{resumeRecord.dob}</span></p>
+                <p><span className="text-gray-500">Gender:</span> <span className="text-gray-900 capitalize">{resumeRecord.gender}</span></p>
+                <p><span className="text-gray-500">Address:</span> <span className="text-gray-900">{resumeRecord.address ?? '—'}</span></p>
+                <p><span className="text-gray-500">ID:</span> <span className="text-gray-900">{resumeRecord.idCardType ? `${resumeRecord.idCardType} - ${resumeRecord.idCardNumber ?? ''}` : '—'}</span></p>
+                <p><span className="text-gray-500">Next of Kin:</span> <span className="text-gray-900">{resumeRecord.nextOfKin.name} ({resumeRecord.nextOfKin.relationship}) — {resumeRecord.nextOfKin.phone}</span></p>
+                <p><span className="text-gray-500">Emergency Contact:</span> <span className="text-gray-900">{resumeRecord.emergencyContact.name} ({resumeRecord.emergencyContact.relationship}) — {resumeRecord.emergencyContact.phone}</span></p>
+              </div>
             </div>
           )}
 
-          {(resumeRecord || path === 'self') && (
+          {!resumeRecord && (
             <>
-              {resumeRecord && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                  <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    Submitted by Student
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13.5px]">
-                    <p><span className="text-gray-500">Name:</span> <span className="text-gray-900 font-medium">{resumeRecord.name}</span></p>
-                    <p><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{resumeRecord.phone}</span></p>
-                    <p><span className="text-gray-500">Date of Birth:</span> <span className="text-gray-900">{resumeRecord.dob}</span></p>
-                    <p><span className="text-gray-500">Gender:</span> <span className="text-gray-900 capitalize">{resumeRecord.gender}</span></p>
-                    <p><span className="text-gray-500">Address:</span> <span className="text-gray-900">{resumeRecord.address ?? '—'}</span></p>
-                    <p><span className="text-gray-500">Ghana Card:</span> <span className="text-gray-900">{resumeRecord.ghanaCardNumber ?? '—'}</span></p>
-                    <p><span className="text-gray-500">Next of Kin:</span> <span className="text-gray-900">{resumeRecord.nextOfKin.name} ({resumeRecord.nextOfKin.relationship}) — {resumeRecord.nextOfKin.phone}</span></p>
-                    <p><span className="text-gray-500">Emergency Contact:</span> <span className="text-gray-900">{resumeRecord.emergencyContact.name} ({resumeRecord.emergencyContact.relationship}) — {resumeRecord.emergencyContact.phone}</span></p>
-                  </div>
-                </div>
-              )}
-
-              {!resumeRecord && (
-                <>
-                  <PersonalDetailsSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
-                  <NextOfKinSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
-                  <EmergencyContactSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
-                </>
-              )}
-
-              <EnrolmentSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={onContinueToReview}
-                  className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13.5px] font-medium rounded-lg transition-colors"
-                >
-                  Continue to Review →
-                </button>
-              </div>
+              <PersonalDetailsSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
+              <NextOfKinSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
+              <EmergencyContactSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
             </>
           )}
+
+          <EnrolmentSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onContinueToReview}
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13.5px] font-medium rounded-lg transition-colors"
+            >
+              Continue to Review →
+            </button>
+          </div>
         </div>
       )}
 

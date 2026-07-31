@@ -1,7 +1,7 @@
 import type { LicenceProgress } from './types'
 import { formatDate } from './utils'
 
-export type LicenceStepKey = 'eyeTest' | 'learnerLicence' | 'examDate' | 'examResult' | 'fullLicence'
+export type LicenceStepKey = 'eyeTest' | 'learnerLicence' | 'examDate' | 'fullLicence'
 export type LicenceStepStatus = 'done' | 'active' | 'locked'
 
 export interface LicenceStepView {
@@ -16,7 +16,6 @@ export const DEFAULT_LICENCE_PROGRESS: LicenceProgress = {
   eyeTest:        { done: false },
   learnerLicence: { issued: false },
   examDate:       {},
-  examResult:     {},
   fullLicence:    { issued: false },
 }
 
@@ -25,8 +24,6 @@ export function buildLicenceSteps(progress: LicenceProgress): LicenceStepView[] 
   const learnerDone = progress.learnerLicence.issued
   const examDateSet = Boolean(progress.examDate.date)
   const examDatePassed = examDateSet ? new Date(progress.examDate.date!) <= new Date() : false
-  const examResultSet = progress.examResult.passed !== undefined
-  const examPassed = progress.examResult.passed === true
   const fullLicenceIssued = progress.fullLicence.issued
 
   const steps: LicenceStepView[] = []
@@ -59,27 +56,17 @@ export function buildLicenceSteps(progress: LicenceProgress): LicenceStepView[] 
   })
 
   steps.push({
-    key: 'examResult',
-    label: 'Exam Result',
-    status: !examDateSet || !examDatePassed ? 'locked' : examResultSet ? 'done' : 'active',
-    detail: examResultSet
-      ? `${examPassed ? 'Passed' : 'Failed'}${progress.examResult.date ? ` ${formatDate(progress.examResult.date)}` : ''}`
+    key: 'fullLicence',
+    label: 'Full Licence',
+    status: !(examDateSet && examDatePassed) ? 'locked' : fullLicenceIssued ? 'done' : 'active',
+    detail: fullLicenceIssued && progress.fullLicence.dateIssued
+      ? `Issued ${formatDate(progress.fullLicence.dateIssued)}`
       : undefined,
     lockedReason: !examDateSet
       ? 'Schedule an exam date first'
       : !examDatePassed
         ? `Unlocks after ${formatDate(progress.examDate.date!)}`
         : undefined,
-  })
-
-  steps.push({
-    key: 'fullLicence',
-    label: 'Full Licence',
-    status: !(examResultSet && examPassed) ? 'locked' : fullLicenceIssued ? 'done' : 'active',
-    detail: fullLicenceIssued && progress.fullLicence.dateIssued
-      ? `Issued ${formatDate(progress.fullLicence.dateIssued)}`
-      : undefined,
-    lockedReason: !examResultSet ? 'Not yet applicable' : !examPassed ? 'Exam not passed' : undefined,
   })
 
   return steps

@@ -8,7 +8,7 @@ import ExpensesTab from '../../features/finances/ExpensesTab'
 import useRecordsStore from '../../features/records/shared/store'
 import usePaymentsStore from '../../features/payments/store'
 import { computeDayTotals } from '../../features/records/shared/utils'
-import { CURRENT_MONTH, OUTSTANDING, netProfit } from '../../features/finances/mockData'
+import { OUTSTANDING } from '../../features/finances/mockData'
 import { computePeriodRange, eachDateInRange, formatPeriodLabel, type PeriodKey, type PeriodRange } from '../../features/finances/period'
 
 type TabKey = 'day-by-day' | 'income' | 'expenses'
@@ -52,7 +52,9 @@ export default function FinancesPage() {
     [range, expenses, paymentRecords],
   )
 
-  const netValue = netProfit(CURRENT_MONTH)
+  const periodIncome = dailyTotals.reduce((sum, d) => sum + d.income, 0)
+  const periodExpense = dailyTotals.reduce((sum, d) => sum + d.expense, 0)
+  const netValue = periodIncome - periodExpense
 
   const handleApplyCustomRange = (r: PeriodRange) => {
     setCustomRange(r)
@@ -92,8 +94,8 @@ export default function FinancesPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Income" value={`GHS ${CURRENT_MONTH.revenue.toLocaleString()}`} />
-        <StatCard label="Expenses" value={`GHS ${CURRENT_MONTH.expenses.toLocaleString()}`} />
+        <StatCard label="Income" value={`GHS ${periodIncome.toLocaleString()}`} />
+        <StatCard label="Expenses" value={`GHS ${periodExpense.toLocaleString()}`} />
         <StatCard label="Net" value={`GHS ${netValue.toLocaleString()}`} tone="positive" />
         <StatCard label="Outstanding" value={`GHS ${OUTSTANDING.amount.toLocaleString()}`} tone="warning" />
       </div>

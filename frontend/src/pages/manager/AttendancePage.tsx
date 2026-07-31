@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import useAttendanceStore from '../../features/attendance/shared/store'
 import ManagerAttendanceTable from '../../features/attendance/manager/ManagerAttendanceTable'
 import ManagerAttendanceCardList from '../../features/attendance/manager/ManagerAttendanceCardList'
-import ManagerUnscheduledArrivals from '../../features/attendance/manager/ManagerUnscheduledArrivals'
 import AttendanceSummaryRow from '../../features/attendance/manager/AttendanceSummaryRow'
 import { formatTodayLong } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
@@ -19,6 +18,7 @@ export default function AttendancePage() {
   const [pulse, setPulse] = useState(false)
 
   // Stand-in for a real-time feed: poll for newly self-checked-in students.
+  // (The 60-minute no-show auto-absent sweep runs globally in AppShell.)
   useEffect(() => {
     const interval = setInterval(() => simulateSelfCheckIn(), POLL_INTERVAL_MS)
     return () => clearInterval(interval)
@@ -32,7 +32,6 @@ export default function AttendancePage() {
   }, [lastLiveUpdateAt])
 
   const scheduled = records.filter((r) => r.hasSlot)
-  const unscheduled = records.filter((r) => !r.hasSlot)
 
   return (
     <div className="flex flex-col gap-5">
@@ -63,8 +62,6 @@ export default function AttendancePage() {
 
       <ManagerAttendanceTable records={scheduled} />
       <ManagerAttendanceCardList records={scheduled} />
-
-      <ManagerUnscheduledArrivals records={unscheduled} />
     </div>
   )
 }
