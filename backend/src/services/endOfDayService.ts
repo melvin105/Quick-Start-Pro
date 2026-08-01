@@ -78,10 +78,33 @@ export async function approveEndOfDay(dateInput: unknown, actingUser: ActingUser
   }
 }
 
+// The manager flags a submitted day back to the secretary with a required note
+// (reject_end_of_day, migration 16). Like approve, it only acts on a day that
+// is pending_approval and raises the same "No pending submission" exception
+// otherwise — mapped to 404 here.
+export async function rejectEndOfDay(dateInput: unknown, noteInput: unknown, actingUser: ActingUser) {
+  const date = resolveDate(dateInput);
+  const note = typeof noteInput === 'string' ? noteInput.trim() : '';
+  if (!note) {
+    throw new ApiError(400, 'INVALID_INPUT', 'A note explaining why the day is flagged is required.');
+  }
+  try {
+    return await withUserContext(actingUser.id, async (client) => {
+      const { rows } = await client.query(`select * from public.reject_end_of_day($1, $2)`, [date, note]);
+      return normalizeClosure(rows[0]);
+    });
+  } catch (err) {
+    if (isNoPendingSubmissionError(err)) {
+      throw new ApiError(404, 'NOT_FOUND', `No pending submission found for ${date}.`);
+    }
+    throw err;
+  }
+}
+
 export async function listClosures(query: ListClosuresQuery = {}) {
   const { status } = query;
-  if (status && !['open', 'pending_approval', 'closed'].includes(status)) {
-    throw new ApiError(400, 'INVALID_INPUT', 'status must be one of: open, pending_approval, closed');
+  if (status && !['open', 'pending_approval', 'closed', 'flagged'].includes(status)) {
+    throw new ApiError(400, 'INVALID_INPUT', 'status must be one of: open, pending_approval, closed, flagged');
   }
 
   const conditions: string[] = [];
