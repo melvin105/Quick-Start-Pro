@@ -10,6 +10,7 @@ router.post('/', requireRole('manager'), instructorController.create);
 router.get('/', instructorController.list);
 router.get('/:id', instructorController.getById);
 router.patch('/:id', requireRole('manager'), instructorController.update);
+router.delete('/:id', requireRole('manager'), instructorController.remove);
 router.get('/:id/lessons', instructorController.lessons);
 
 export default router;

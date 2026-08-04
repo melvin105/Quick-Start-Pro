@@ -40,6 +40,11 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
   res.json(instructor);
 });
 
+export const remove = asyncHandler(async (req: Request, res: Response) => {
+  const result = await instructorService.deleteInstructor(paramId(req), actingUserId(req));
+  res.json(result);
+});
+
 export const lessons = asyncHandler(async (req: Request, res: Response) => {
   const { date, dateFrom, dateTo, status } = req.query;
   const result = await instructorService.getInstructorLessons(paramId(req), {

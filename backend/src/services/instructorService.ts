@@ -135,3 +135,43 @@ export async function getInstructorLessons(id: string, query: { date?: string; d
   await getInstructorById(id);
   return lessonService.listLessons({ ...query, instructorId: id, limit: 100 });
 }
+
+// Delete semantics for #107 (documented decision): instructors are referenced
+// by historical lesson_schedule (and scheduling slot_assignments) rows, so a
+// blanket hard delete would break those FKs and erase history. We therefore
+// SMART-DELETE: hard-delete only when the row has no dependants (e.g. a staff
+// member added by mistake), otherwise fall back to a soft-deactivate
+// (status = 'inactive') that keeps the historical lessons intact.
+//
+// Rather than hard-code every table that references staff, we attempt the
+// delete inside a SAVEPOINT and treat a foreign_key_violation (SQLSTATE 23503)
+// as the signal to deactivate instead — so new FKs to staff are handled
+// automatically. Returns { action } telling the caller which path was taken.
+export async function deleteInstructor(id: string, actingUserId: string) {
+  return withUserContext(actingUserId, async (client) => {
+    // Lock the row so a concurrent delete/update can't race the check below.
+    const { rows } = await client.query(
+      `select id from public.staff where id = $1 and role = 'instructor' for update`,
+      [id],
+    );
+    if (!rows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Instructor not found.');
+    }
+
+    await client.query('savepoint del_instructor');
+    try {
+      await client.query(`delete from public.staff where id = $1 and role = 'instructor'`, [id]);
+      return { id, action: 'deleted' as const };
+    } catch (err) {
+      // Referenced by lessons/assignments — roll back just the failed delete and
+      // deactivate instead so the history is preserved.
+      if ((err as { code?: string }).code === '23503') {
+        await client.query('rollback to savepoint del_instructor');
+        await client.query(`update public.staff set status = 'inactive' where id = $1`, [id]);
+        const { rows: fresh } = await client.query(`${SELECT_INSTRUCTOR} where sf.id = $1`, [id]);
+        return { id, action: 'deactivated' as const, instructor: fresh[0] };
+      }
+      throw err;
+    }
+  });
+}
