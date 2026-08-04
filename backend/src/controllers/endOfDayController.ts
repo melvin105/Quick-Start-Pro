@@ -17,6 +17,11 @@ export const approve = asyncHandler(async (req: Request, res: Response) => {
   res.json(closure);
 });
 
+export const reject = asyncHandler(async (req: Request, res: Response) => {
+  const closure = await endOfDayService.rejectEndOfDay(req.body?.date, req.body?.note, actingUser(req));
+  res.json(closure);
+});
+
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const { status } = req.query;
   const closures = await endOfDayService.listClosures({

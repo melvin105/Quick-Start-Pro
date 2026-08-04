@@ -11,5 +11,7 @@ router.get('/', endOfDayController.list);
 // records.approve_close_day is manager-only.
 router.post('/submit', requireRole('secretary'), endOfDayController.submit);
 router.post('/approve', requireRole('manager'), endOfDayController.approve);
+// #101: manager flags a submitted day back to the secretary with a note.
+router.post('/reject', requireRole('manager'), endOfDayController.reject);
 
 export default router;

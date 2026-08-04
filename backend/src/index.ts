@@ -15,6 +15,10 @@ import leadRoutes from './routes/leads';
 import lessonRoutes from './routes/lessons';
 import instructorRoutes from './routes/instructors';
 import attendanceRoutes from './routes/attendance';
+import userRoutes from './routes/users';
+import expenseRoutes from './routes/expenses';
+import dashboardRoutes from './routes/dashboard';
+import schedulingRoutes from './routes/scheduling';
 import { ApiError } from './utils/ApiError';
 
 const app = express();
@@ -47,6 +51,10 @@ app.use('/api/v1/leads', leadRoutes);
 app.use('/api/v1/lessons', lessonRoutes);
 app.use('/api/v1/instructors', instructorRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/scheduling', schedulingRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
