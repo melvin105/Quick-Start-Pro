@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError';
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RevenueReportQuery {
   from?: string;
@@ -16,6 +17,12 @@ export interface DvlaReportQuery {
 export interface FinancesQuery {
   from: string;
   to: string;
+}
+
+export interface DriverReportQuery {
+  from: string;
+  to: string;
+  instructorId?: string;
 }
 
 function assertMonth(value: string, field: string): void {
@@ -75,6 +82,109 @@ export async function getDvlaReport(query: DvlaReportQuery) {
     `select * from public.v_licence_pipeline where ${condition} order by student_number`,
   );
   return rows;
+}
+
+// Weeks in the (inclusive) range, matching the frontend's avg-per-week maths
+// so the migrated page shows the same numbers: whole days inclusive / 7.
+function avgPerWeek(count: number, from: string, to: string): number {
+  const days = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1);
+  const weeks = days / 7;
+  return weeks > 0 ? Math.round((count / weeks) * 10) / 10 : 0;
+}
+
+interface DriverStudentRow {
+  studentId: string;
+  studentName: string;
+  lessonsInPeriod: number;
+  totalAllTime: number;
+}
+
+// Driver report (#106): lessons delivered per instructor over a date range,
+// served from real lesson_schedule rows to replace the frontend's fabricated
+// lessonFacts.ts. Cancelled lessons are excluded — they were never taught — so
+// counts reflect actual/planned instruction (scheduled, completed, no_show).
+// `lessonsInPeriod` respects [from, to]; `totalAllTime` is the instructor's
+// lifetime count. Instructors with no lessons still appear (with zeros) so the
+// summary table lists the full roster. Optionally scoped to one instructor.
+export async function getDriverReport(query: DriverReportQuery) {
+  const { from, to, instructorId } = query;
+  if (!from || !to) {
+    throw new ApiError(400, 'INVALID_INPUT', 'from and to date range parameters are required.');
+  }
+  assertDate(from, 'from');
+  assertDate(to, 'to');
+  if (from > to) {
+    throw new ApiError(400, 'INVALID_INPUT', 'from must not be after to.');
+  }
+  if (instructorId && !UUID_RE.test(instructorId)) {
+    throw new ApiError(400, 'INVALID_INPUT', 'instructorId must be a valid UUID.');
+  }
+
+  const params: unknown[] = [from, to];
+  const instructorFilter = instructorId ? ` and sf.id = $3` : '';
+  if (instructorId) params.push(instructorId);
+
+  // Per-instructor period + all-time counts. LEFT JOIN (with the cancelled
+  // filter in the join condition) keeps instructors who have no lessons.
+  const { rows: summaryRows } = await pool.query(
+    `select
+       sf.id as instructor_id,
+       sf.first_name || ' ' || sf.last_name as instructor_name,
+       count(ls.id) filter (where ls.lesson_date between $1 and $2)::int as lessons_in_period,
+       count(ls.id)::int as total_all_time
+     from public.staff sf
+     left join public.lesson_schedule ls
+       on ls.instructor_id = sf.id and ls.status <> 'cancelled'
+     where sf.role = 'instructor'${instructorFilter}
+     group by sf.id, sf.first_name, sf.last_name
+     order by lessons_in_period desc, instructor_name`,
+    params,
+  );
+
+  // Per-student breakdown per instructor (only students who have had lessons).
+  const { rows: studentRows } = await pool.query(
+    `select
+       ls.instructor_id,
+       st.id as student_id,
+       st.first_name || ' ' || st.last_name as student_name,
+       count(*) filter (where ls.lesson_date between $1 and $2)::int as lessons_in_period,
+       count(*)::int as total_all_time
+     from public.lesson_schedule ls
+     join public.students st on st.id = ls.student_id
+     where ls.status <> 'cancelled'${instructorId ? ` and ls.instructor_id = $3` : ''}
+     group by ls.instructor_id, st.id, st.first_name, st.last_name
+     order by lessons_in_period desc, total_all_time desc, student_name`,
+    params,
+  );
+
+  const studentsByInstructor = new Map<string, DriverStudentRow[]>();
+  for (const row of studentRows) {
+    const list = studentsByInstructor.get(row.instructor_id) ?? [];
+    list.push({
+      studentId: row.student_id,
+      studentName: row.student_name,
+      lessonsInPeriod: row.lessons_in_period,
+      totalAllTime: row.total_all_time,
+    });
+    studentsByInstructor.set(row.instructor_id, list);
+  }
+
+  const instructors = summaryRows.map((row) => ({
+    instructorId: row.instructor_id,
+    instructorName: row.instructor_name,
+    lessonsInPeriod: row.lessons_in_period,
+    totalAllTime: row.total_all_time,
+    avgPerWeek: avgPerWeek(row.lessons_in_period, from, to),
+    students: studentsByInstructor.get(row.instructor_id) ?? [],
+  }));
+
+  return {
+    from,
+    to,
+    instructorId: instructorId ?? null,
+    totalLessonsInPeriod: instructors.reduce((sum, i) => sum + i.lessonsInPeriod, 0),
+    instructors,
+  };
 }
 
 export async function getFinances(query: FinancesQuery) {
