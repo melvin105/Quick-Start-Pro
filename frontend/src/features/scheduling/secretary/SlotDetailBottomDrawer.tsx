@@ -35,7 +35,7 @@ export default function SlotDetailBottomDrawer({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <SlotOccupantsList assignments={assignments} onClear={onClear} />
+          <SlotOccupantsList day={day} hour={hour} assignments={assignments} onClear={onClear} />
         </div>
         <div className="p-4 border-t border-gray-200 shrink-0">
           <button

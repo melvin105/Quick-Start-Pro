@@ -1,11 +1,13 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Bell, Check } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import SourceBadge from './SourceBadge'
 import { getInitials } from './utils'
 import { studentProfilePath } from '../../students/shared/utils'
 import type { AttendanceRecord } from './types'
 
-function Card({ record }: { record: AttendanceRecord }) {
+function Card({ record, onSendReminder }: { record: AttendanceRecord; onSendReminder: (record: AttendanceRecord) => void }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-2.5">
       <div className="flex items-center gap-3">
@@ -34,6 +36,15 @@ function Card({ record }: { record: AttendanceRecord }) {
         ) : (
           <span className="text-[12px] text-gray-400">Unmarked</span>
         )}
+        {record.hasSlot && !record.status && (
+          <button
+            type="button"
+            onClick={() => onSendReminder(record)}
+            className="flex items-center gap-1 text-[12px] font-medium text-gray-600 hover:text-brand-600 transition-colors"
+          >
+            <Bell size={12} /> Send Reminder
+          </button>
+        )}
       </div>
     </div>
   )
@@ -44,12 +55,26 @@ interface AttendanceCardListProps {
 }
 
 export default function AttendanceCardList({ records }: AttendanceCardListProps) {
+  const [toast, setToast] = useState<string | null>(null)
+
+  const handleSendReminder = (record: AttendanceRecord) => {
+    setToast(`Reminder sent to ${record.studentName} — ${record.slotLabel ?? "today's class"}`)
+    setTimeout(() => setToast(null), 3000)
+  }
+
   return (
     <div className="md:hidden flex flex-col gap-3">
-      {records.map((r) => <Card key={r.id} record={r} />)}
+      {records.map((r) => <Card key={r.id} record={r} onSendReminder={handleSendReminder} />)}
       {records.length === 0 && (
         <div className="py-12 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
           No students scheduled today.
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-gray-900 text-white text-[13px] font-medium rounded-lg shadow-modal">
+          <Check size={15} className="text-success" />
+          {toast}
         </div>
       )}
     </div>
