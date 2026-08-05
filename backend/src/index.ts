@@ -20,6 +20,7 @@ import userRoutes from './routes/users';
 import expenseRoutes from './routes/expenses';
 import dashboardRoutes from './routes/dashboard';
 import schedulingRoutes from './routes/scheduling';
+import uploadRoutes from './routes/uploads';
 import registrationRoutes from './routes/registrations';
 import { ApiError } from './utils/ApiError';
 
@@ -58,6 +59,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/scheduling', schedulingRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/registrations', registrationRoutes);
 
 app.use((req, res) => {
