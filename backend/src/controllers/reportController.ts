@@ -19,6 +19,16 @@ export const dvla = asyncHandler(async (req: Request, res: Response) => {
   res.json(rows);
 });
 
+export const driver = asyncHandler(async (req: Request, res: Response) => {
+  const { from, to, instructorId } = req.query;
+  const result = await reportService.getDriverReport({
+    from: typeof from === 'string' ? from : '',
+    to: typeof to === 'string' ? to : '',
+    instructorId: typeof instructorId === 'string' && instructorId ? instructorId : undefined,
+  });
+  res.json(result);
+});
+
 export const finances = asyncHandler(async (req: Request, res: Response) => {
   const { from, to } = req.query;
   const result = await reportService.getFinances({
