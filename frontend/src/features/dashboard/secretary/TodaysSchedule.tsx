@@ -24,6 +24,9 @@ export default function TodaysSchedule({ items }: TodaysScheduleProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 h-full">
       <h2 className="text-[14.5px] font-semibold text-gray-900 mb-3">Today's Schedule</h2>
+      {items.length === 0 ? (
+        <p className="text-[13px] text-gray-500 py-6 text-center">No lessons scheduled for today.</p>
+      ) : (
       <div className="space-y-1">
         {items.map((item) => (
           <div key={item.time} className="flex items-center gap-3 py-2">
@@ -41,6 +44,7 @@ export default function TodaysSchedule({ items }: TodaysScheduleProps) {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }
