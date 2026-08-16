@@ -94,6 +94,10 @@ export default function RegisterStudentPage() {
     // and flash the "possible duplicate" banner for a render before the
     // route change away from this page takes effect.
     setFinishing(true)
+    // react-hook-form's watch() reads its mutable internal store, which the
+    // React compiler can't analyze (it skips optimizing this component). It's
+    // harmless here — this runs in a submit handler, off the render path.
+    // eslint-disable-next-line react-hooks/incompatible-library
     const values = watch()
     const id = nextStudentId()
     const matchedPackage = packages.find((p) => p.name === values.programme)

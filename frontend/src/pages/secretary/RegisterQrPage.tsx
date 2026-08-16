@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { QrCode, Printer, Copy, Check, ArrowLeft } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
@@ -17,7 +17,10 @@ export default function RegisterQrPage() {
 
   const phone = (location.state as LocationState | null)?.phone ?? ''
 
-  const sessionId = useMemo(() => `sess_${Math.random().toString(36).slice(2, 8)}`, [])
+  // A stable per-instance id for the demo registration link. useId() is pure
+  // and render-safe (unlike Math.random(), which the React compiler flags);
+  // its ':'-wrapped output is stripped to keep the URL clean.
+  const sessionId = `sess_${useId().replace(/[^a-z0-9]/gi, '')}`
   const link = `quickstart.app/register/${sessionId}`
 
   const handleCopy = async () => {

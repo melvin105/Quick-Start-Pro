@@ -20,6 +20,7 @@ export default function AttendancePage() {
   const [showQr, setShowQr] = useState(false)
   const [showManualMark, setShowManualMark] = useState(false)
   const [pulse, setPulse] = useState(false)
+  const [seenUpdateAt, setSeenUpdateAt] = useState(lastLiveUpdateAt)
 
   // Stand-in for a real-time feed: poll for newly self-checked-in students.
   // (The 60-minute no-show auto-absent sweep runs globally in AppShell.)
@@ -28,9 +29,16 @@ export default function AttendancePage() {
     return () => clearInterval(interval)
   }, [simulateSelfCheckIn])
 
+  // Pulse the "Live" dot when a new self-check-in arrives. The change is
+  // detected during render ("adjust state when a value changes"); the fade-out
+  // timer stays in the effect below, which restarts on each update.
+  if (lastLiveUpdateAt !== seenUpdateAt) {
+    setSeenUpdateAt(lastLiveUpdateAt)
+    if (lastLiveUpdateAt !== null) setPulse(true)
+  }
+
   useEffect(() => {
     if (lastLiveUpdateAt === null) return
-    setPulse(true)
     const t = setTimeout(() => setPulse(false), PULSE_DURATION_MS)
     return () => clearTimeout(t)
   }, [lastLiveUpdateAt])
