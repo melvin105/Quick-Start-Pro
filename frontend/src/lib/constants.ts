@@ -1,18 +1,19 @@
 // ─── User Roles ───────────────────────────────────────────────────────────────
+// The only two roles that can log in. This is the agreed auth vocabulary shared
+// with the backend (see backend authService LOGIN_ROLES) — the manager is
+// labelled "Manager" in the UI but the role value is 'manager' everywhere,
+// including on the wire. Instructors are staff records only, not login roles
+// (see StaffRole in features/staff/types.ts).
 export const ROLES = {
-  ADMIN:      'admin',
-  SECRETARY:  'secretary',
-  INSTRUCTOR: 'instructor',
-  STUDENT:    'student',
+  MANAGER:   'manager',
+  SECRETARY: 'secretary',
 } as const
 
 export type Role = (typeof ROLES)[keyof typeof ROLES]
 
 export const ROLE_LABELS: Record<Role, string> = {
-  admin:      'Manager',
-  secretary:  'Secretary',
-  instructor: 'Instructor',
-  student:    'Student',
+  manager:   'Manager',
+  secretary: 'Secretary',
 }
 
 export const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({
@@ -33,8 +34,8 @@ export const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin
 // having to know or pass its own role.
 import useAuthStore from '../features/auth/authStore'
 
-const ROLE_BASE: Partial<Record<Role, string>> = {
-  admin:     '/manager',
+const ROLE_BASE: Record<Role, string> = {
+  manager:   '/manager',
   secretary: '/secretary',
 }
 
@@ -77,8 +78,6 @@ export function staffProfilePath(id: string) {
 
 // ─── Role → default redirect after login ──────────────────────────────────────
 export const ROLE_HOME: Record<Role, string> = {
-  admin:      '/manager/dashboard',
-  secretary:  '/secretary/dashboard',
-  instructor: '/login',
-  student:    '/login',
+  manager:   '/manager/dashboard',
+  secretary: '/secretary/dashboard',
 }

@@ -53,7 +53,7 @@ export default function Sidebar({ role, onNavigate, collapsed = false, showHeade
       </nav>
 
       <div className="px-3 py-3 border-t border-gray-200 space-y-1 shrink-0">
-        {role === ROLES.ADMIN && (
+        {role === ROLES.MANAGER && (
           <NavLink
             to={SETTINGS_ITEM.to}
             onClick={onNavigate}

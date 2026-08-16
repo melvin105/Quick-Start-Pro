@@ -9,12 +9,12 @@ import type { Role } from '../../lib/constants'
 import logo from '../../assets/Logo.svg'
 
 const LOGIN_ROLE_OPTIONS = ROLE_OPTIONS.filter(
-  (opt) => opt.value === 'admin' || opt.value === 'secretary',
+  (opt) => opt.value === 'manager' || opt.value === 'secretary',
 )
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
-  role:     z.enum(['admin', 'secretary'], {
+  role:     z.enum(['manager', 'secretary'], {
     error: 'Please select a role',
   }),
   password: z.string().min(1, 'Password is required'),

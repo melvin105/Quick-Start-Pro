@@ -17,7 +17,7 @@ import type { ExpenseEntry, LedgerRow } from '../../features/records/shared/type
 
 export default function RecordsPage() {
   const { role, user } = useAuth()
-  const isManager = role === ROLES.ADMIN
+  const isManager = role === ROLES.MANAGER
   const displayName = user?.name ?? 'Secretary'
 
   const [selectedDate, setSelectedDate] = useState(todayIso())

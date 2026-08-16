@@ -4,7 +4,7 @@ import type { Role } from '../../lib/constants'
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'secretary', label: 'Secretary' },
-  { value: 'admin',      label: 'Manager' },
+  { value: 'manager',    label: 'Manager' },
 ]
 
 interface InviteUserModalProps {

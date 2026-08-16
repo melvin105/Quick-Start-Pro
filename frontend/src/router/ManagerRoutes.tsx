@@ -19,11 +19,11 @@ import StaffProfilePage from '../pages/manager/StaffProfilePage'
 import AuditLogPage from '../pages/manager/AuditLogPage'
 import SettingsPage from '../pages/manager/SettingsPage'
 
-// role !== 'admin' redirects to /secretary/dashboard (ProtectedRoute -> ROUTES.DASHBOARD
+// role !== 'manager' redirects to /secretary/dashboard (ProtectedRoute -> ROUTES.DASHBOARD
 // resolves per the signed-in user's own role).
 const managerRoutes: RouteObject = {
   path: 'manager',
-  element: <ProtectedRoute roles={[ROLES.ADMIN]} />,
+  element: <ProtectedRoute roles={[ROLES.MANAGER]} />,
   children: [
     {
       element: <AppShell />,
