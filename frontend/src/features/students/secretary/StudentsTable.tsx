@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { Eye, SquarePen } from 'lucide-react'
-import type { Student } from '../shared/types'
+import type { StudentListItem } from '../shared/studentMappers'
 import StatusBadge from '../shared/StatusBadge'
 import StudentAvatar from '../shared/StudentAvatar'
 import { formatGHS, studentProfilePath, studentEditPath } from '../shared/utils'
 
 interface StudentsTableProps {
-  students: Student[]
+  students: StudentListItem[]
 }
 
 const COLUMNS = ['Student ID', 'Name', 'Phone', 'Enrolment', 'Balance', 'Status', 'Actions']
@@ -34,7 +34,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 onClick={() => navigate(studentProfilePath(student.id))}
                 className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">{student.id}</td>
+                <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">{student.studentNumber}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     <StudentAvatar name={student.name} photo={student.photo} className="w-8 h-8 text-[11px]" />

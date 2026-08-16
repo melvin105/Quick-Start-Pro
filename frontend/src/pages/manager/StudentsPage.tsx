@@ -6,6 +6,12 @@ import StudentCardList from '../../features/students/shared/StudentCardList'
 import ManagerLicencesTable from '../../features/students/manager/ManagerLicencesTable'
 import ManagerPendingList from '../../features/students/manager/ManagerPendingList'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
+import { listStudents, type ApiStudentStatus } from '../../features/students/shared/studentService'
+import { toStudentListItem, enrolmentEnum } from '../../features/students/shared/studentMappers'
+import { useApiResource } from '../../lib/useApiResource'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 
 type TabKey = 'active' | 'pending' | 'licences' | 'archived'
 
@@ -24,7 +30,9 @@ const STATUS_OPTIONS = [
 ]
 
 export default function StudentsPage() {
-  const students = useStudentsStore((s) => s.students)
+  // The Licences and Pending tabs still read the store until their flows are
+  // migrated (#124 slice 2); the Active roster is live below.
+  const storeStudents = useStudentsStore((s) => s.students)
   const pending = useStudentsStore((s) => s.pending)
 
   const [tab, setTab] = useState<TabKey>('active')
@@ -33,23 +41,33 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
-  const filteredStudents = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return students.filter((s) => {
-      const matchesSearch = query === '' || s.name.toLowerCase().includes(query) || s.phone.includes(query)
-      const matchesEnrolment = !enrolmentFilter || s.enrolment === enrolmentFilter
-      const matchesStatus = !statusFilter || s.status === statusFilter
-      return matchesSearch && matchesEnrolment && matchesStatus
-    })
-  }, [students, search, enrolmentFilter, statusFilter])
+  const debouncedSearch = useDebouncedValue(search, 300)
+  const statusParam: ApiStudentStatus | undefined =
+    statusFilter === 'active' || statusFilter === 'completed' ? statusFilter : undefined
+  const enrolmentParam = enrolmentEnum(enrolmentFilter)
+
+  const { data, loading, error, refetch } = useApiResource(
+    () => listStudents({
+      search:        debouncedSearch.trim() || undefined,
+      status:        statusParam,
+      enrolmentType: enrolmentParam,
+      limit:         100,
+    }),
+    [debouncedSearch, statusParam, enrolmentParam],
+  )
+
+  const allItems = (data?.students ?? []).map(toStudentListItem)
+  const students = statusFilter === 'outstanding'
+    ? allItems.filter((s) => s.status === 'outstanding')
+    : allItems
 
   const licenceEligible = useMemo(
-    () => students.filter((s) => s.enrolment !== 'Driving Only'),
-    [students],
+    () => storeStudents.filter((s) => s.enrolment !== 'Driving Only'),
+    [storeStudents],
   )
 
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning'; icon?: typeof IdCard }[] = [
-    { key: 'active',    label: 'Active',    count: students.length },
+    { key: 'active',    label: 'Active',    count: data?.total },
     { key: 'pending',   label: 'Pending',   count: pending.length, tone: 'warning' },
     { key: 'licences',  label: 'Licences',  count: licenceEligible.length, icon: IdCard },
     { key: 'archived',  label: 'Archived' },
@@ -120,12 +138,20 @@ export default function StudentsPage() {
             </div>
           </div>
 
-          <ManagerStudentsTable students={filteredStudents} />
-          <StudentCardList students={filteredStudents} />
-
-          <p className="text-[12.5px] text-gray-500">
-            Showing {filteredStudents.length} student{filteredStudents.length === 1 ? '' : 's'}
-          </p>
+          {loading ? (
+            <LoadingState message="Loading students…" />
+          ) : error ? (
+            <ErrorState error={error} onRetry={refetch} />
+          ) : (
+            <>
+              <ManagerStudentsTable students={students} />
+              <StudentCardList students={students} />
+              <p className="text-[12.5px] text-gray-500">
+                Showing {students.length} of {data?.total ?? students.length} student
+                {(data?.total ?? students.length) === 1 ? '' : 's'}
+              </p>
+            </>
+          )}
         </>
       )}
 
