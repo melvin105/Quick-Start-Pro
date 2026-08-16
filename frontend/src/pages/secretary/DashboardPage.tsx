@@ -29,7 +29,7 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 mt-1">{today}</p>
       </div>
 
-      {role === ROLES.ADMIN ? <ManagerDashboard /> : <SecretaryDashboard />}
+      {role === ROLES.MANAGER ? <ManagerDashboard /> : <SecretaryDashboard />}
     </div>
   )
 }

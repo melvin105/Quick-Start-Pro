@@ -33,10 +33,10 @@ export function getNavItems(role: Role): NavItem[] {
     { label: 'Attendance', to: ROUTES.ATTENDANCE, icon: ClipboardCheck },
     { label: 'Payments',   to: ROUTES.PAYMENTS,   icon: CreditCard, roles: [ROLES.SECRETARY] },
     { label: 'Records',    to: ROUTES.RECORDS,    icon: FileText },
-    { label: 'Finances',   to: ROUTES.FINANCES,   icon: Wallet,    roles: [ROLES.ADMIN] },
-    { label: 'Reports',    to: ROUTES.REPORTS,    icon: BarChart3, roles: [ROLES.ADMIN] },
-    { label: 'Staff',      to: ROUTES.STAFF,      icon: UserCog,   roles: [ROLES.ADMIN] },
-    { label: 'Audit Log',  to: ROUTES.AUDIT_LOG,  icon: History,   roles: [ROLES.ADMIN] },
+    { label: 'Finances',   to: ROUTES.FINANCES,   icon: Wallet,    roles: [ROLES.MANAGER] },
+    { label: 'Reports',    to: ROUTES.REPORTS,    icon: BarChart3, roles: [ROLES.MANAGER] },
+    { label: 'Staff',      to: ROUTES.STAFF,      icon: UserCog,   roles: [ROLES.MANAGER] },
+    { label: 'Audit Log',  to: ROUTES.AUDIT_LOG,  icon: History,   roles: [ROLES.MANAGER] },
   ]
   return items.filter((item) => !item.roles || item.roles.includes(role))
 }

@@ -6,16 +6,21 @@ export interface LoginCredentials {
   password: string
 }
 
+// The authenticated user, exactly as the backend returns it in the login
+// response (POST /auth/login → { token, user }). `staffId` is the linked staff
+// record (null for accounts not tied to a staff row). This is the single source
+// of truth for the shape of a signed-in user across the app.
 export interface User {
-  id:    string
-  name:  string
-  role:  Role
-  email: string
+  id:      string
+  name:    string
+  role:    Role
+  email:   string
+  staffId: string | null
 }
 
 export interface LoginResponse {
-  user:  User
   token: string
+  user:  User
 }
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -25,9 +30,4 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout')
-}
-
-export async function refreshToken(): Promise<string> {
-  const { data } = await api.post<{ token: string }>('/auth/refresh')
-  return data.token
 }
