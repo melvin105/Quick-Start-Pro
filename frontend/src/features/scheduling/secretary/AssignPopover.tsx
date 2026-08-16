@@ -52,7 +52,6 @@ export default function AssignPopover({ day, hour, anchorRect, excludeIds, onAss
       overflowY: 'auto',
     })
     // Re-run whenever the target slot changes (result list height can differ) or on resize.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchorRect, day, hour])
 
   useEffect(() => {

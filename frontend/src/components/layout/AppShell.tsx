@@ -21,13 +21,18 @@ export default function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readStoredCollapsed)
   const location = useLocation()
+  const [lastPath, setLastPath] = useState(location.pathname)
   const { role } = useAuth()
   const autoMarkOverdue = useAttendanceStore((s) => s.autoMarkOverdue)
   const syncFromSchedule = useAttendanceStore((s) => s.syncFromSchedule)
 
-  useEffect(() => {
+  // Close the mobile nav when the route changes. Done during render (React's
+  // "adjust state when a value changes" pattern) rather than in an effect, so
+  // it doesn't cause an extra commit and cascading re-render.
+  if (lastPath !== location.pathname) {
+    setLastPath(location.pathname)
     setMobileNavOpen(false)
-  }, [location.pathname])
+  }
 
   // The 60-minute no-show rule is a standing system rule, not something tied
   // to whoever happens to be viewing the Attendance page — run it here so it

@@ -26,6 +26,9 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 h-full">
       <h2 className="text-[14.5px] font-semibold text-gray-900 mb-3">Recent Activity</h2>
+      {items.length === 0 ? (
+        <p className="text-[13px] text-gray-500 py-6 text-center">No recent activity.</p>
+      ) : (
       <div className="space-y-3">
         {items.map((item, i) => {
           const Icon = ICONS[item.icon]
@@ -42,6 +45,7 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

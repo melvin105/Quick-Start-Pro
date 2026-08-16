@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { QrCode, Plus, Search, Filter, IdCard } from 'lucide-react'
 import useStudentsStore from '../../features/students/shared/store'
@@ -7,6 +7,12 @@ import StudentCardList from '../../features/students/shared/StudentCardList'
 import PendingSubmissions from '../../features/students/secretary/PendingSubmissions'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import SelfRegisterQrModal from '../../features/students/secretary/SelfRegisterQrModal'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
+import { listStudents, type ApiStudentStatus } from '../../features/students/shared/studentService'
+import { toStudentListItem, enrolmentEnum } from '../../features/students/shared/studentMappers'
+import { useApiResource } from '../../lib/useApiResource'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { ROUTES } from '../../lib/constants'
 
 type TabKey = 'active' | 'pending' | 'archived'
@@ -27,7 +33,8 @@ const STATUS_OPTIONS = [
 
 export default function StudentsPage() {
   const navigate = useNavigate()
-  const students = useStudentsStore((s) => s.students)
+  // Pending self-registrations still come from the store until the approval
+  // flow is migrated (#124 slice 2); the Active roster is live below.
   const pending = useStudentsStore((s) => s.pending)
 
   const [tab, setTab] = useState<TabKey>('active')
@@ -37,18 +44,30 @@ export default function StudentsPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
 
-  const filteredStudents = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return students.filter((s) => {
-      const matchesSearch = query === '' || s.name.toLowerCase().includes(query) || s.phone.includes(query)
-      const matchesEnrolment = !enrolmentFilter || s.enrolment === enrolmentFilter
-      const matchesStatus = !statusFilter || s.status === statusFilter
-      return matchesSearch && matchesEnrolment && matchesStatus
-    })
-  }, [students, search, enrolmentFilter, statusFilter])
+  const debouncedSearch = useDebouncedValue(search, 300)
+  // 'outstanding' is derived from balance, not a backend status, so it is
+  // refined client-side below; only real statuses go to the server.
+  const statusParam: ApiStudentStatus | undefined =
+    statusFilter === 'active' || statusFilter === 'completed' ? statusFilter : undefined
+  const enrolmentParam = enrolmentEnum(enrolmentFilter)
+
+  const { data, loading, error, refetch } = useApiResource(
+    () => listStudents({
+      search:        debouncedSearch.trim() || undefined,
+      status:        statusParam,
+      enrolmentType: enrolmentParam,
+      limit:         100,
+    }),
+    [debouncedSearch, statusParam, enrolmentParam],
+  )
+
+  const allItems = (data?.students ?? []).map(toStudentListItem)
+  const students = statusFilter === 'outstanding'
+    ? allItems.filter((s) => s.status === 'outstanding')
+    : allItems
 
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning' }[] = [
-    { key: 'active',   label: 'Active',   count: students.length },
+    { key: 'active',   label: 'Active',   count: data?.total },
     { key: 'pending',  label: 'Pending',  count: pending.length, tone: 'warning' },
     { key: 'archived', label: 'Archived' },
   ]
@@ -146,12 +165,20 @@ export default function StudentsPage() {
             </div>
           </div>
 
-          <StudentsTable students={filteredStudents} />
-          <StudentCardList students={filteredStudents} />
-
-          <p className="text-[12.5px] text-gray-500">
-            Showing {filteredStudents.length} student{filteredStudents.length === 1 ? '' : 's'}
-          </p>
+          {loading ? (
+            <LoadingState message="Loading students…" />
+          ) : error ? (
+            <ErrorState error={error} onRetry={refetch} />
+          ) : (
+            <>
+              <StudentsTable students={students} />
+              <StudentCardList students={students} />
+              <p className="text-[12.5px] text-gray-500">
+                Showing {students.length} of {data?.total ?? students.length} student
+                {(data?.total ?? students.length) === 1 ? '' : 's'}
+              </p>
+            </>
+          )}
         </>
       )}
 

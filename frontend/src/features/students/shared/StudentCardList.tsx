@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import type { Student } from './types'
+import type { StudentListItem } from './studentMappers'
 import StatusBadge from './StatusBadge'
 import StudentAvatar from './StudentAvatar'
 import { formatGHS, studentProfilePath } from './utils'
 
 interface StudentCardListProps {
-  students: Student[]
+  students: StudentListItem[]
 }
 
 export default function StudentCardList({ students }: StudentCardListProps) {
