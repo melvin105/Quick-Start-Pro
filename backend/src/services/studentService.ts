@@ -235,7 +235,20 @@ export async function listStudents(query: ListStudentsQuery) {
 }
 
 export async function getStudentById(id: string) {
-  const { rows } = await pool.query(`select * from public.v_student_profile where id = $1`, [id]);
+  const { rows } = await pool.query(
+    `select profile.*, pkg.package_name
+     from public.v_student_profile profile
+     left join lateral (
+       select dp.package_name
+       from public.student_packages sp
+       join public.driving_packages dp on dp.id = sp.package_id
+       where sp.student_id = profile.id
+       order by sp.assigned_date desc, sp.created_at desc
+       limit 1
+     ) pkg on true
+     where profile.id = $1`,
+    [id],
+  );
   if (!rows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
   }

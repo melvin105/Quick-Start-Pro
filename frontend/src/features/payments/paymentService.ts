@@ -94,6 +94,27 @@ export interface ApiReceipt {
   }
 }
 
+export interface ApiStudentPaymentHistory {
+  studentId: string
+  summary: {
+    total_fees: number
+    total_paid: number
+    balance:    number
+  }
+  payments: Array<{
+    id:               string
+    receipt_id:       string
+    receipt_no:       string
+    amount:           number
+    method:           ApiPaymentMethod
+    payment_date:     string
+    notes:            string | null
+    created_at:       string
+    balance_after:    number
+    recorded_by_name: string | null
+  }>
+}
+
 export async function listPayments(params: ListPaymentsParams = {}): Promise<ListPaymentsResult> {
   try {
     const { data } = await api.get<ListPaymentsResult>('/payments', { params })
@@ -115,6 +136,15 @@ export async function recordPayment(input: RecordPaymentInput): Promise<Recorded
 export async function getReceipt(id: string): Promise<ApiReceipt> {
   try {
     const { data } = await api.get<ApiReceipt>(`/receipts/${id}`)
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+export async function getStudentPaymentHistory(studentId: string): Promise<ApiStudentPaymentHistory> {
+  try {
+    const { data } = await api.get<ApiStudentPaymentHistory>(`/payments/${studentId}`)
     return data
   } catch (err) {
     throw toApiError(err)

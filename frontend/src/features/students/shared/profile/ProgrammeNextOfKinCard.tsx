@@ -10,7 +10,10 @@ export default function ProgrammeNextOfKinCard({ student }: { student: Student }
         <DetailRow label="Enrolment Type" value={student.enrolment} />
         <DetailRow label="Package" value={student.programme} />
         <DetailRow label="Registration Date" value={student.registrationDate ? formatDate(student.registrationDate) : undefined} />
-        <DetailRow label="Next of Kin" value={`${student.nextOfKin.name} (${student.nextOfKin.phone})`} />
+        <DetailRow
+          label="Emergency Contact"
+          value={student.nextOfKin.phone ? `${student.nextOfKin.name} (${student.nextOfKin.phone})` : student.nextOfKin.name}
+        />
       </div>
     </div>
   )

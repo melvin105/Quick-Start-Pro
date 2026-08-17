@@ -1,6 +1,6 @@
 import { formatRangeShort } from '../../scheduling/shared/utils'
 import type { AttendanceRecord, CheckInSource } from './types'
-import type { ApiAttendanceRow, ApiCheckinMethod, ListAttendanceResult } from './attendanceService'
+import type { ApiAttendanceRow, ApiCheckinMethod, ApiMarkedAttendanceRow, ListAttendanceResult } from './attendanceService'
 
 // Pure mappers turning the snake_case attendance roster rows into the
 // AttendanceRecord view model the tables/cards already render. Kept side-effect
@@ -58,4 +58,23 @@ export function toAttendanceRecord(row: ApiAttendanceRow, date: string): Attenda
 
 export function toAttendanceRoster(result: ListAttendanceResult): AttendanceRecord[] {
   return result.attendance.map((row) => toAttendanceRecord(row, result.date))
+}
+
+export function toStudentAttendanceRecord(row: ApiMarkedAttendanceRow): AttendanceRecord {
+  return toAttendanceRecord({
+    student_id: row.student_id,
+    student_number: row.student_number,
+    student_name: row.student_name,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    attendance_id: row.id,
+    check_in_time: row.check_in_time,
+    method: row.method,
+    status: row.status,
+    is_walk_in: row.is_walk_in,
+    notes: row.notes,
+    driver_id: row.driver_id,
+    driver_name: row.driver_name,
+    lessons_left: null,
+  }, row.attendance_date)
 }

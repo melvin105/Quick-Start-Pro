@@ -227,13 +227,17 @@ export async function getStudentPaymentHistory(studentId: string) {
 
   const { rows } = await pool.query(
     `select
-       p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at, r.receipt_no,
+       p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
+       r.id as receipt_id, r.receipt_no,
+       nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
        coalesce($2::numeric, 0) - sum(p.amount) over (
          order by p.payment_date, p.created_at
          rows between unbounded preceding and current row
        ) as balance_after
      from public.payments p
      left join public.receipts r on r.payment_id = p.id
+     left join public.users u on u.id = p.recorded_by
+     left join public.staff sf on sf.id = u.staff_id
      where p.student_id = $1
      order by p.payment_date desc, p.created_at desc`,
     [studentId, summary.total_fees],

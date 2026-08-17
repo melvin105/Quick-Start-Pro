@@ -3,8 +3,11 @@ import { UserPlus, CreditCard, Eye, IdCard, CalendarClock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Student } from '../shared/types'
 import { formatDate } from '../shared/utils'
-import usePaymentsStore from '../../payments/store'
 import { formatGHS } from '../../payments/utils'
+import { getStudentPaymentHistory, type ApiStudentPaymentHistory } from '../../payments/paymentService'
+import { useApiResource } from '../../../lib/useApiResource'
+import LoadingState from '../../../components/ui/LoadingState'
+import ErrorState from '../../../components/ui/ErrorState'
 
 interface ActivityEntry {
   date:   string
@@ -13,7 +16,7 @@ interface ActivityEntry {
   by?:    string
 }
 
-function buildActivity(student: Student, payments: ReturnType<typeof usePaymentsStore.getState>['records']): ActivityEntry[] {
+function buildActivity(student: Student, payments: ApiStudentPaymentHistory['payments']): ActivityEntry[] {
   const entries: ActivityEntry[] = []
   const progress = student.licenceProgress
 
@@ -21,8 +24,13 @@ function buildActivity(student: Student, payments: ReturnType<typeof usePayments
     entries.push({ date: student.registrationDate, icon: UserPlus, text: 'Student registered' })
   }
 
-  for (const p of payments.filter((r) => r.studentId === student.id)) {
-    entries.push({ date: p.date, icon: CreditCard, text: `Payment recorded — ${formatGHS(p.amount)}`, by: p.recordedBy })
+  for (const payment of payments) {
+    entries.push({
+      date: payment.payment_date,
+      icon: CreditCard,
+      text: `Payment recorded — ${formatGHS(payment.amount)}`,
+      by: payment.recorded_by_name ?? undefined,
+    })
   }
 
   if (progress?.eyeTest.done && progress.eyeTest.dateDone) {
@@ -42,8 +50,11 @@ function buildActivity(student: Student, payments: ReturnType<typeof usePayments
 }
 
 export default function StudentActivityTabContent({ student }: { student: Student }) {
-  const payments = usePaymentsStore((s) => s.records)
-  const activity = useMemo(() => buildActivity(student, payments), [student, payments])
+  const { data, loading, error, refetch } = useApiResource(() => getStudentPaymentHistory(student.id), [student.id])
+  const activity = useMemo(() => buildActivity(student, data?.payments ?? []), [student, data])
+
+  if (loading) return <LoadingState message="Loading student activity…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   if (activity.length === 0) {
     return (

@@ -10,6 +10,8 @@ const profile: ApiStudentProfile = {
   phone: '0241112233', email: 'john@example.com', address: 'East Legon',
   emergency_contact: 'Grace Mensah (Mother) — 0245557788',
   ghana_card_no: 'GHA-023456789-0', photo_url: null,
+  registration_date: '2026-08-01', total_fees: 1500, total_paid: 500, balance: 1000,
+  total_lessons: 12, lessons_used: 3, lessons_left: 9, package_name: 'Complete Driver',
   eye_test_done: null, eye_test_date: null, learner_licence_issued: null, learner_licence_date: null,
   exam_date: null, exam_result: null, licence_issued: null, licence_issued_date: null,
 }

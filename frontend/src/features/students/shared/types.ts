@@ -28,6 +28,7 @@ export interface LicenceProgress {
 
 export interface Student {
   id:               string
+  studentNumber?:   string
   firstName:        string
   lastName:         string
   name:             string

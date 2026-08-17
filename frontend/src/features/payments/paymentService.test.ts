@@ -7,7 +7,7 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api'
 import { ApiError } from '../../lib/apiError'
-import { listPayments, recordPayment, type ListPaymentsResult } from './paymentService'
+import { getStudentPaymentHistory, listPayments, recordPayment, type ListPaymentsResult } from './paymentService'
 
 const mockedGet = vi.mocked(api.get)
 const mockedPost = vi.mocked(api.post)
@@ -32,6 +32,18 @@ describe('payments service', () => {
     expect(mockedGet).toHaveBeenCalledWith('/payments', {
       params: { method: 'momo', dateFrom: '2026-08-01', limit: 100 },
     })
+  })
+
+  it('reads a student payment history by UUID', async () => {
+    const response = {
+      studentId: 'student-1',
+      summary: { total_fees: 1000, total_paid: 200, balance: 800 },
+      payments: [],
+    }
+    mockedGet.mockResolvedValue({ data: response })
+
+    await expect(getStudentPaymentHistory('student-1')).resolves.toEqual(response)
+    expect(mockedGet).toHaveBeenCalledWith('/payments/student-1')
   })
 
   it('records a payment and returns the server-generated receipt', async () => {

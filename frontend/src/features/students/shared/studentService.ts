@@ -142,6 +142,14 @@ export interface ApiStudentProfile extends ApiLicenceFields {
   emergency_contact: string | null
   ghana_card_no:     string | null
   photo_url:         string | null
+  registration_date: string | null
+  total_fees:        number
+  total_paid:        number
+  balance:           number
+  total_lessons:     number
+  lessons_used:      number
+  lessons_left:      number
+  package_name:      string | null
 }
 
 // One row of GET /students/licences (v_licence_pipeline) — the licence-enrolled

@@ -79,6 +79,11 @@ export interface ApiMarkedAttendanceRow {
   driver_name:     string | null
 }
 
+export interface StudentAttendanceHistoryResult {
+  studentId:  string
+  attendance: ApiMarkedAttendanceRow[]
+}
+
 // GET /attendance — the daily roster for `date` (defaults to today server-side),
 // optionally narrowed to one status. Both roles may read.
 export async function listAttendance(params: ListAttendanceParams = {}): Promise<ListAttendanceResult> {
@@ -97,6 +102,15 @@ export async function listAttendance(params: ListAttendanceParams = {}): Promise
 export async function markAttendance(input: MarkAttendanceInput): Promise<ApiMarkedAttendanceRow> {
   try {
     const { data } = await api.post<ApiMarkedAttendanceRow>('/attendance', input)
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+export async function getStudentAttendanceHistory(studentId: string): Promise<StudentAttendanceHistoryResult> {
+  try {
+    const { data } = await api.get<StudentAttendanceHistoryResult>(`/attendance/student/${studentId}`)
     return data
   } catch (err) {
     throw toApiError(err)

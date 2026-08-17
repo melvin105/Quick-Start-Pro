@@ -1,20 +1,25 @@
 import { useState } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
-import useStudentsStore from '../../features/students/shared/store'
+import { useParams } from 'react-router-dom'
 import ProfileHeader from '../../features/students/shared/profile/ProfileHeader'
 import SummaryCards from '../../features/students/shared/profile/SummaryCards'
 import ProfileTabs, { type ProfileTabKey } from '../../features/students/shared/profile/ProfileTabs'
 import NotesCard from '../../features/students/shared/profile/NotesCard'
-import { ROUTES } from '../../lib/constants'
+import { getStudent } from '../../features/students/shared/studentService'
+import { toStudentProfile } from '../../features/students/shared/studentProfileMapper'
+import { useApiResource } from '../../lib/useApiResource'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 
 export default function StudentProfilePage() {
   const { id } = useParams<{ id: string }>()
-  const student = useStudentsStore((s) => s.students.find((st) => st.id === id))
+  const { data, loading, error, refetch } = useApiResource(() => getStudent(id ?? ''), [id])
   const [tab, setTab] = useState<ProfileTabKey>('overview')
 
-  if (!student) {
-    return <Navigate to={ROUTES.STUDENTS} replace />
-  }
+  if (loading) return <LoadingState message="Loading student profile…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
+  if (!data) return null
+
+  const student = toStudentProfile(data)
 
   return (
     <div className="flex flex-col gap-6">

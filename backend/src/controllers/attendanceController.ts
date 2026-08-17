@@ -20,3 +20,10 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   });
   res.json(result);
 });
+
+export const studentHistory = asyncHandler(async (req: Request, res: Response) => {
+  const value = req.params.studentId;
+  const studentId = Array.isArray(value) ? value[0] : value;
+  const result = await attendanceService.getStudentAttendanceHistory(studentId);
+  res.json(result);
+});
