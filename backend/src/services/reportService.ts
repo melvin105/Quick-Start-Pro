@@ -194,6 +194,9 @@ export async function getFinances(query: FinancesQuery) {
   }
   assertDate(from, 'from');
   assertDate(to, 'to');
+  if (from > to) {
+    throw new ApiError(400, 'INVALID_INPUT', 'from must not be after to.');
+  }
 
   const { rows } = await pool.query(
     `select entry_date, coalesce(sum(income), 0) as income, coalesce(sum(expense), 0) as expense
@@ -218,6 +221,51 @@ export async function getFinances(query: FinancesQuery) {
     `select coalesce(sum(balance), 0) as outstanding from public.v_student_balances where balance > 0`,
   );
 
+  const [{ rows: incomeRows }, { rows: expenseRows }, { rows: closureRows }] = await Promise.all([
+    pool.query(
+      `select p.id, p.payment_date as date, p.created_at, p.amount,
+              p.method, st.id as student_id,
+              st.first_name || ' ' || st.last_name as student_name,
+              pkg.package_name
+       from public.payments p
+       join public.students st on st.id = p.student_id
+       left join lateral (
+         select dp.package_name
+         from public.student_packages sp
+         join public.driving_packages dp on dp.id = sp.package_id
+         where sp.student_id = st.id
+         order by sp.assigned_date desc, sp.created_at desc
+         limit 1
+       ) pkg on true
+       where p.payment_date between $1 and $2
+       order by p.payment_date desc, p.created_at desc`,
+      [from, to],
+    ),
+    pool.query(
+      `select e.id, e.expense_date as date, e.created_at, e.amount,
+              e.description, e.category
+       from public.expenses e
+       where e.expense_date between $1 and $2
+       order by e.expense_date desc, e.created_at desc`,
+      [from, to],
+    ),
+    pool.query(
+      `select dc.closure_date, dc.opening_balance, dc.total_income,
+              dc.total_expenses, dc.closing_balance, dc.status,
+              dc.submitted_at, dc.approved_at, dc.remarks,
+              nullif(trim(coalesce(ss.first_name, '') || ' ' || coalesce(ss.last_name, '')), '') as submitted_by_name,
+              nullif(trim(coalesce(rs.first_name, '') || ' ' || coalesce(rs.last_name, '')), '') as reviewed_by_name
+       from public.daily_closures dc
+       left join public.users submitter on submitter.id = dc.submitted_by
+       left join public.staff ss on ss.id = submitter.staff_id
+       left join public.users reviewer on reviewer.id = dc.approved_by
+       left join public.staff rs on rs.id = reviewer.staff_id
+       where dc.closure_date between $1 and $2
+       order by dc.closure_date desc`,
+      [from, to],
+    ),
+  ]);
+
   return {
     from,
     to,
@@ -226,5 +274,14 @@ export async function getFinances(query: FinancesQuery) {
     net: income - expenses,
     outstandingBalance: Number(outstandingRows[0].outstanding),
     days,
+    incomeEntries: incomeRows.map((row) => ({ ...row, amount: Number(row.amount) })),
+    expenseEntries: expenseRows.map((row) => ({ ...row, amount: Number(row.amount) })),
+    closures: closureRows.map((row) => ({
+      ...row,
+      opening_balance: Number(row.opening_balance),
+      total_income: Number(row.total_income),
+      total_expenses: Number(row.total_expenses),
+      closing_balance: Number(row.closing_balance),
+    })),
   };
 }

@@ -1,20 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Download } from 'lucide-react'
-import { REPORT_INSTRUCTORS, lessonsInRange, totalAllTime, avgPerWeek, studentBreakdown } from '../../../features/reports/lessonFacts'
 import FilterDropdown from '../../../features/students/shared/FilterDropdown'
-import useAttendanceStore from '../../../features/attendance/shared/store'
-import { HISTORICAL_ATTENDANCE } from '../../../features/attendance/shared/mockData'
 import { computePeriodRange } from '../../../features/finances/period'
+import { getDriverReport } from '../../../features/finances/financeService'
 import DatePicker from '../../../components/ui/DatePicker'
+import LoadingState from '../../../components/ui/LoadingState'
+import ErrorState from '../../../components/ui/ErrorState'
+import { useApiResource } from '../../../lib/useApiResource'
 import { ROUTES } from '../../../lib/constants'
-
-const INSTRUCTOR_OPTIONS = [
-  { value: '', label: 'All Instructors' },
-  ...REPORT_INSTRUCTORS.map((name) => ({ value: name, label: name })),
-]
-
-const BREAKDOWN_INSTRUCTOR_OPTIONS = REPORT_INSTRUCTORS.map((name) => ({ value: name, label: name }))
 
 function csvEscape(value: string) {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
@@ -38,34 +32,27 @@ export default function DriverReportPage() {
   const [instructorDraft, setInstructorDraft] = useState('')
   const [range, setRange] = useState(defaultRange)
   const [instructorFilter, setInstructorFilter] = useState('')
-  const [breakdownInstructor, setBreakdownInstructor] = useState(REPORT_INSTRUCTORS[0])
+  const [breakdownInstructor, setBreakdownInstructor] = useState('')
 
-  const todayRecords = useAttendanceStore((s) => s.records)
+  const { data, loading, error, refetch } = useApiResource(
+    () => getDriverReport(range.from, range.to),
+    [range.from, range.to],
+  )
 
-  const summaryRows = useMemo(() => {
-    const instructors = instructorFilter ? [instructorFilter] : REPORT_INSTRUCTORS
-    return instructors.map((instructor) => {
-      const inRange = lessonsInRange(instructor, range.from, range.to)
-      return {
-        instructor,
-        lessonsInPeriod: inRange.length,
-        avgPerWeek: avgPerWeek(inRange.length, range.from, range.to),
-        totalAllTime: totalAllTime(instructor),
-      }
-    })
-  }, [range, instructorFilter])
+  const instructors = data?.instructors ?? []
+  const summaryRows = instructorFilter
+    ? instructors.filter((row) => row.instructorId === instructorFilter)
+    : instructors
 
   const summaryTotal = summaryRows.reduce((sum, r) => sum + r.lessonsInPeriod, 0)
 
-  const breakdownRows = useMemo(
-    () => studentBreakdown(breakdownInstructor, range.from, range.to),
-    [breakdownInstructor, range],
-  )
-
-  const unassignedCount = useMemo(() => {
-    const all = [...todayRecords, ...HISTORICAL_ATTENDANCE]
-    return all.filter((r) => r.checkInTime && !r.driverName && r.date >= range.from && r.date <= range.to).length
-  }, [todayRecords, range])
+  const selectedBreakdown = instructors.find((row) => row.instructorId === breakdownInstructor) ?? instructors[0]
+  const breakdownRows = selectedBreakdown?.students ?? []
+  const instructorOptions = [
+    { value: '', label: 'All Instructors' },
+    ...instructors.map((row) => ({ value: row.instructorId, label: row.instructorName })),
+  ]
+  const breakdownOptions = instructors.map((row) => ({ value: row.instructorId, label: row.instructorName }))
 
   const handleGenerate = () => {
     setRange({ from: fromDraft, to: toDraft })
@@ -76,7 +63,7 @@ export default function DriverReportPage() {
     downloadCsv(
       'driver-report.csv',
       ['Instructor', 'Lessons In Period', 'Avg Per Week', 'Total All Time'],
-      summaryRows.map((r) => [r.instructor, String(r.lessonsInPeriod), String(r.avgPerWeek), String(r.totalAllTime)]),
+      summaryRows.map((r) => [r.instructorName, String(r.lessonsInPeriod), String(r.avgPerWeek), String(r.totalAllTime)]),
     )
   }
 
@@ -105,7 +92,7 @@ export default function DriverReportPage() {
           <label className="block text-[12px] font-medium text-gray-700 mb-1">To</label>
           <DatePicker value={toDraft} onChange={setToDraft} minDate={fromDraft} />
         </div>
-        <FilterDropdown label="All Instructors" value={instructorDraft} options={INSTRUCTOR_OPTIONS} onChange={setInstructorDraft} />
+        <FilterDropdown label="All Instructors" value={instructorDraft} options={instructorOptions} onChange={setInstructorDraft} />
         <button
           type="button"
           onClick={handleGenerate}
@@ -115,7 +102,10 @@ export default function DriverReportPage() {
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      {loading && <LoadingState message="Loading driver report…" />}
+      {error && <ErrorState error={error} onRetry={refetch} />}
+
+      {!loading && !error && <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -129,8 +119,8 @@ export default function DriverReportPage() {
             </thead>
             <tbody>
               {summaryRows.map((r) => (
-                <tr key={r.instructor} className="border-b border-gray-100 last:border-0">
-                  <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.instructor}</td>
+                <tr key={r.instructorId} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.instructorName}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.lessonsInPeriod}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.avgPerWeek}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.totalAllTime}</td>
@@ -146,15 +136,15 @@ export default function DriverReportPage() {
             </tfoot>
           </table>
         </div>
-      </div>
+      </div>}
 
-      <div className="flex flex-col gap-3">
+      {!loading && !error && <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-[13.5px] font-semibold text-gray-900">Per-Student Breakdown</p>
           <FilterDropdown
             label="Instructor"
-            value={breakdownInstructor}
-            options={BREAKDOWN_INSTRUCTOR_OPTIONS}
+            value={selectedBreakdown?.instructorId ?? ''}
+            options={breakdownOptions}
             onChange={setBreakdownInstructor}
           />
         </div>
@@ -165,7 +155,7 @@ export default function DriverReportPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-200">
-                  {['Student', 'Lessons In Period', `Total With ${breakdownInstructor}`].map((col) => (
+                  {['Student', 'Lessons In Period', `Total With ${selectedBreakdown?.instructorName ?? 'Instructor'}`].map((col) => (
                     <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                       {col}
                     </th>
@@ -174,10 +164,10 @@ export default function DriverReportPage() {
               </thead>
               <tbody>
                 {breakdownRows.map((r) => (
-                  <tr key={r.student} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.student}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.period}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.total}</td>
+                  <tr key={r.studentId} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.studentName}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.lessonsInPeriod}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.totalAllTime}</td>
                   </tr>
                 ))}
               </tbody>
@@ -188,14 +178,9 @@ export default function DriverReportPage() {
           )}
         </div>
 
-        {unassignedCount > 0 && (
-          <p className="text-[12px] text-gray-400">
-            {unassignedCount} attendance record{unassignedCount === 1 ? '' : 's'} in this period {unassignedCount === 1 ? 'has' : 'have'} no instructor assigned.
-          </p>
-        )}
-      </div>
+      </div>}
 
-      <div className="flex items-center gap-2">
+      {!loading && !error && <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleExportCsv}
@@ -210,7 +195,7 @@ export default function DriverReportPage() {
         >
           <Download size={15} /> Export PDF
         </button>
-      </div>
+      </div>}
     </div>
   )
 }

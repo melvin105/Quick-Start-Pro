@@ -5,7 +5,7 @@ vi.mock('../../../lib/api', () => ({
 }))
 
 import api from '../../../lib/api'
-import { createExpense, getDailyRecords, submitEndOfDay } from './recordsService'
+import { approveEndOfDay, createExpense, getDailyRecords, rejectEndOfDay, submitEndOfDay } from './recordsService'
 
 const mockedGet = vi.mocked(api.get)
 const mockedPost = vi.mocked(api.post)
@@ -39,5 +39,21 @@ describe('records service', () => {
 
     await submitEndOfDay('2026-08-17')
     expect(mockedPost).toHaveBeenCalledWith('/end-of-day/submit', { date: '2026-08-17' })
+  })
+
+  it('approves and closes a submitted day through the API', async () => {
+    mockedPost.mockResolvedValue({ data: { status: 'closed' } })
+
+    await approveEndOfDay('2026-08-17')
+    expect(mockedPost).toHaveBeenCalledWith('/end-of-day/approve', { date: '2026-08-17' })
+  })
+
+  it('returns a submitted day for correction with the manager note', async () => {
+    mockedPost.mockResolvedValue({ data: { status: 'flagged' } })
+
+    await rejectEndOfDay('2026-08-17', 'Check fuel expense')
+    expect(mockedPost).toHaveBeenCalledWith('/end-of-day/reject', {
+      date: '2026-08-17', note: 'Check fuel expense',
+    })
   })
 })

@@ -11,8 +11,7 @@ import type { TooltipContentProps } from 'recharts/types/component/Tooltip'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import type { RevenuePoint } from '../dashboardPresenters'
 
-// Dashboard revenue chart. Unlike the Finances page's RevenueExpenseChart, the
-// dashboard payload (v_monthly_revenue) carries revenue only — no monthly
+// The dashboard payload (v_monthly_revenue) carries revenue only — no monthly
 // expense series — so this shows a single honest series rather than inventing
 // an expense line the backend can't source yet.
 const REVENUE_COLOR = '#4D78C8'

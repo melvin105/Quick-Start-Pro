@@ -1,18 +1,11 @@
-import usePaymentsStore from '../payments/store'
 import { formatGHS, formatDateDisplay } from '../payments/utils'
-import type { PeriodRange } from './period'
+import type { FinanceIncomeEntry } from './financeService'
 
 interface IncomeTabProps {
-  range: PeriodRange
+  rows: FinanceIncomeEntry[]
 }
 
-export default function IncomeTab({ range }: IncomeTabProps) {
-  const records = usePaymentsStore((s) => s.records)
-
-  const rows = records
-    .filter((r) => r.date >= range.from && r.date <= range.to)
-    .sort((a, b) => b.date.localeCompare(a.date))
-
+export default function IncomeTab({ rows }: IncomeTabProps) {
   const total = rows.reduce((sum, r) => sum + r.amount, 0)
 
   return (
@@ -32,8 +25,8 @@ export default function IncomeTab({ range }: IncomeTabProps) {
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(r.date)}</td>
-                <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.studentName}</td>
-                <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.programme ?? `${r.method} payment`}</td>
+                <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.student_name}</td>
+                <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.package_name ?? `${r.method.replace('_', ' ')} payment`}</td>
                 <td className="px-4 py-3 text-[13px] text-success font-medium whitespace-nowrap">{formatGHS(r.amount)}</td>
               </tr>
             ))}

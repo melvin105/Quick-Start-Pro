@@ -1,11 +1,10 @@
 import { useNavigate } from 'react-router-dom'
-import useRecordsStore from '../records/shared/store'
-import usePaymentsStore from '../payments/store'
-import { computeDayTotals, formatDayShort } from '../records/shared/utils'
+import { formatDayShort } from '../records/shared/utils'
 import { formatGHS } from '../payments/utils'
 import { ROUTES } from '../../lib/constants'
 import { eachDateInRange, type PeriodRange } from './period'
 import type { DayStatus } from '../records/shared/types'
+import type { FinanceClosure, FinanceDay } from './financeService'
 
 interface RowMeta {
   label:     string
@@ -22,21 +21,28 @@ function rowMeta(status: DayStatus, hasActivity: boolean): RowMeta {
 }
 
 interface DayByDayTableProps {
-  range: PeriodRange
+  range:    PeriodRange
+  days:     FinanceDay[]
+  closures: FinanceClosure[]
 }
 
-export default function DayByDayTable({ range }: DayByDayTableProps) {
+function closureStatus(status?: FinanceClosure['status']): DayStatus {
+  if (status === 'pending_approval') return 'submitted'
+  if (status === 'closed') return 'approved'
+  return status ?? 'open'
+}
+
+export default function DayByDayTable({ range, days, closures }: DayByDayTableProps) {
   const navigate = useNavigate()
-  const days = useRecordsStore((s) => s.days)
-  const expenses = useRecordsStore((s) => s.expenses)
-  const paymentRecords = usePaymentsStore((s) => s.records)
 
   const rows = eachDateInRange(range)
     .sort((a, b) => b.localeCompare(a))
     .map((date) => {
-      const record = days.find((d) => d.date === date)
-      const status: DayStatus = record?.status ?? 'open'
-      const { totalIncome, totalExpense } = computeDayTotals(date, expenses, paymentRecords)
+      const totals = days.find((d) => d.date.slice(0, 10) === date)
+      const closure = closures.find((d) => d.closure_date.slice(0, 10) === date)
+      const status = closureStatus(closure?.status)
+      const totalIncome = totals?.income ?? 0
+      const totalExpense = totals?.expenses ?? 0
       const hasActivity = status !== 'open' || totalIncome > 0 || totalExpense > 0
       return { date, status, totalIncome, totalExpense, net: totalIncome - totalExpense, hasActivity }
     })

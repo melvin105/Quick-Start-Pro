@@ -1,19 +1,13 @@
-import useRecordsStore from '../records/shared/store'
 import { formatGHS } from '../payments/utils'
 import { formatDateDisplay } from '../payments/utils'
-import type { PeriodRange } from './period'
+import { expenseCategoryLabel } from '../records/shared/recordsMappers'
+import type { FinanceExpenseEntry } from './financeService'
 
 interface ExpensesTabProps {
-  range: PeriodRange
+  rows: FinanceExpenseEntry[]
 }
 
-export default function ExpensesTab({ range }: ExpensesTabProps) {
-  const expenses = useRecordsStore((s) => s.expenses)
-
-  const rows = expenses
-    .filter((e) => e.date >= range.from && e.date <= range.to)
-    .sort((a, b) => b.date.localeCompare(a.date))
-
+export default function ExpensesTab({ rows }: ExpensesTabProps) {
   const total = rows.reduce((sum, e) => sum + e.amount, 0)
 
   return (
@@ -33,8 +27,8 @@ export default function ExpensesTab({ range }: ExpensesTabProps) {
             {rows.map((e) => (
               <tr key={e.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(e.date)}</td>
-                <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{e.description}</td>
-                <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{e.category}</td>
+                <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{e.description ?? expenseCategoryLabel(e.category)}</td>
+                <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{expenseCategoryLabel(e.category)}</td>
                 <td className="px-4 py-3 text-[13px] text-danger font-medium whitespace-nowrap">{formatGHS(e.amount)}</td>
               </tr>
             ))}

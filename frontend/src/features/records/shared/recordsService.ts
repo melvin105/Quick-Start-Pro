@@ -103,3 +103,21 @@ export async function submitEndOfDay(date: string): Promise<ApiDailyClosure> {
     throw toApiError(err)
   }
 }
+
+export async function approveEndOfDay(date: string): Promise<ApiDailyClosure> {
+  try {
+    const { data } = await api.post<ApiDailyClosure>('/end-of-day/approve', { date })
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+export async function rejectEndOfDay(date: string, note: string): Promise<ApiDailyClosure> {
+  try {
+    const { data } = await api.post<ApiDailyClosure>('/end-of-day/reject', { date, note })
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
