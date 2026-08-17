@@ -1,17 +1,15 @@
-import { DAYS, START_HOURS, formatRangeShort, slotKey, isSlotFull } from '../shared/utils'
+import { DAYS, START_HOURS, formatRangeShort, slotKey } from '../shared/utils'
+import { isCellFull, type ScheduleGridData } from '../shared/schedulingMappers'
 import StudentChip from '../secretary/StudentChip'
-import useStudentsStore from '../../students/shared/store'
-import type { Day, SlotAssignment } from '../shared/types'
+import type { Day } from '../shared/types'
 
 interface ManagerScheduleGridProps {
-  grid: Record<string, SlotAssignment[]>
+  grid: ScheduleGridData
   todayColumn: Day
   onCellClick: (day: Day, hour: number) => void
 }
 
 export default function ManagerScheduleGrid({ grid, todayColumn, onCellClick }: ManagerScheduleGridProps) {
-  const students = useStudentsStore((s) => s.students)
-
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden h-full flex flex-col">
       <div className="flex-1 min-h-0 overflow-auto">
@@ -39,12 +37,11 @@ export default function ManagerScheduleGrid({ grid, todayColumn, onCellClick }: 
                 {formatRangeShort(hour)}
               </div>
               {DAYS.map((day) => {
-                const key = slotKey(day, hour)
-                const assignments = grid[key] ?? []
-                const isEmpty = assignments.length === 0
+                const cell = grid[slotKey(day, hour)]
+                const assignments = cell?.assignments ?? []
 
                 // Empty slots are informational only — no hover state, no click.
-                if (isEmpty) {
+                if (assignments.length === 0) {
                   return (
                     <div
                       key={day}
@@ -62,12 +59,10 @@ export default function ManagerScheduleGrid({ grid, todayColumn, onCellClick }: 
                       day === todayColumn ? 'bg-brand-50/30' : ''
                     }`}
                   >
-                    {assignments.map((a) => {
-                      const student = students.find((s) => s.id === a.studentId)
-                      if (!student) return null
-                      return <StudentChip key={a.studentId} name={student.name} assignment={a} />
-                    })}
-                    {isSlotFull(assignments) && (
+                    {assignments.map((a) => (
+                      <StudentChip key={a.studentId} name={a.name} assignment={a} />
+                    ))}
+                    {isCellFull(cell) && (
                       <span className="mt-auto text-[9.5px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
                     )}
                   </button>

@@ -1,12 +1,13 @@
 import { X } from 'lucide-react'
 import ManagerSlotOccupantsList from './ManagerSlotOccupantsList'
 import { formatSlotLabel } from '../shared/utils'
-import type { Day, SlotAssignment } from '../shared/types'
+import type { CellAssignment } from '../shared/schedulingMappers'
+import type { Day } from '../shared/types'
 
 interface ManagerSlotDetailBottomDrawerProps {
   day: Day
   hour: number
-  assignments: SlotAssignment[]
+  assignments: CellAssignment[]
   onClose: () => void
 }
 
