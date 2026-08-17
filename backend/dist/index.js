@@ -27,6 +27,7 @@ const dashboard_1 = __importDefault(require("./routes/dashboard"));
 const scheduling_1 = __importDefault(require("./routes/scheduling"));
 const uploads_1 = __importDefault(require("./routes/uploads"));
 const registrations_1 = __importDefault(require("./routes/registrations"));
+const records_1 = __importDefault(require("./routes/records"));
 const ApiError_1 = require("./utils/ApiError");
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -63,6 +64,7 @@ app.use('/api/v1/dashboard', dashboard_1.default);
 app.use('/api/v1/scheduling', scheduling_1.default);
 app.use('/api/v1/uploads', uploads_1.default);
 app.use('/api/v1/registrations', registrations_1.default);
+app.use('/api/v1/records', records_1.default);
 app.use((req, res) => {
     res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
 });

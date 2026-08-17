@@ -58,7 +58,7 @@ function assertCategory(value: string): asserts value is ExpenseCategory {
 // day is closed via the end-of-day workflow — translate that into a clean 423
 // so the client can distinguish "day is locked" from other write failures.
 function isDayLockError(err: unknown): err is Error {
-  return err instanceof Error && /is closed and approved/.test(err.message);
+  return err instanceof Error && /is closed and approved|is submitted and locked/.test(err.message);
 }
 
 async function fetchExpense(client: Pool | PoolClient, expenseId: string) {

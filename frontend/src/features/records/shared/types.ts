@@ -4,6 +4,9 @@ export const EXPENSE_CATEGORIES = [
   'Vehicle Maintenance',
   'Supplies & Stationery',
   'Rent & Utilities',
+  'Rent',
+  'Utilities',
+  'DVLA Fees',
   'Other',
 ] as const
 

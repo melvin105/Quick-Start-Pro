@@ -53,7 +53,7 @@ function assertMethod(value: string): asserts value is PaymentMethod {
 // trg_lock_payments (block_closed_day_changes) raises a plain exception once a
 // day is closed via the end-of-day workflow — translate that into a clean 423.
 function isDayLockError(err: unknown): err is Error {
-  return err instanceof Error && /is closed and approved/.test(err.message);
+  return err instanceof Error && /is closed and approved|is submitted and locked/.test(err.message);
 }
 
 async function fetchPaymentWithReceipt(client: Pool | PoolClient, paymentId: string) {
