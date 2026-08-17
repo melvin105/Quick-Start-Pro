@@ -30,6 +30,11 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 });
 
+export const listLicences = asyncHandler(async (_req: Request, res: Response) => {
+  const licences = await studentService.listLicences();
+  res.json(licences);
+});
+
 export const getById = asyncHandler(async (req: Request, res: Response) => {
   const student = await studentService.getStudentById(paramId(req));
   res.json(student);

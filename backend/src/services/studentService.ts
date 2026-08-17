@@ -242,6 +242,20 @@ export async function getStudentById(id: string) {
   return normalizeNumericFields(rows[0], STUDENT_BALANCE_FIELDS);
 }
 
+// The licence-tracking list for the secretary's Students → Licences screen.
+// v_licence_pipeline already scopes to the licence-enrolled students
+// (licence_only + driving_and_licence) and left-joins licence_tracking, so
+// students who haven't started show through with null progress. Unlike the
+// manager-only DVLA report (reportService.getDvlaReport), this is unfiltered
+// and open to both roles — the secretary drives the pipeline day to day. No
+// numeric/money columns here, so the rows pass through unnormalized.
+export async function listLicences() {
+  const { rows } = await pool.query(
+    `select * from public.v_licence_pipeline order by student_number`,
+  );
+  return rows;
+}
+
 export async function updateStudent(id: string, input: UpdateStudentInput, actingUser: ActingUser) {
   if (input.gender) assertGender(input.gender);
   if (input.status) assertStatus(input.status);
