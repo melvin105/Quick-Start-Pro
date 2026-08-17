@@ -1,66 +1,36 @@
-import { useId, useState } from 'react'
-import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { QrCode, Printer, Copy, Check, ArrowLeft } from 'lucide-react'
-import { submitRegistration, type SubmitRegistrationInput } from '../../features/registrations/registrationService'
-import { ApiError } from '../../lib/apiError'
-import { ROUTES } from '../../lib/constants'
+import { useState } from 'react'
+import { useLocation, Link } from 'react-router-dom'
+import { Printer, Copy, Check, ArrowLeft } from 'lucide-react'
+import { createRegistrationInvitation } from '../../features/registrations/registrationService'
+import { APP_URL, ROUTES } from '../../lib/constants'
+import { useApiResource } from '../../lib/useApiResource'
+import QrCodeDisplay from '../../components/ui/QrCodeDisplay'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 
 interface LocationState {
   phone?: string
 }
 
-// Canned details for the demo "simulate a student submission" button — the same
-// payload a student's phone would POST after scanning the QR code.
-function buildSimulatedInput(phone: string): SubmitRegistrationInput {
-  return {
-    firstName:    'Akwasi',
-    lastName:     'Asenso',
-    dob:          '2001-03-12',
-    gender:       'male',
-    phone,
-    email:        'akwasi.asenso@example.com',
-    address:      'Ayeduase Gate, Kumasi',
-    idCardType:   'Ghana Card',
-    idCardNumber: 'GHA-0011223344',
-    nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
-    emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
-  }
-}
-
 export default function RegisterQrPage() {
-  const navigate = useNavigate()
   const location = useLocation()
   const [copied, setCopied] = useState(false)
-  const [simulating, setSimulating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const phone = (location.state as LocationState | null)?.phone ?? ''
-
-  // A stable per-instance id for the demo registration link. useId() is pure
-  // and render-safe (unlike Math.random(), which the React compiler flags);
-  // its ':'-wrapped output is stripped to keep the URL clean.
-  const sessionId = `sess_${useId().replace(/[^a-z0-9]/gi, '')}`
-  const link = `quickstart.app/register/${sessionId}`
+  const { data: invitation, loading, error: invitationError, refetch } = useApiResource(
+    () => createRegistrationInvitation(phone || undefined),
+    [phone],
+  )
+  const link = invitation ? `${APP_URL}${ROUTES.REGISTER}/${encodeURIComponent(invitation.token)}` : ''
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(`https://${link}`)
+      if (!link) return
+      await navigator.clipboard.writeText(link)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard access can fail (permissions, insecure context) — non-critical, ignore.
-    }
-  }
-
-  const handleSimulateSubmission = async () => {
-    setSimulating(true)
-    setError(null)
-    try {
-      await submitRegistration(buildSimulatedInput(phone || '024 000 0000'))
-      navigate(ROUTES.STUDENTS)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not simulate the submission.')
-      setSimulating(false)
     }
   }
 
@@ -85,21 +55,20 @@ export default function RegisterQrPage() {
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl py-8">
-          <div className="w-40 h-40 bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-gray-400">
-              <QrCode size={40} />
-              <span className="text-[11px] font-medium tracking-wide">QR CODE</span>
-            </div>
+        {loading && <LoadingState message="Generating secure link…" className="py-10" />}
+        {invitationError && <ErrorState error={invitationError} onRetry={refetch} className="py-8" />}
+        {invitation && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <QrCodeDisplay value={link} caption={link} />
+            <p className="text-[11.5px] text-gray-400 text-center mt-2">Expires in 24 hours</p>
           </div>
-          <p className="text-[12.5px] text-gray-600 mt-1">{link}</p>
-          <p className="text-[11.5px] text-gray-400">Expires in 24 hours</p>
-        </div>
+        )}
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => window.print()}
+            disabled={!invitation}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-[13px] font-medium rounded-lg transition-colors"
           >
             <Printer size={15} /> Print QR Code
@@ -107,6 +76,7 @@ export default function RegisterQrPage() {
           <button
             type="button"
             onClick={handleCopy}
+            disabled={!invitation}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"
           >
             {copied ? <Check size={15} /> : <Copy size={15} />}
@@ -121,15 +91,6 @@ export default function RegisterQrPage() {
           Once they scan and complete Steps 1–3 on their phone, their record will appear in the Pending tab on the
           student list for you to finish.
         </p>
-        <button
-          type="button"
-          onClick={handleSimulateSubmission}
-          disabled={simulating}
-          className="mt-2 self-start px-3.5 py-2 text-[12.5px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 disabled:opacity-50 rounded-lg transition-colors"
-        >
-          {simulating ? 'Submitting…' : 'Simulate Student Submission (demo)'}
-        </button>
-        {error && <p className="text-[12px] text-danger">{error}</p>}
       </div>
     </div>
   )

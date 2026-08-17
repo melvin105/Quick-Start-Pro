@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import * as registrationService from '../services/registrationService';
+import { createRegistrationToken } from '../services/publicTokenService';
 
 function actingUser(req: Request) {
   const user = req.user as NonNullable<Request['user']>;
@@ -17,6 +18,11 @@ function paramId(req: Request): string {
 export const submit = asyncHandler(async (req: Request, res: Response) => {
   const registration = await registrationService.submitRegistration(req.body ?? {});
   res.status(201).json(registration);
+});
+
+export const createInvitation = asyncHandler(async (req: Request, res: Response) => {
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone : undefined;
+  res.status(201).json(createRegistrationToken(phone));
 });
 
 export const list = asyncHandler(async (req: Request, res: Response) => {

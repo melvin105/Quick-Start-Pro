@@ -7,7 +7,7 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api'
 import { ApiError } from '../../lib/apiError'
-import { getStudentPaymentHistory, listPayments, recordPayment, type ListPaymentsResult } from './paymentService'
+import { getReceipt, getStudentPaymentHistory, listPayments, recordPayment, type ListPaymentsResult } from './paymentService'
 
 const mockedGet = vi.mocked(api.get)
 const mockedPost = vi.mocked(api.post)
@@ -44,6 +44,12 @@ describe('payments service', () => {
 
     await expect(getStudentPaymentHistory('student-1')).resolves.toEqual(response)
     expect(mockedGet).toHaveBeenCalledWith('/payments/student-1')
+  })
+
+  it('reads a shareable receipt without requiring a frontend session contract', async () => {
+    mockedGet.mockResolvedValue({ data: { id: 'receipt-1', receipt_no: 'R-0042' } })
+    await getReceipt('receipt-1')
+    expect(mockedGet).toHaveBeenCalledWith('/receipts/receipt-1')
   })
 
   it('records a payment and returns the server-generated receipt', async () => {

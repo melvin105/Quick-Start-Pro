@@ -1,6 +1,7 @@
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
 import * as studentService from './studentService';
+import { assertRegistrationToken } from './publicTokenService';
 
 const GENDERS = ['male', 'female'] as const;
 const REGISTRATION_STATUSES = ['pending', 'approved', 'rejected'] as const;
@@ -24,6 +25,7 @@ export interface EmergencyContactInput {
 // Self-registration covers only what the student knows — enrolment/package
 // is added by staff at approval time.
 export interface SubmitRegistrationInput {
+  sessionToken: string;
   firstName: string;
   lastName: string;
   dob: string;
@@ -84,6 +86,7 @@ export async function submitRegistration(input: SubmitRegistrationInput) {
   const firstName = requireString(input?.firstName, 'firstName');
   const lastName = requireString(input?.lastName, 'lastName');
   const phone = requireString(input?.phone, 'phone');
+  assertRegistrationToken(input?.sessionToken, phone);
   const dob = requireString(input?.dob, 'dob');
   if (!DATE_RE.test(dob)) {
     throw new ApiError(400, 'INVALID_INPUT', 'dob must be in YYYY-MM-DD format.');

@@ -9,6 +9,8 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api'
 import {
+  createRegistrationInvitation,
+  submitRegistration,
   getPendingRegistrations,
   approveRegistration,
   rejectRegistration,
@@ -30,6 +32,27 @@ const sampleRegistration: Registration = {
   submitted_at: '2026-08-16T09:30:00Z',
   created_at:   '2026-08-16T09:30:00Z',
 }
+
+describe('public registration flow', () => {
+  beforeEach(() => mockedPost.mockReset())
+
+  it('creates a server-issued registration invitation', async () => {
+    mockedPost.mockResolvedValue({ data: { token: 'invite-token', expiresAt: '2026-08-18T10:00:00Z' } })
+    await createRegistrationInvitation('0240000000')
+    expect(mockedPost).toHaveBeenCalledWith('/registrations/invite', { phone: '0240000000' })
+  })
+
+  it('submits the public form with its invitation token', async () => {
+    const input = {
+      firstName: 'Kofi', lastName: 'Mensah', dob: '2000-01-01', gender: 'male' as const, phone: '0240000000',
+      nextOfKin: { name: 'Ama', relationship: 'Mother', phone: '0241111111' },
+      emergencyContact: { name: 'Ama', relationship: 'Mother', phone: '0241111111' },
+    }
+    mockedPost.mockResolvedValue({ data: { id: 'reg-1', status: 'pending' } })
+    await submitRegistration(input, 'invite-token')
+    expect(mockedPost).toHaveBeenCalledWith('/registrations', { ...input, sessionToken: 'invite-token' })
+  })
+})
 
 describe('getPendingRegistrations', () => {
   beforeEach(() => {

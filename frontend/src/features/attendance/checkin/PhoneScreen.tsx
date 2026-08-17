@@ -2,9 +2,10 @@ import { useState } from 'react'
 
 interface PhoneScreenProps {
   onSubmit: (phone: string) => void
+  loading?: boolean
 }
 
-export default function PhoneScreen({ onSubmit }: PhoneScreenProps) {
+export default function PhoneScreen({ onSubmit, loading = false }: PhoneScreenProps) {
   const [phone, setPhone] = useState('')
 
   return (
@@ -21,11 +22,11 @@ export default function PhoneScreen({ onSubmit }: PhoneScreenProps) {
       />
       <button
         type="button"
-        disabled={!phone.trim()}
+        disabled={!phone.trim() || loading}
         onClick={() => onSubmit(phone)}
         className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-[15px] rounded-xl transition-colors"
       >
-        Check In →
+        {loading ? 'Looking up…' : 'Check In →'}
       </button>
     </>
   )

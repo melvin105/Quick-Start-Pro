@@ -30,6 +30,10 @@ const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
+    path: `${ROUTES.REGISTER}/:token`,
+    element: <RegisterPage />,
+  },
+  {
     // Public, unauthenticated shareable receipt — no login required.
     path: '/receipt/:id',
     element: <ReceiptPage />,

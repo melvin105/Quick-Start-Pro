@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
@@ -14,6 +15,7 @@ import { toSubmitInput } from '../../features/students/public/registrationMapper
 import { ApiError } from '../../lib/apiError'
 
 export default function RegisterPage() {
+  const { token = '' } = useParams<{ token: string }>()
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,12 +29,24 @@ export default function RegisterPage() {
   const onSubmit = handleSubmit(async (values) => {
     setError(null)
     try {
-      await submitRegistration(toSubmitInput(values))
+      await submitRegistration(toSubmitInput(values), token)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit your registration. Please try again.')
     }
   })
+
+  if (!token) {
+    return (
+      <RegisterShell>
+        <div className="bg-white rounded-2xl shadow-card p-8 flex flex-col items-center text-center gap-4 max-w-md mx-auto">
+          <AlertTriangle size={36} className="text-warning" />
+          <h1 className="text-[17px] font-semibold text-gray-900">Registration link required</h1>
+          <p className="text-[13px] text-gray-500">Please scan the QR code provided by the driving school.</p>
+        </div>
+      </RegisterShell>
+    )
+  }
 
   if (submitted) {
     return (

@@ -59,14 +59,29 @@ export interface SubmittedRegistration {
   submitted_at: string
 }
 
+export interface RegistrationInvitation {
+  token:     string
+  expiresAt: string
+}
+
+export async function createRegistrationInvitation(phone?: string): Promise<RegistrationInvitation> {
+  try {
+    const { data } = await api.post<RegistrationInvitation>('/registrations/invite', { phone })
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
 // Public, unauthenticated — a prospective student submits their own details and
 // they land in the pending queue for staff to approve. The shared `api` client
 // only attaches an auth token when one exists, so it's safe to call logged out.
 export async function submitRegistration(
   input: SubmitRegistrationInput,
+  sessionToken: string,
 ): Promise<SubmittedRegistration> {
   try {
-    const { data } = await api.post<SubmittedRegistration>('/registrations', input)
+    const { data } = await api.post<SubmittedRegistration>('/registrations', { ...input, sessionToken })
     return data
   } catch (err) {
     throw toApiError(err)
