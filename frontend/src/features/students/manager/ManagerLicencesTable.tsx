@@ -1,16 +1,16 @@
 import { useNavigate } from 'react-router-dom'
-import type { Student } from '../shared/types'
-import { DEFAULT_LICENCE_PROGRESS, buildLicenceSteps } from '../shared/licence'
+import type { LicenceListItem } from '../shared/licenceMappers'
+import { buildLicenceSteps } from '../shared/licence'
 import { studentProfilePath } from '../shared/utils'
 
 interface ManagerLicencesTableProps {
-  students: Student[]
+  students: LicenceListItem[]
 }
 
 const COLUMNS = ['Student', 'Enrolment', 'Pipeline Step', 'Next Action', 'Status']
 
-function pipelineFor(student: Student) {
-  const steps = buildLicenceSteps(student.licenceProgress ?? DEFAULT_LICENCE_PROGRESS)
+function pipelineFor(item: LicenceListItem) {
+  const steps = buildLicenceSteps(item.progress)
   const current = steps.find((s) => s.status === 'active')
   const complete = steps.every((s) => s.status === 'done')
 
@@ -40,19 +40,19 @@ export default function ManagerLicencesTable({ students }: ManagerLicencesTableP
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => {
-              const { stepLabel, nextAction, complete } = pipelineFor(student)
+            {students.map((item) => {
+              const { stepLabel, nextAction, complete } = pipelineFor(item)
               return (
                 <tr
-                  key={student.id}
-                  onClick={() => openLicenceTab(student.id)}
+                  key={item.id}
+                  onClick={() => openLicenceTab(item.id)}
                   className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3">
-                    <p className="text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{student.name}</p>
-                    <p className="text-[11.5px] text-gray-500">{student.id}</p>
+                    <p className="text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{item.name}</p>
+                    <p className="text-[11.5px] text-gray-500">{item.studentNumber}</p>
                   </td>
-                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{student.enrolment}</td>
+                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{item.enrolment}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{stepLabel}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{nextAction}</td>
                   <td className="px-4 py-3">
