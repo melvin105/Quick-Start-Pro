@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Check, RotateCcw } from 'lucide-react'
-import usePaymentsStore from '../../features/payments/store'
-import useStudentsStore from '../../features/students/shared/store'
 import StatCards from '../../features/payments/StatCards'
 import PaymentsTable from '../../features/payments/PaymentsTable'
 import PaymentsCardList from '../../features/payments/PaymentsCardList'
@@ -10,6 +8,12 @@ import Dropdown from '../../features/payments/Dropdown'
 import RecordPaymentModal from '../../features/payments/RecordPaymentModal'
 import PaymentDetailDrawer from '../../features/payments/PaymentDetailDrawer'
 import DatePicker from '../../components/ui/DatePicker'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
+import { useApiResource } from '../../lib/useApiResource'
+import { listPayments } from '../../features/payments/paymentService'
+import { toPaymentRecord } from '../../features/payments/paymentMappers'
+import { listStudents } from '../../features/students/shared/studentService'
 import { todayIso } from '../../features/payments/utils'
 import type { PaymentRecord } from '../../features/payments/types'
 
@@ -26,8 +30,16 @@ const STATUS_OPTIONS = [
 ]
 
 export default function PaymentsPage() {
-  const records = usePaymentsStore((s) => s.records)
-  const students = useStudentsStore((s) => s.students)
+  const { data, loading, error, refetch } = useApiResource(async () => {
+    const [payments, students] = await Promise.all([
+      listPayments({ limit: 100 }),
+      listStudents({ limit: 100 }),
+    ])
+    return { payments, students }
+  })
+
+  const records = useMemo(() => data?.payments.payments.map(toPaymentRecord) ?? [], [data])
+  const students = useMemo(() => data?.students.students ?? [], [data])
 
   // Arriving from a student profile's "+ Record Payment" link pre-fills and
   // opens the modal directly, instead of landing here with no context and
@@ -61,25 +73,29 @@ export default function PaymentsPage() {
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)), [records, dateFilter, methodFilter, statusFilter])
 
   const stats = useMemo(() => {
-    const today = todayIso()
-    const month = today.slice(0, 7)
-    const todayIncome = records.filter((r) => r.date === today).reduce((sum, r) => sum + r.amount, 0)
-    const monthIncome = records.filter((r) => r.date.slice(0, 7) === month).reduce((sum, r) => sum + r.amount, 0)
-    const outstanding = students.reduce((sum, s) => sum + s.balance, 0)
-    const studentsWithBalance = students.filter((s) => s.balance > 0).length
-    return { todayIncome, monthIncome, outstanding, studentsWithBalance }
-  }, [records, students])
+    const apiStats = data?.payments.stats
+    return {
+      todayIncome:         apiStats?.today_income ?? 0,
+      monthIncome:         apiStats?.month_income ?? 0,
+      outstanding:         apiStats?.outstanding ?? 0,
+      studentsWithBalance: apiStats?.students_with_balance ?? 0,
+    }
+  }, [data])
 
   const closeRecordModal = () => {
     setShowRecordModal(false)
     if (initialStudentId) setSearchParams({}, { replace: true })
   }
 
-  const handleRecorded = (record: PaymentRecord) => {
+  const handleRecorded = async (record: { receiptNo: string }) => {
+    await refetch()
     closeRecordModal()
-    setToast(`Payment recorded — receipt ${record.id}`)
+    setToast(`Payment recorded — receipt ${record.receiptNo}`)
     setTimeout(() => setToast(null), 3000)
   }
+
+  if (loading) return <LoadingState message="Loading payments…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="flex flex-col gap-5">
@@ -128,7 +144,12 @@ export default function PaymentsPage() {
       </button>
 
       {showRecordModal && (
-        <RecordPaymentModal onClose={closeRecordModal} onRecorded={handleRecorded} initialStudentId={initialStudentId} />
+        <RecordPaymentModal
+          onClose={closeRecordModal}
+          onRecorded={handleRecorded}
+          students={students}
+          initialStudentId={initialStudentId}
+        />
       )}
 
       {detailRecord && (

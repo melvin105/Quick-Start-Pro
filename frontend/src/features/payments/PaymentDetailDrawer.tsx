@@ -14,7 +14,7 @@ export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDr
   const [toast, setToast] = useState<string | null>(null)
 
   const handleShare = async () => {
-    const result = await shareReceipt(record.id)
+    const result = await shareReceipt(record.receiptId ?? record.id)
     if (result === 'copied') {
       setToast('Link copied')
       setTimeout(() => setToast(null), 3000)
@@ -89,7 +89,7 @@ export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDr
 
         <div className="p-5 border-t border-gray-200 shrink-0 flex gap-2">
           <Link
-            to={paymentReceiptPath(record.id)}
+            to={paymentReceiptPath(record.receiptId ?? record.id)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"

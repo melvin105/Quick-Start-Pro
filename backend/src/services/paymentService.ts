@@ -4,6 +4,8 @@ import { ApiError } from '../utils/ApiError';
 import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
 
 const PAYMENT_FIELDS = ['amount'] as const;
+const PAYMENT_LIST_FIELDS = ['amount', 'package_fee', 'total_paid', 'balance'] as const;
+const PAYMENT_STATS_FIELDS = ['today_income', 'month_income', 'outstanding'] as const;
 const PAYMENT_ROW_FIELDS = ['amount', 'balance_after'] as const;
 const BALANCE_SUMMARY_FIELDS = ['total_fees', 'total_paid', 'balance'] as const;
 const RECEIPT_FIELDS = ['amount', 'package_fee', 'total_paid', 'balance'] as const;
@@ -57,7 +59,7 @@ function isDayLockError(err: unknown): err is Error {
 async function fetchPaymentWithReceipt(client: Pool | PoolClient, paymentId: string) {
   const { rows } = await client.query(
     `select p.id, p.student_id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
-            r.receipt_no, r.issued_at
+            r.id as receipt_id, r.receipt_no, r.issued_at
      from public.payments p
      left join public.receipts r on r.payment_id = p.id
      where p.id = $1`,
@@ -163,17 +165,40 @@ export async function listPayments(query: ListPaymentsQuery) {
     join public.students st on st.id = p.student_id
     left join public.receipts r on r.payment_id = p.id
     left join public.v_student_balances vb on vb.id = p.student_id
+    left join lateral (
+      select dp.package_name
+      from public.student_packages sp
+      join public.driving_packages dp on dp.id = sp.package_id
+      where sp.student_id = st.id
+      order by sp.assigned_date desc, sp.created_at desc
+      limit 1
+    ) pkg on true
+    left join public.users u on u.id = p.recorded_by
+    left join public.staff sf on sf.id = u.staff_id
   `;
 
   const { rows: countRows } = await pool.query(`select count(*)::int as total ${baseFrom} ${where}`, params);
   const total = countRows[0].total;
+
+  const { rows: statsRows } = await pool.query(
+    `select
+       coalesce((select sum(amount) from public.payments where payment_date = current_date), 0) as today_income,
+       coalesce((select sum(amount) from public.payments where date_trunc('month', payment_date) = date_trunc('month', current_date)), 0) as month_income,
+       coalesce((select sum(balance) from public.v_student_balances where balance > 0), 0) as outstanding,
+       (select count(*)::int from public.v_student_balances where balance > 0) as students_with_balance`,
+  );
+  const stats = normalizeNumericFields(statsRows[0], PAYMENT_STATS_FIELDS);
 
   params.push(limit, offset);
   const { rows } = await pool.query(
     `select
        p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
        st.id as student_id, st.student_number, st.first_name || ' ' || st.last_name as student_name,
-       r.receipt_no,
+       r.id as receipt_id, r.receipt_no, pkg.package_name,
+       coalesce(vb.total_fees, 0) as package_fee,
+       coalesce(vb.total_paid, 0) as total_paid,
+       coalesce(vb.balance, 0) as balance,
+       nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
        case when coalesce(vb.balance, 0) <= 0 then 'paid' else 'partial' end as status
      ${baseFrom}
      ${where}
@@ -182,7 +207,7 @@ export async function listPayments(query: ListPaymentsQuery) {
     params,
   );
 
-  return { payments: normalizeNumericRows(rows, PAYMENT_FIELDS), total, page, limit };
+  return { payments: normalizeNumericRows(rows, PAYMENT_LIST_FIELDS), stats, total, page, limit };
 }
 
 export async function getStudentPaymentHistory(studentId: string) {
