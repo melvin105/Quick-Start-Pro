@@ -1,22 +1,23 @@
 import { useMemo, useState } from 'react'
 import { Search, Users } from 'lucide-react'
-import useSchedulingStore from '../shared/store'
-import useStudentsStore from '../../students/shared/store'
-import { findStudentSlots, formatSlotLabel, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
+import { findStudentCellSlots, type ScheduleGridData } from '../shared/schedulingMappers'
+import { useAssignableStudents } from '../shared/useAssignableStudents'
+import { formatSlotLabel } from '../shared/utils'
 import AssignConfirmation from './AssignConfirmation'
 import type { Day } from '../shared/types'
 
 interface AssignFormProps {
   day: Day
   hour: number
+  grid: ScheduleGridData
+  capacity: number
   excludeIds: string[]
   onAssign: (studentId: string) => void
   onCancel: () => void
 }
 
-export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }: AssignFormProps) {
-  const grid = useSchedulingStore((s) => s.grid)
-  const students = useStudentsStore((s) => s.students)
+export default function AssignForm({ day, hour, grid, capacity, excludeIds, onAssign, onCancel }: AssignFormProps) {
+  const { students, loading, error } = useAssignableStudents()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -24,14 +25,12 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     return students
-      .filter((s) => s.status !== 'completed')
-      .filter((s) => s.enrolment !== 'Licence Only')
       .filter((s) => !excludeIds.includes(s.id))
-      .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+      .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.studentNumber.toLowerCase().includes(q))
   }, [students, query, excludeIds])
 
   const selectedStudent = selectedId ? students.find((s) => s.id === selectedId) : undefined
-  const slotFull = excludeIds.length >= MAX_STUDENTS_PER_SLOT
+  const slotFull = excludeIds.length >= capacity
 
   if (slotFull) {
     return (
@@ -39,7 +38,7 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
         <Users size={20} className="text-gray-300" />
         <p className="text-[13px] font-medium text-gray-700">This slot is full</p>
         <p className="text-[12px] text-gray-500">
-          Max {MAX_STUDENTS_PER_SLOT} student{MAX_STUDENTS_PER_SLOT === 1 ? '' : 's'} per hour — one per instructor.
+          Max {capacity} student{capacity === 1 ? '' : 's'} per hour — one per instructor.
         </p>
         <button
           type="button"
@@ -57,7 +56,7 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
       <AssignConfirmation
         studentName={selectedStudent.name}
         targetLabel={formatSlotLabel(day, hour, true)}
-        existingSlots={findStudentSlots(grid, selectedStudent.id)}
+        existingSlots={findStudentCellSlots(grid, selectedStudent.id)}
         onConfirm={() => onAssign(selectedStudent.id)}
         onCancel={() => setConfirming(false)}
       />
@@ -79,7 +78,11 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
       </div>
 
       <div className="max-h-48 overflow-y-auto flex flex-col gap-1">
-        {results.map((s) => (
+        {loading && <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">Loading students…</p>}
+        {error && !loading && (
+          <p className="text-[12.5px] text-danger px-2.5 py-3 text-center">Couldn’t load students.</p>
+        )}
+        {!loading && !error && results.map((s) => (
           <button
             key={s.id}
             type="button"
@@ -89,10 +92,10 @@ export default function AssignForm({ day, hour, excludeIds, onAssign, onCancel }
             }`}
           >
             <p className="font-medium">{s.name}</p>
-            <p className="text-[11.5px] text-gray-500">{s.id} · {s.enrolment}</p>
+            <p className="text-[11.5px] text-gray-500">{s.studentNumber} · {s.enrolmentLabel}</p>
           </button>
         ))}
-        {results.length === 0 && (
+        {!loading && !error && results.length === 0 && (
           <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">No matching students.</p>
         )}
       </div>

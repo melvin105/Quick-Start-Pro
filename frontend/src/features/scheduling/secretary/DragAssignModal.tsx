@@ -1,29 +1,28 @@
 import { Users } from 'lucide-react'
-import useSchedulingStore from '../shared/store'
-import useStudentsStore from '../../students/shared/store'
-import { findStudentSlots, formatSlotLabel, isSlotFull, MAX_STUDENTS_PER_SLOT, slotKey } from '../shared/utils'
+import { findStudentCellSlots, isCellFull, type ScheduleGridData } from '../shared/schedulingMappers'
+import { formatSlotLabel, slotKey } from '../shared/utils'
 import AssignConfirmation from './AssignConfirmation'
 import type { Day } from '../shared/types'
 
 interface DragAssignModalProps {
   day: Day
   hour: number
+  grid: ScheduleGridData
   studentId: string
+  studentName: string
   fromDay: Day
   fromHour: number
   onConfirm: () => void
   onCancel: () => void
 }
 
-export default function DragAssignModal({ day, hour, studentId, fromDay, fromHour, onConfirm, onCancel }: DragAssignModalProps) {
-  const grid = useSchedulingStore((s) => s.grid)
-  const students = useStudentsStore((s) => s.students)
-  const student = students.find((s) => s.id === studentId)
-  if (!student) return null
-
-  const targetAssignments = grid[slotKey(day, hour)] ?? []
-  const full = isSlotFull(targetAssignments)
-  const existingSlots = findStudentSlots(grid, studentId).filter(
+export default function DragAssignModal({
+  day, hour, grid, studentId, studentName, fromDay, fromHour, onConfirm, onCancel,
+}: DragAssignModalProps) {
+  const targetCell = grid[slotKey(day, hour)]
+  const full = isCellFull(targetCell)
+  const capacity = targetCell?.capacity ?? 0
+  const existingSlots = findStudentCellSlots(grid, studentId).filter(
     (s) => !(s.day === day && s.hour === hour) && !(s.day === fromDay && s.hour === fromHour),
   )
 
@@ -36,7 +35,7 @@ export default function DragAssignModal({ day, hour, studentId, fromDay, fromHou
             <Users size={20} className="text-gray-300" />
             <p className="text-[13px] font-medium text-gray-700">This slot is full</p>
             <p className="text-[12px] text-gray-500">
-              Max {MAX_STUDENTS_PER_SLOT} student{MAX_STUDENTS_PER_SLOT === 1 ? '' : 's'} per hour — one per instructor.
+              Max {capacity} student{capacity === 1 ? '' : 's'} per hour — one per instructor.
             </p>
             <button
               type="button"
@@ -49,7 +48,7 @@ export default function DragAssignModal({ day, hour, studentId, fromDay, fromHou
         ) : (
           <AssignConfirmation
             mode="move"
-            studentName={student.name}
+            studentName={studentName}
             targetLabel={formatSlotLabel(day, hour, true)}
             sourceLabel={formatSlotLabel(fromDay, fromHour, true)}
             existingSlots={existingSlots}

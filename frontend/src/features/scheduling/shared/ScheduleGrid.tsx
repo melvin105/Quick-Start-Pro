@@ -1,18 +1,16 @@
-import { DAYS, START_HOURS, formatRangeShort, slotKey, isSlotFull } from './utils'
+import { DAYS, START_HOURS, formatRangeShort, slotKey } from './utils'
+import { isCellFull, type ScheduleGridData } from './schedulingMappers'
 import StudentChip from '../secretary/StudentChip'
 import DroppableCell from '../secretary/DroppableCell'
-import useStudentsStore from '../../students/shared/store'
-import type { Day, SlotAssignment } from './types'
+import type { Day } from './types'
 
 interface ScheduleGridProps {
-  grid: Record<string, SlotAssignment[]>
+  grid: ScheduleGridData
   todayColumn: Day
   onCellClick: (day: Day, hour: number, el: HTMLElement) => void
 }
 
 export default function ScheduleGrid({ grid, todayColumn, onCellClick }: ScheduleGridProps) {
-  const students = useStudentsStore((s) => s.students)
-
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden h-full flex flex-col">
       <div className="flex-1 min-h-0 overflow-auto">
@@ -40,8 +38,8 @@ export default function ScheduleGrid({ grid, todayColumn, onCellClick }: Schedul
                 {formatRangeShort(hour)}
               </div>
               {DAYS.map((day) => {
-                const key = slotKey(day, hour)
-                const assignments = grid[key] ?? []
+                const cell = grid[slotKey(day, hour)]
+                const assignments = cell?.assignments ?? []
                 const isEmpty = assignments.length === 0
 
                 if (isEmpty) {
@@ -64,21 +62,17 @@ export default function ScheduleGrid({ grid, todayColumn, onCellClick }: Schedul
                       day === todayColumn ? 'bg-brand-50/30' : ''
                     }`}
                   >
-                    {assignments.map((a) => {
-                      const student = students.find((s) => s.id === a.studentId)
-                      if (!student) return null
-                      return (
-                        <StudentChip
-                          key={a.studentId}
-                          name={student.name}
-                          assignment={a}
-                          day={day}
-                          hour={hour}
-                          draggable
-                        />
-                      )
-                    })}
-                    {isSlotFull(assignments) && (
+                    {assignments.map((a) => (
+                      <StudentChip
+                        key={a.studentId}
+                        name={a.name}
+                        assignment={a}
+                        day={day}
+                        hour={hour}
+                        draggable
+                      />
+                    ))}
+                    {isCellFull(cell) && (
                       <span className="mt-auto text-[9.5px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
                     )}
                   </button>

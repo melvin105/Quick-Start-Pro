@@ -44,3 +44,34 @@ export async function listSlots(): Promise<ListSlotsResult> {
     throw toApiError(err)
   }
 }
+
+// POST /scheduling/slots/:slotId/assignments — assigns a student to a slot.
+// Returns the single updated slot (same shape as a listSlots entry). The backend
+// enforces capacity under an advisory lock and rejects with a 409 ApiError whose
+// code is SLOT_FULL, ALREADY_ASSIGNED or SLOT_INACTIVE — callers surface the
+// message. Mutations stay as plain awaited calls (not useApiResource): the caller
+// awaits, then refetches the grid so denormalised lesson counts stay in sync.
+export async function assignStudent(slotId: string, studentId: string): Promise<ApiScheduleSlot> {
+  try {
+    const { data } = await api.post<ApiScheduleSlot>(
+      `/scheduling/slots/${slotId}/assignments`,
+      { studentId },
+    )
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+// DELETE /scheduling/slots/:slotId/assignments/:studentId — removes (deactivates)
+// a student's assignment on a slot. Returns the updated slot.
+export async function unassignStudent(slotId: string, studentId: string): Promise<ApiScheduleSlot> {
+  try {
+    const { data } = await api.delete<ApiScheduleSlot>(
+      `/scheduling/slots/${slotId}/assignments/${studentId}`,
+    )
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}

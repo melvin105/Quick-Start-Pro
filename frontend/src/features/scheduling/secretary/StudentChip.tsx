@@ -1,9 +1,9 @@
 import { useDraggable } from '@dnd-kit/core'
-import type { SlotAssignment, Day } from '../shared/types'
+import type { Day } from '../shared/types'
 
 interface StudentChipProps {
   name: string
-  assignment: SlotAssignment
+  assignment: { studentId: string }
   day?: Day
   hour?: number
   draggable?: boolean

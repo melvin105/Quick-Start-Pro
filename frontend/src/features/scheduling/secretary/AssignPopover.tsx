@@ -1,11 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import AssignForm from './AssignForm'
 import { formatSlotLabel } from '../shared/utils'
+import type { ScheduleGridData } from '../shared/schedulingMappers'
 import type { Day } from '../shared/types'
 
 interface AssignPopoverProps {
   day: Day
   hour: number
+  grid: ScheduleGridData
+  capacity: number
   anchorRect?: DOMRect
   excludeIds: string[]
   onAssign: (studentId: string) => void
@@ -15,7 +18,7 @@ interface AssignPopoverProps {
 const POPOVER_WIDTH = 288
 const MARGIN = 16
 
-export default function AssignPopover({ day, hour, anchorRect, excludeIds, onAssign, onClose }: AssignPopoverProps) {
+export default function AssignPopover({ day, hour, grid, capacity, anchorRect, excludeIds, onAssign, onClose }: AssignPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   const [style, setStyle] = useState<React.CSSProperties>(() =>
@@ -65,7 +68,7 @@ export default function AssignPopover({ day, hour, anchorRect, excludeIds, onAss
   return (
     <div ref={ref} style={style} className="z-50 bg-white border border-gray-200 rounded-2xl shadow-modal p-4">
       <p className="text-[13px] font-semibold text-gray-900 mb-3">{formatSlotLabel(day, hour, true)}</p>
-      <AssignForm day={day} hour={hour} excludeIds={excludeIds} onAssign={onAssign} onCancel={onClose} />
+      <AssignForm day={day} hour={hour} grid={grid} capacity={capacity} excludeIds={excludeIds} onAssign={onAssign} onCancel={onClose} />
     </div>
   )
 }
