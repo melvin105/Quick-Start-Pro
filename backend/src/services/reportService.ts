@@ -285,3 +285,41 @@ export async function getFinances(query: FinancesQuery) {
     })),
   };
 }
+
+export type OperationalReportKind = 'students' | 'attendance' | 'expenses' | 'schedule';
+
+export async function getOperationalReport(kind: OperationalReportKind, from: string, to: string) {
+  if (!from || !to) throw new ApiError(400, 'INVALID_INPUT', 'from and to date range parameters are required.');
+  assertDate(from, 'from');
+  assertDate(to, 'to');
+  if (from > to) throw new ApiError(400, 'INVALID_INPUT', 'from must not be after to.');
+
+  const queries: Record<OperationalReportKind, string> = {
+    students: `select s.student_number, s.first_name || ' ' || s.last_name as student_name,
+                      s.registration_date, s.status, s.enrolment_type
+               from public.students s where s.registration_date between $1 and $2
+               order by s.registration_date desc, s.student_number`,
+    attendance: `select a.attendance_date, st.student_number,
+                         st.first_name || ' ' || st.last_name as student_name,
+                         coalesce(sf.first_name || ' ' || sf.last_name, '—') as instructor_name,
+                         a.status, a.method, a.check_in_time
+                  from public.attendance a
+                  join public.students st on st.id = a.student_id
+                  left join public.staff sf on sf.id = a.driver_id
+                  where a.attendance_date between $1 and $2
+                  order by a.attendance_date desc, a.check_in_time desc nulls last`,
+    expenses: `select e.expense_date, e.category, e.description, e.amount
+               from public.expenses e where e.expense_date between $1 and $2
+               order by e.expense_date desc, e.created_at desc`,
+    schedule: `select ls.lesson_date, ls.start_time, ls.end_time,
+                      st.student_number, st.first_name || ' ' || st.last_name as student_name,
+                      sf.first_name || ' ' || sf.last_name as instructor_name, ls.status
+               from public.lesson_schedule ls
+               join public.students st on st.id = ls.student_id
+               join public.staff sf on sf.id = ls.instructor_id
+               where ls.lesson_date between $1 and $2
+               order by ls.lesson_date desc, ls.start_time`,
+  };
+  const { rows } = await pool.query(queries[kind], [from, to]);
+  return { kind, from, to, rows };
+}

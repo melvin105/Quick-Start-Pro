@@ -1,5 +1,7 @@
 export interface CoursePackage {
-  id:    string
-  name:  string
-  price: number
+  id:          string
+  name:        string
+  price:       number
+  lessonCount: number
+  isActive:    boolean
 }

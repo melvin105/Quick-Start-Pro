@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { StaffMember } from './types'
 import { getInitials, roleLabel } from './utils'
-import { totalAllTime } from '../reports/lessonFacts'
 import { staffProfilePath } from '../../lib/constants'
 
 const AVATAR_STYLES: Record<StaffMember['role'], string> = {
@@ -15,7 +14,7 @@ const BADGE_STYLES: Record<StaffMember['role'], string> = {
 }
 
 export default function StaffCard({ staff }: { staff: StaffMember }) {
-  const lessons = staff.role === 'instructor' ? totalAllTime(staff.name.split(' ')[0]) : null
+  const lessons = staff.role === 'instructor' ? staff.lessonsCount : null
 
   return (
     <Link

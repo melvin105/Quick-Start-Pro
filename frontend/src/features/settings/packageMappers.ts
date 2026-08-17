@@ -15,3 +15,13 @@ export function toPackageOption(row: ApiPackage): PackageOption {
     price: Number(row.total_fee),
   }
 }
+
+export function toCoursePackage(row: ApiPackage) {
+  return {
+    id:          row.id,
+    name:        row.package_name,
+    price:       Number(row.total_fee),
+    lessonCount: row.lesson_count,
+    isActive:    row.is_active,
+  }
+}

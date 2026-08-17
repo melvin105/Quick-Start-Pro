@@ -25,7 +25,7 @@ import registrationRoutes from './routes/registrations';
 import recordsRoutes from './routes/records';
 import { ApiError } from './utils/ApiError';
 
-const app = express();
+export const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -76,6 +76,8 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR' });
 });
 
-app.listen(process.env.PORT || 5000, () => {
-  console.log(`Server running on port ${process.env.PORT || 5000}`);
-});
+if (require.main === module) {
+  app.listen(process.env.PORT || 5000, () => {
+    console.log(`Server running on port ${process.env.PORT || 5000}`);
+  });
+}

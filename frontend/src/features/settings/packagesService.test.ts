@@ -4,14 +4,16 @@ import { AxiosError } from 'axios'
 // Mock the shared Axios client so the service is tested in isolation — no real
 // HTTP, and the client's interceptors/env/auth-store imports never load.
 vi.mock('../../lib/api', () => ({
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }))
 
 import api from '../../lib/api'
-import { listPackages } from './packagesService'
+import { createPackage, listPackages, updatePackage } from './packagesService'
 import { ApiError } from '../../lib/apiError'
 
 const mockedGet = vi.mocked(api.get)
+const mockedPost = vi.mocked(api.post)
+const mockedPatch = vi.mocked(api.patch)
 
 describe('listPackages', () => {
   beforeEach(() => {
@@ -46,5 +48,25 @@ describe('listPackages', () => {
     mockedGet.mockRejectedValue(axiosError)
 
     await expect(listPackages()).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('package mutations', () => {
+  beforeEach(() => {
+    mockedPost.mockReset()
+    mockedPatch.mockReset()
+  })
+
+  it('creates a package through the manager API', async () => {
+    const input = { packageName: 'Driving Only', totalFee: 2000, lessonCount: 15 }
+    mockedPost.mockResolvedValue({ data: { id: 'pkg-1' } })
+    await createPackage(input)
+    expect(mockedPost).toHaveBeenCalledWith('/packages', input)
+  })
+
+  it('updates a package through the manager API', async () => {
+    mockedPatch.mockResolvedValue({ data: { id: 'pkg-1' } })
+    await updatePackage('pkg-1', { totalFee: 2200 })
+    expect(mockedPatch).toHaveBeenCalledWith('/packages/pkg-1', { totalFee: 2200 })
   })
 })

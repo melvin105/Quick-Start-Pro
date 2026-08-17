@@ -37,3 +37,14 @@ export const finances = asyncHandler(async (req: Request, res: Response) => {
   });
   res.json(result);
 });
+
+export const operational = asyncHandler(async (req: Request, res: Response) => {
+  const kind = (Array.isArray(req.params.kind) ? req.params.kind[0] : req.params.kind) as reportService.OperationalReportKind;
+  if (!['students', 'attendance', 'expenses', 'schedule'].includes(kind)) {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Report not found.' } });
+    return;
+  }
+  const { from, to } = req.query;
+  const result = await reportService.getOperationalReport(kind, typeof from === 'string' ? from : '', typeof to === 'string' ? to : '');
+  res.json(result);
+});

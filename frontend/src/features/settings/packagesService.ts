@@ -26,3 +26,29 @@ export async function listPackages(activeOnly = false): Promise<ApiPackage[]> {
     throw toApiError(err)
   }
 }
+
+export interface SavePackageInput {
+  packageName:    string
+  totalFee:       number
+  lessonCount:    number
+  durationWeeks?: number | null
+  isActive?:      boolean
+}
+
+export async function createPackage(input: SavePackageInput): Promise<ApiPackage> {
+  try {
+    const { data } = await api.post<ApiPackage>('/packages', input)
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+export async function updatePackage(id: string, input: Partial<SavePackageInput>): Promise<ApiPackage> {
+  try {
+    const { data } = await api.patch<ApiPackage>(`/packages/${id}`, input)
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}

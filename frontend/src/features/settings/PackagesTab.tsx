@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Plus, Pencil } from 'lucide-react'
-import usePackagesStore from './packagesStore'
 import PackageModal from './PackageModal'
 import type { CoursePackage } from './types'
+import { createPackage, listPackages, updatePackage } from './packagesService'
+import { toCoursePackage } from './packageMappers'
+import { useApiResource } from '../../lib/useApiResource'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 
 function formatGHS(amount: number) {
   return `GHS ${amount.toLocaleString()}`
@@ -13,9 +17,8 @@ interface PackagesTabProps {
 }
 
 export default function PackagesTab({ onSaved }: PackagesTabProps) {
-  const packages = usePackagesStore((s) => s.packages)
-  const addPackage = usePackagesStore((s) => s.addPackage)
-  const updatePackage = usePackagesStore((s) => s.updatePackage)
+  const { data, loading, error, refetch } = useApiResource(() => listPackages())
+  const packages = (data ?? []).map(toCoursePackage)
 
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<CoursePackage | null>(null)
@@ -33,12 +36,15 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      {loading && <LoadingState message="Loading packages…" />}
+      {error && <ErrorState error={error} onRetry={refetch} />}
+
+      {!loading && !error && <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-200">
-                {['Package Name', 'Price', 'Edit'].map((col) => (
+                {['Package Name', 'Lessons', 'Price', 'Edit'].map((col) => (
                   <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                     {col}
                   </th>
@@ -49,6 +55,7 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
               {packages.map((pkg) => (
                 <tr key={pkg.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{pkg.name}</td>
+                  <td className="px-4 py-3 text-[13px] text-gray-700 whitespace-nowrap">{pkg.lessonCount}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{formatGHS(pkg.price)}</td>
                   <td className="px-4 py-3">
                     <button
@@ -65,12 +72,17 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
 
       {showAdd && (
         <PackageModal
           onClose={() => setShowAdd(false)}
-          onSave={(input) => { addPackage(input); setShowAdd(false); onSaved() }}
+          onSave={async (input) => {
+            await createPackage({ packageName: input.name, totalFee: input.price, lessonCount: input.lessonCount })
+            await refetch()
+            setShowAdd(false)
+            onSaved()
+          }}
         />
       )}
 
@@ -78,7 +90,12 @@ export default function PackagesTab({ onSaved }: PackagesTabProps) {
         <PackageModal
           editing={editing}
           onClose={() => setEditing(null)}
-          onSave={(input) => { updatePackage(editing.id, input); setEditing(null); onSaved() }}
+          onSave={async (input) => {
+            await updatePackage(editing.id, { packageName: input.name, totalFee: input.price, lessonCount: input.lessonCount })
+            await refetch()
+            setEditing(null)
+            onSaved()
+          }}
         />
       )}
     </div>
