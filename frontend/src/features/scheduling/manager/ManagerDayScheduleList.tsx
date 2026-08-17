@@ -1,18 +1,17 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { DAYS, DAY_FULL, START_HOURS, formatRangeShort, slotKey, isSlotFull } from '../shared/utils'
-import useStudentsStore from '../../students/shared/store'
-import type { Day, SlotAssignment } from '../shared/types'
+import { DAYS, DAY_FULL, START_HOURS, formatRangeShort, slotKey } from '../shared/utils'
+import { isCellFull, type ScheduleGridData } from '../shared/schedulingMappers'
+import type { Day } from '../shared/types'
 
 interface ManagerDayScheduleListProps {
-  grid: Record<string, SlotAssignment[]>
+  grid: ScheduleGridData
   todayColumn: Day
   onSlotTap: (day: Day, hour: number) => void
 }
 
 export default function ManagerDayScheduleList({ grid, todayColumn, onSlotTap }: ManagerDayScheduleListProps) {
   const [openDay, setOpenDay] = useState<Day | null>(todayColumn)
-  const students = useStudentsStore((s) => s.students)
 
   return (
     <div className="flex flex-col gap-3">
@@ -34,11 +33,10 @@ export default function ManagerDayScheduleList({ grid, todayColumn, onSlotTap }:
             {isOpen && (
               <div className="border-t border-gray-100 divide-y divide-gray-100">
                 {START_HOURS.map((hour) => {
-                  const key = slotKey(day, hour)
-                  const assignments = grid[key] ?? []
-                  const isEmpty = assignments.length === 0
+                  const cell = grid[slotKey(day, hour)]
+                  const assignments = cell?.assignments ?? []
 
-                  if (isEmpty) {
+                  if (assignments.length === 0) {
                     return (
                       <div key={hour} className="flex items-center justify-between gap-3 px-4 py-3">
                         <span className="text-[12.5px] text-gray-500 w-16 shrink-0">{formatRangeShort(hour)}</span>
@@ -56,16 +54,12 @@ export default function ManagerDayScheduleList({ grid, todayColumn, onSlotTap }:
                     >
                       <span className="text-[12.5px] text-gray-500 w-16 shrink-0">{formatRangeShort(hour)}</span>
                       <div className="flex-1 flex flex-col items-end gap-0.5 min-w-0">
-                        {assignments.map((a) => {
-                          const student = students.find((s) => s.id === a.studentId)
-                          if (!student) return null
-                          return (
-                            <span key={a.studentId} className="text-[12.5px] font-medium text-gray-900 truncate">
-                              {student.name}
-                            </span>
-                          )
-                        })}
-                        {isSlotFull(assignments) && (
+                        {assignments.map((a) => (
+                          <span key={a.studentId} className="text-[12.5px] font-medium text-gray-900 truncate">
+                            {a.name}
+                          </span>
+                        ))}
+                        {isCellFull(cell) && (
                           <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Full</span>
                         )}
                       </div>

@@ -1,19 +1,38 @@
 import { useId, useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { QrCode, Printer, Copy, Check, ArrowLeft } from 'lucide-react'
-import useStudentsStore from '../../features/students/shared/store'
-import { buildSimulatedSubmission } from '../../features/students/shared/mockData'
+import { submitRegistration, type SubmitRegistrationInput } from '../../features/registrations/registrationService'
+import { ApiError } from '../../lib/apiError'
 import { ROUTES } from '../../lib/constants'
 
 interface LocationState {
   phone?: string
 }
 
+// Canned details for the demo "simulate a student submission" button — the same
+// payload a student's phone would POST after scanning the QR code.
+function buildSimulatedInput(phone: string): SubmitRegistrationInput {
+  return {
+    firstName:    'Akwasi',
+    lastName:     'Asenso',
+    dob:          '2001-03-12',
+    gender:       'male',
+    phone,
+    email:        'akwasi.asenso@example.com',
+    address:      'Ayeduase Gate, Kumasi',
+    idCardType:   'Ghana Card',
+    idCardNumber: 'GHA-0011223344',
+    nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
+    emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
+  }
+}
+
 export default function RegisterQrPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const addPending = useStudentsStore((s) => s.addPending)
   const [copied, setCopied] = useState(false)
+  const [simulating, setSimulating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const phone = (location.state as LocationState | null)?.phone ?? ''
 
@@ -33,10 +52,16 @@ export default function RegisterQrPage() {
     }
   }
 
-  const handleSimulateSubmission = () => {
-    const submission = buildSimulatedSubmission(phone || '024 000 0000')
-    addPending(submission)
-    navigate(ROUTES.STUDENTS)
+  const handleSimulateSubmission = async () => {
+    setSimulating(true)
+    setError(null)
+    try {
+      await submitRegistration(buildSimulatedInput(phone || '024 000 0000'))
+      navigate(ROUTES.STUDENTS)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not simulate the submission.')
+      setSimulating(false)
+    }
   }
 
   return (
@@ -99,10 +124,12 @@ export default function RegisterQrPage() {
         <button
           type="button"
           onClick={handleSimulateSubmission}
-          className="mt-2 self-start px-3.5 py-2 text-[12.5px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors"
+          disabled={simulating}
+          className="mt-2 self-start px-3.5 py-2 text-[12.5px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 disabled:opacity-50 rounded-lg transition-colors"
         >
-          Simulate Student Submission (demo)
+          {simulating ? 'Submitting…' : 'Simulate Student Submission (demo)'}
         </button>
+        {error && <p className="text-[12px] text-danger">{error}</p>}
       </div>
     </div>
   )

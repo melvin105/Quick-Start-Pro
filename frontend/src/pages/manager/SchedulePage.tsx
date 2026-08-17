@@ -1,11 +1,15 @@
-import { useState } from 'react'
-import useSchedulingStore from '../../features/scheduling/shared/store'
+import { useMemo, useState } from 'react'
+import { useApiResource } from '../../lib/useApiResource'
+import { listSlots } from '../../features/scheduling/shared/schedulingService'
+import { toScheduleGrid } from '../../features/scheduling/shared/schedulingMappers'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
 import { DAY_FULL, getTodayColumn, slotKey } from '../../features/scheduling/shared/utils'
 import ManagerScheduleGrid from '../../features/scheduling/manager/ManagerScheduleGrid'
 import ManagerDayScheduleList from '../../features/scheduling/manager/ManagerDayScheduleList'
 import ManagerSlotDetailDrawer from '../../features/scheduling/manager/ManagerSlotDetailDrawer'
 import ManagerSlotDetailBottomDrawer from '../../features/scheduling/manager/ManagerSlotDetailBottomDrawer'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 import type { Day } from '../../features/scheduling/shared/types'
 
 interface DetailTarget {
@@ -14,13 +18,19 @@ interface DetailTarget {
 }
 
 export default function SchedulePage() {
-  const grid = useSchedulingStore((s) => s.grid)
+  const { data, loading, error, refetch } = useApiResource(listSlots)
   const breakpoint = useBreakpoint()
   const todayColumn = getTodayColumn()
 
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
 
-  const detailAssignments = detailTarget ? (grid[slotKey(detailTarget.day, detailTarget.hour)] ?? []) : []
+  const grid = useMemo(() => (data ? toScheduleGrid(data) : {}), [data])
+  const detailAssignments = detailTarget
+    ? (grid[slotKey(detailTarget.day, detailTarget.hour)]?.assignments ?? [])
+    : []
+
+  if (loading) return <LoadingState message="Loading schedule…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="flex flex-col gap-5 h-full">

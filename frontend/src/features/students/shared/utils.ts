@@ -9,10 +9,6 @@ export function remainingLessons(student: Pick<Student, 'lessonsTaken'>) {
   return Math.max(MAX_LESSONS - (student.lessonsTaken ?? 0), 0)
 }
 
-export function nextPendingId() {
-  return `pending-${Date.now()}`
-}
-
 export function getInitials(name: string) {
   return name
     .split(' ')

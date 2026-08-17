@@ -1131,7 +1131,13 @@ select
   lt.exam_date,
   lt.exam_result,
   lt.licence_issued,
-  lt.licence_issued_date
+  lt.licence_issued_date,
+  -- appended for the edit form (see migration 20260817000018):
+  s.first_name,
+  s.last_name,
+  s.dob,
+  s.gender,
+  s.ghana_card_no
 from public.students s
 left join public.v_student_balances bal on bal.id = s.id
 left join public.v_lessons_remaining lr on lr.student_id = s.id

@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Search, Filter, IdCard } from 'lucide-react'
-import useStudentsStore from '../../features/students/shared/store'
 import ManagerStudentsTable from '../../features/students/manager/ManagerStudentsTable'
 import StudentCardList from '../../features/students/shared/StudentCardList'
 import ManagerLicencesTable from '../../features/students/manager/ManagerLicencesTable'
@@ -8,8 +7,11 @@ import ManagerPendingList from '../../features/students/manager/ManagerPendingLi
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
-import { listStudents, type ApiStudentStatus } from '../../features/students/shared/studentService'
+import { listStudents, listLicences, type ApiStudentStatus } from '../../features/students/shared/studentService'
 import { toStudentListItem, enrolmentEnum } from '../../features/students/shared/studentMappers'
+import { toLicenceListItem } from '../../features/students/shared/licenceMappers'
+import { getPendingRegistrations } from '../../features/registrations/registrationService'
+import { toPendingItem } from '../../features/registrations/registrationMappers'
 import { useApiResource } from '../../lib/useApiResource'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 
@@ -30,11 +32,6 @@ const STATUS_OPTIONS = [
 ]
 
 export default function StudentsPage() {
-  // The Licences and Pending tabs still read the store until their flows are
-  // migrated (#124 slice 2); the Active roster is live below.
-  const storeStudents = useStudentsStore((s) => s.students)
-  const pending = useStudentsStore((s) => s.pending)
-
   const [tab, setTab] = useState<TabKey>('active')
   const [search, setSearch] = useState('')
   const [enrolmentFilter, setEnrolmentFilter] = useState('')
@@ -61,15 +58,30 @@ export default function StudentsPage() {
     ? allItems.filter((s) => s.status === 'outstanding')
     : allItems
 
-  const licenceEligible = useMemo(
-    () => storeStudents.filter((s) => s.enrolment !== 'Driving Only'),
-    [storeStudents],
-  )
+  // Pending self-registration queue (live). The manager view is oversight-only —
+  // the secretary approves/rejects from their Students screen.
+  const {
+    data: registrations,
+    loading: pendingLoading,
+    error: pendingError,
+    refetch: refetchPending,
+  } = useApiResource(getPendingRegistrations)
+  const pendingItems = (registrations ?? []).map(toPendingItem)
+
+  // Licence pipeline (live). v_licence_pipeline is already scoped to
+  // licence-enrolled students, so no client-side "exclude Driving Only" filter.
+  const {
+    data: licences,
+    loading: licencesLoading,
+    error: licencesError,
+    refetch: refetchLicences,
+  } = useApiResource(listLicences)
+  const licenceItems = (licences ?? []).map(toLicenceListItem)
 
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning'; icon?: typeof IdCard }[] = [
     { key: 'active',    label: 'Active',    count: data?.total },
-    { key: 'pending',   label: 'Pending',   count: pending.length, tone: 'warning' },
-    { key: 'licences',  label: 'Licences',  count: licenceEligible.length, icon: IdCard },
+    { key: 'pending',   label: 'Pending',   count: registrations?.length, tone: 'warning' },
+    { key: 'licences',  label: 'Licences',  count: licences?.length, icon: IdCard },
     { key: 'archived',  label: 'Archived' },
   ]
 
@@ -155,9 +167,25 @@ export default function StudentsPage() {
         </>
       )}
 
-      {tab === 'pending' && <ManagerPendingList items={pending} />}
+      {tab === 'pending' && (
+        pendingLoading ? (
+          <LoadingState message="Loading submissions…" />
+        ) : pendingError ? (
+          <ErrorState error={pendingError} onRetry={refetchPending} />
+        ) : (
+          <ManagerPendingList items={pendingItems} />
+        )
+      )}
 
-      {tab === 'licences' && <ManagerLicencesTable students={licenceEligible} />}
+      {tab === 'licences' && (
+        licencesLoading ? (
+          <LoadingState message="Loading licences…" />
+        ) : licencesError ? (
+          <ErrorState error={licencesError} onRetry={refetchLicences} />
+        ) : (
+          <ManagerLicencesTable students={licenceItems} />
+        )
+      )}
 
       {tab === 'archived' && (
         <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
