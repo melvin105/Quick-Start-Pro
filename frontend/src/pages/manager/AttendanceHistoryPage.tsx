@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Search, Download } from 'lucide-react'
-import useAttendanceStore from '../../features/attendance/shared/store'
-import { HISTORICAL_ATTENDANCE, INSTRUCTORS } from '../../features/attendance/shared/mockData'
+import { useApiResource } from '../../lib/useApiResource'
+import { listAttendance } from '../../features/attendance/shared/attendanceService'
+import { toAttendanceRoster } from '../../features/attendance/shared/attendanceMappers'
 import Dropdown from '../../features/attendance/shared/Dropdown'
 import StatusBadge from '../../features/attendance/shared/StatusBadge'
 import SourceBadge from '../../features/attendance/shared/SourceBadge'
 import DatePicker from '../../components/ui/DatePicker'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 import { formatDateDisplay } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
 import type { AttendanceRecord } from '../../features/attendance/shared/types'
@@ -15,6 +18,8 @@ const STATUS_OPTIONS = [
   { value: '', label: 'Status' },
   { value: 'present', label: 'Present' },
   { value: 'absent',  label: 'Absent' },
+  { value: 'late',    label: 'Late' },
+  { value: 'excused', label: 'Excused' },
 ]
 
 function todayIso() {
@@ -48,32 +53,31 @@ function exportCsv(records: AttendanceRecord[]) {
 }
 
 export default function AttendanceHistoryPage() {
-  const todayRecords = useAttendanceStore((s) => s.records)
-  const allRecords = useMemo(() => [...todayRecords, ...HISTORICAL_ATTENDANCE], [todayRecords])
-
+  const [date, setDate] = useState(todayIso())
   const [search, setSearch] = useState('')
   const [driverFilter, setDriverFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [date, setDate] = useState(todayIso())
 
-  const driverOptions = [
-    { value: '', label: 'Driver' },
-    ...INSTRUCTORS.map((i) => ({ value: i.name, label: i.name })),
-  ]
+  // The backend scopes the roster to the chosen date; driver/status/search are
+  // narrowed client-side over that day's rows.
+  const { data, loading, error, refetch } = useApiResource(() => listAttendance({ date }), [date])
+
+  const records = useMemo(() => (data ? toAttendanceRoster(data) : []), [data])
+
+  const driverOptions = useMemo(() => {
+    const names = Array.from(new Set(records.map((r) => r.driverName).filter((n): n is string => Boolean(n))))
+    return [{ value: '', label: 'Driver' }, ...names.map((n) => ({ value: n, label: n }))]
+  }, [records])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-
-    return allRecords
-      .filter((r) => {
-        if (date && r.date !== date) return false
-        if (driverFilter && r.driverName !== driverFilter) return false
-        if (statusFilter && r.status !== statusFilter) return false
-        if (q && !r.studentName.toLowerCase().includes(q)) return false
-        return true
-      })
-      .sort((a, b) => b.date.localeCompare(a.date))
-  }, [allRecords, search, driverFilter, statusFilter, date])
+    return records.filter((r) => {
+      if (driverFilter && r.driverName !== driverFilter) return false
+      if (statusFilter && r.status !== statusFilter) return false
+      if (q && !r.studentName.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [records, search, driverFilter, statusFilter])
 
   return (
     <div className="flex flex-col gap-5">
@@ -107,51 +111,60 @@ export default function AttendanceHistoryPage() {
         <button
           type="button"
           onClick={() => exportCsv(filtered)}
-          className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 hover:bg-brand-800 rounded-lg transition-colors sm:ml-auto"
+          disabled={filtered.length === 0}
+          className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 hover:bg-brand-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors sm:ml-auto"
         >
           <Download size={15} /> Export CSV
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-gray-200">
-                {['Date', 'Student', 'Time', 'Driver', 'Lessons Left', 'Source', 'Status'].map((col) => (
-                  <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(r.date)}</td>
-                  <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.studentName}</td>
-                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.checkInTime ?? '—'}</td>
-                  <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.driverName ?? '—'}</td>
-                  <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.lessonsLeft}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {r.source ? <SourceBadge source={r.source} /> : <span className="text-gray-400 text-[12px]">—</span>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {r.status ? <StatusBadge status={r.status} autoMarked={r.autoMarked} /> : <span className="text-gray-400 text-[12px]">Unmarked</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length === 0 && (
-          <div className="py-12 text-center text-[13px] text-gray-500">No attendance records match your filters.</div>
-        )}
-      </div>
+      {loading ? (
+        <LoadingState message="Loading attendance…" />
+      ) : error ? (
+        <ErrorState error={error} onRetry={refetch} />
+      ) : (
+        <>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    {['Date', 'Student', 'Time', 'Driver', 'Lessons Left', 'Source', 'Status'].map((col) => (
+                      <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(r.date)}</td>
+                      <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.studentName}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.checkInTime ?? '—'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.driverName ?? '—'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.lessonsLeft}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {r.source ? <SourceBadge source={r.source} /> : <span className="text-gray-400 text-[12px]">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {r.status ? <StatusBadge status={r.status} autoMarked={r.autoMarked} /> : <span className="text-gray-400 text-[12px]">Unmarked</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filtered.length === 0 && (
+              <div className="py-12 text-center text-[13px] text-gray-500">No attendance records match your filters.</div>
+            )}
+          </div>
 
-      <p className="text-[12.5px] text-gray-500">
-        Showing {filtered.length} record{filtered.length === 1 ? '' : 's'}
-      </p>
+          <p className="text-[12.5px] text-gray-500">
+            Showing {filtered.length} record{filtered.length === 1 ? '' : 's'}
+          </p>
+        </>
+      )}
     </div>
   )
 }

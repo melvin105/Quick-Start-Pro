@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
-import useAttendanceStore from '../../features/attendance/shared/store'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import TopBrandBar from './TopBrandBar'
 
 const SIDEBAR_COLLAPSED_KEY = 'qsp-sidebar-collapsed'
-const AUTO_ABSENT_SWEEP_INTERVAL_MS = 60_000
 
 function readStoredCollapsed() {
   try {
@@ -23,8 +21,6 @@ export default function AppShell() {
   const location = useLocation()
   const [lastPath, setLastPath] = useState(location.pathname)
   const { role } = useAuth()
-  const autoMarkOverdue = useAttendanceStore((s) => s.autoMarkOverdue)
-  const syncFromSchedule = useAttendanceStore((s) => s.syncFromSchedule)
 
   // Close the mobile nav when the route changes. Done during render (React's
   // "adjust state when a value changes" pattern) rather than in an effect, so
@@ -33,21 +29,6 @@ export default function AppShell() {
     setLastPath(location.pathname)
     setMobileNavOpen(false)
   }
-
-  // The 60-minute no-show rule is a standing system rule, not something tied
-  // to whoever happens to be viewing the Attendance page — run it here so it
-  // applies regardless of which screen is open. Scheduling a student today
-  // doesn't itself create an attendance row, so syncFromSchedule keeps the
-  // two in step the same way.
-  useEffect(() => {
-    autoMarkOverdue()
-    syncFromSchedule()
-    const interval = setInterval(() => {
-      autoMarkOverdue()
-      syncFromSchedule()
-    }, AUTO_ABSENT_SWEEP_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [autoMarkOverdue, syncFromSchedule])
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {

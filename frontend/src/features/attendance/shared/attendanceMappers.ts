@@ -1,0 +1,61 @@
+import { formatRangeShort } from '../../scheduling/shared/utils'
+import type { AttendanceRecord, CheckInSource } from './types'
+import type { ApiAttendanceRow, ApiCheckinMethod, ListAttendanceResult } from './attendanceService'
+
+// Pure mappers turning the snake_case attendance roster rows into the
+// AttendanceRecord view model the tables/cards already render. Kept side-effect
+// free and unit-tested; the backend now computes the roster (who's expected,
+// their lessons left, their scheduled driver), replacing the mock store's
+// syncFromSchedule + client lesson counting.
+
+// Slots are whole hours, so the start time alone gives the "8-9am" label the
+// mock used (formatRangeShort computes start → start+1). Null when the student
+// has no slot today (a walk-in).
+function slotLabelFrom(startTime: string | null): string | undefined {
+  if (!startTime) return undefined
+  const hour = parseInt(startTime.slice(0, 2), 10)
+  if (Number.isNaN(hour)) return undefined
+  return formatRangeShort(hour)
+}
+
+// check_in_time is a full ISO timestamp; render it as the "8:23am" style label
+// the UI uses. Formatted in UTC — the school runs in Accra (GMT year-round), so
+// UTC is both correct for the client and deterministic for tests.
+function formatCheckInTime(iso: string | null): string | undefined {
+  if (!iso) return undefined
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return undefined
+  return d
+    .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+    .toLowerCase()
+    .replace(' ', '')
+}
+
+function sourceFrom(method: ApiCheckinMethod | null): CheckInSource | undefined {
+  if (method === 'self_qr') return 'self'
+  if (method === 'manual') return 'manual'
+  return undefined
+}
+
+export function toAttendanceRecord(row: ApiAttendanceRow, date: string): AttendanceRecord {
+  return {
+    // A student appears once per roster, so the student id is a stable key even
+    // before they have an attendance row.
+    id:          row.attendance_id ?? row.student_id,
+    studentId:   row.student_id,
+    studentName: row.student_name,
+    date,
+    slotLabel:   slotLabelFrom(row.start_time),
+    hasSlot:     row.start_time !== null,
+    checkInTime: formatCheckInTime(row.check_in_time),
+    source:      sourceFrom(row.method),
+    driverName:  row.driver_name ?? undefined,
+    lessonsLeft: row.lessons_left ?? 0,
+    status:      row.status ?? undefined,
+    notes:       row.notes ?? undefined,
+  }
+}
+
+export function toAttendanceRoster(result: ListAttendanceResult): AttendanceRecord[] {
+  return result.attendance.map((row) => toAttendanceRecord(row, result.date))
+}
