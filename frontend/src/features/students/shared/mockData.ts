@@ -82,24 +82,3 @@ export const PENDING_SUBMISSIONS: PendingSubmission[] = [
     emergencyContact: { name: 'Kwabena Serwaa', relationship: 'Father', phone: '024 198 0021' },
   },
 ]
-
-// Demo data used by the QR hand-off "Simulate Student Submission" button —
-// intentionally the same name as QS-2025-006 to demonstrate duplicate detection.
-export function buildSimulatedSubmission(phone: string): PendingSubmission {
-  return {
-    id: `pending-${Date.now()}`,
-    name: 'Akwasi Asenso',
-    phone,
-    submittedLabel: 'Just now',
-    firstName: 'Akwasi',
-    lastName: 'Asenso',
-    dob: '2001-03-12',
-    gender: 'male',
-    email: 'akwasi.asenso@example.com',
-    address: 'Ayeduase Gate, Kumasi',
-    idCardType: 'Ghana Card',
-    idCardNumber: 'GHA-0011223344',
-    nextOfKin:        { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
-    emergencyContact: { name: 'Comfort Asenso', relationship: 'Mother', phone: '024 887 1122' },
-  }
-}

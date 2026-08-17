@@ -1,19 +1,13 @@
-import { useNavigate } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
-import type { PendingSubmission } from '../shared/types'
-import { ROUTES } from '../../../lib/constants'
+import { Check, X } from 'lucide-react'
+import type { PendingItem } from '../../registrations/registrationMappers'
 
 interface PendingSubmissionsProps {
-  items: PendingSubmission[]
+  items:     PendingItem[]
+  onApprove: (item: PendingItem) => void
+  onReject:  (item: PendingItem) => void
 }
 
-export default function PendingSubmissions({ items }: PendingSubmissionsProps) {
-  const navigate = useNavigate()
-
-  const handleComplete = (id: string) => {
-    navigate(`${ROUTES.STUDENTS_REGISTER}?resume=${id}`)
-  }
-
+export default function PendingSubmissions({ items, onApprove, onReject }: PendingSubmissionsProps) {
   if (items.length === 0) {
     return (
       <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
@@ -24,7 +18,7 @@ export default function PendingSubmissions({ items }: PendingSubmissionsProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12.5px] text-gray-500">QR self-submissions awaiting completion</p>
+      <p className="text-[12.5px] text-gray-500">QR self-submissions awaiting review</p>
 
       {/* Desktop table */}
       <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -46,13 +40,22 @@ export default function PendingSubmissions({ items }: PendingSubmissionsProps) {
                   <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{item.phone}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{item.submittedLabel}</td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => handleComplete(item.id)}
-                      className="flex items-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-1.5 rounded-md transition-colors"
-                    >
-                      Complete <ArrowRight size={13} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onApprove(item)}
+                        className="flex items-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <Check size={13} /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onReject(item)}
+                        className="flex items-center gap-1.5 text-[12.5px] font-medium text-danger bg-danger-bg hover:bg-danger/10 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <X size={13} /> Reject
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -67,13 +70,22 @@ export default function PendingSubmissions({ items }: PendingSubmissionsProps) {
           <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-4">
             <p className="text-[14px] font-medium text-gray-900">{item.name}</p>
             <p className="text-[12.5px] text-gray-500 mt-0.5">{item.phone} · {item.submittedLabel}</p>
-            <button
-              type="button"
-              onClick={() => handleComplete(item.id)}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-2 rounded-md transition-colors"
-            >
-              Complete <ArrowRight size={13} />
-            </button>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onApprove(item)}
+                className="flex-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-2 rounded-md transition-colors"
+              >
+                <Check size={13} /> Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => onReject(item)}
+                className="flex-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-danger bg-danger-bg hover:bg-danger/10 px-3 py-2 rounded-md transition-colors"
+              >
+                <X size={13} /> Reject
+              </button>
+            </div>
           </div>
         ))}
       </div>

@@ -1,7 +1,7 @@
-import type { PendingSubmission } from '../shared/types'
+import type { PendingItem } from '../../registrations/registrationMappers'
 
 interface ManagerPendingListProps {
-  items: PendingSubmission[]
+  items: PendingItem[]
 }
 
 export default function ManagerPendingList({ items }: ManagerPendingListProps) {
