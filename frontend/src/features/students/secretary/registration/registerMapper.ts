@@ -3,6 +3,7 @@ import type { CreateStudentInput } from '../../shared/studentService'
 import type { PackageOption } from '../../../settings/packageMappers'
 import { deriveEnrolment } from '../../../settings/enrolment'
 import { enrolmentEnum } from '../../shared/studentMappers'
+import { normalizePhone } from '../../shared/registrationFormats'
 
 // Empty optional fields come off the form as '' — send them as undefined so the
 // backend stores NULL rather than an empty string.
@@ -30,10 +31,11 @@ export function toCreateStudentInput(
     lastName:         values.lastName.trim(),
     gender:           values.gender,
     dob:              values.dob,
-    phone:            values.phone.trim(),
+    phone:            normalizePhone(values.phone),
     email:            optional(values.email),
     address:          optional(values.address),
-    emergencyContact: `${values.ecName.trim()} (${values.ecRelationship.trim()}) — ${values.ecPhone.trim()}`,
+    emergencyContact: `${values.ecName.trim()} (${values.ecRelationship.trim()}) — ${normalizePhone(values.ecPhone)}`,
+    idCardType:       optional(values.idCardType),
     ghanaCardNo:      optional(values.idCardNumber),
     photoUrl:         optional(values.passportPhoto),
     enrolmentType,

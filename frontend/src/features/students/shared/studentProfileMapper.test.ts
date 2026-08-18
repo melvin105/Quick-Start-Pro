@@ -7,7 +7,7 @@ const profile: ApiStudentProfile = {
   first_name: 'Ama', last_name: 'Mensah', dob: '2001-04-05', gender: 'female',
   status: 'active', enrolment_type: 'driving_and_licence', phone: '0240000000',
   email: null, address: 'Spintex', emergency_contact: 'Kojo Mensah — 0550000000',
-  ghana_card_no: 'GHA-123', photo_url: null, registration_date: '2026-08-01',
+  ghana_card_no: '1234567890', id_card_type: 'Voter ID', photo_url: null, registration_date: '2026-08-01',
   total_fees: 1500, total_paid: 500, balance: 1000, total_lessons: 12,
   lessons_used: 3, lessons_left: 9, package_name: 'Complete Driver',
   eye_test_done: true, eye_test_date: '2026-08-02', learner_licence_issued: false,
@@ -24,6 +24,7 @@ describe('toStudentProfile', () => {
       enrolment: 'Driving + Licence', programme: 'Complete Driver',
       balance: 1000, status: 'outstanding', packageFee: 1500,
       lessonsPackageTotal: 12, lessonsTaken: 3,
+      idCardType: 'Voter ID', idCardNumber: '1234567890',
     })
     expect(student.licenceProgress?.eyeTest).toEqual({ done: true, dateDone: '2026-08-02' })
   })

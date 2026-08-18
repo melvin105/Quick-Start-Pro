@@ -2,12 +2,12 @@ import { Check, X } from 'lucide-react'
 import type { PendingItem } from '../../registrations/registrationMappers'
 
 interface PendingSubmissionsProps {
-  items:     PendingItem[]
-  onApprove: (item: PendingItem) => void
-  onReject:  (item: PendingItem) => void
+  items:    PendingItem[]
+  onReview: (item: PendingItem) => void
+  onReject: (item: PendingItem) => void
 }
 
-export default function PendingSubmissions({ items, onApprove, onReject }: PendingSubmissionsProps) {
+export default function PendingSubmissions({ items, onReview, onReject }: PendingSubmissionsProps) {
   if (items.length === 0) {
     return (
       <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
@@ -43,10 +43,10 @@ export default function PendingSubmissions({ items, onApprove, onReject }: Pendi
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => onApprove(item)}
+                        onClick={() => onReview(item)}
                         className="flex items-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-1.5 rounded-md transition-colors"
                       >
-                        <Check size={13} /> Approve
+                        <Check size={13} /> Review
                       </button>
                       <button
                         type="button"
@@ -73,10 +73,10 @@ export default function PendingSubmissions({ items, onApprove, onReject }: Pendi
             <div className="mt-3 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onApprove(item)}
+                onClick={() => onReview(item)}
                 className="flex-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-3 py-2 rounded-md transition-colors"
               >
-                <Check size={13} /> Approve
+                <Check size={13} /> Review
               </button>
               <button
                 type="button"

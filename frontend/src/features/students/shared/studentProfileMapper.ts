@@ -1,7 +1,7 @@
 import { toLicenceProgress } from './licenceMappers'
 import { displayStatus, enrolmentLabel } from './studentMappers'
 import type { ApiStudentProfile } from './studentService'
-import type { EnrolmentType, Student } from './types'
+import type { EnrolmentType, IdCardType, Student } from './types'
 
 export function toStudentProfile(row: ApiStudentProfile): Student {
   const emergency = row.emergency_contact?.trim() || 'Not provided'
@@ -18,7 +18,7 @@ export function toStudentProfile(row: ApiStudentProfile): Student {
     email:          row.email ?? undefined,
     address:        row.address ?? undefined,
     photo:          row.photo_url ?? undefined,
-    idCardType:     row.ghana_card_no ? 'Ghana Card' : undefined,
+    idCardType:     row.id_card_type ? row.id_card_type as IdCardType : undefined,
     idCardNumber:   row.ghana_card_no ?? undefined,
     nextOfKin:      { name: emergency, phone: '', relationship: '' },
     emergencyContact: { name: emergency, phone: '', relationship: '' },

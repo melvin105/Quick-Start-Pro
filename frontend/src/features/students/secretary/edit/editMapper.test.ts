@@ -9,7 +9,7 @@ const profile: ApiStudentProfile = {
   status: 'active', enrolment_type: 'driving_and_licence',
   phone: '0241112233', email: 'john@example.com', address: 'East Legon',
   emergency_contact: 'Grace Mensah (Mother) — 0245557788',
-  ghana_card_no: 'GHA-023456789-0', photo_url: null,
+  ghana_card_no: 'GHA-023456789-0', id_card_type: 'Ghana Card', photo_url: null,
   registration_date: '2026-08-01', total_fees: 1500, total_paid: 500, balance: 1000,
   total_lessons: 12, lessons_used: 3, lessons_left: 9, package_name: 'Complete Driver',
   eye_test_done: null, eye_test_date: null, learner_licence_issued: null, learner_licence_date: null,
@@ -21,14 +21,14 @@ describe('toEditFormValues', () => {
     const v = toEditFormValues(profile)
     expect(v).toMatchObject({
       firstName: 'John', lastName: 'Mensah', dob: '2001-03-12', gender: 'male',
-      phone: '0241112233', email: 'john@example.com', address: 'East Legon',
-      idCardNumber: 'GHA-023456789-0',
+      phone: '024 111 2233', email: 'john@example.com', address: 'East Legon',
+      idCardType: 'Ghana Card', idCardNumber: 'GHA-023456789-0',
       ecName: 'Grace Mensah (Mother) — 0245557788',
     })
   })
 
   it('maps null optionals to empty strings and leaves unstored fields blank', () => {
-    const v = toEditFormValues({ ...profile, email: null, address: null, photo_url: null, ghana_card_no: null })
+    const v = toEditFormValues({ ...profile, email: null, address: null, photo_url: null, ghana_card_no: null, id_card_type: null })
     expect(v.email).toBe('')
     expect(v.address).toBe('')
     expect(v.passportPhoto).toBe('')

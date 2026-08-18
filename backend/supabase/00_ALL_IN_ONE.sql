@@ -70,6 +70,7 @@ create table public.students (
   address           text,
   emergency_contact text,
   ghana_card_no     text unique,
+  id_card_type      text check (id_card_type in ('Ghana Card', 'Voter ID', 'Passport', 'Driver''s Licence', 'Other')),
   photo_url         text,
   registration_date date not null default current_date,
   status            student_status not null default 'active',
@@ -1137,7 +1138,8 @@ select
   s.last_name,
   s.dob,
   s.gender,
-  s.ghana_card_no
+  s.ghana_card_no,
+  s.id_card_type
 from public.students s
 left join public.v_student_balances bal on bal.id = s.id
 left join public.v_lessons_remaining lr on lr.student_id = s.id

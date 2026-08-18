@@ -1,5 +1,6 @@
 import type { DetailsFormValues } from '../registration/schema'
 import type { ApiStudentProfile, ApiEnrolmentType, UpdateStudentInput } from '../../shared/studentService'
+import { formatIdNumber, formatPhoneInput, normalizePhone } from '../../shared/registrationFormats'
 
 // Empty optional fields come off the form as '' — send them as undefined so the
 // PATCH leaves the stored value untouched (the backend skips undefined fields).
@@ -20,11 +21,11 @@ export function toEditFormValues(p: ApiStudentProfile): DetailsFormValues {
     lastName:      p.last_name,
     dob:           p.dob ?? '',
     gender:        p.gender === 'female' ? 'female' : 'male',
-    phone:         p.phone,
+    phone:         formatPhoneInput(p.phone),
     email:         p.email ?? '',
     address:       p.address ?? '',
-    idCardType:    '',
-    idCardNumber:  p.ghana_card_no ?? '',
+    idCardType:    p.id_card_type ?? (p.ghana_card_no ? 'Ghana Card' : ''),
+    idCardNumber:  formatIdNumber(p.id_card_type ?? (p.ghana_card_no ? 'Ghana Card' : ''), p.ghana_card_no ?? ''),
     nokName: '', nokRelationship: '', nokPhone: '', nokEmail: '',
     sameAsNok: false,
     ecName:        p.emergency_contact ?? '',
@@ -46,11 +47,12 @@ export function toUpdateStudentInput(
     lastName:         values.lastName.trim(),
     gender:           values.gender,
     dob:              values.dob,
-    phone:            values.phone.trim(),
+    phone:            normalizePhone(values.phone),
     email:            optional(values.email),
     address:          optional(values.address),
     emergencyContact: optional(values.ecName),
     ghanaCardNo:      optional(values.idCardNumber),
+    idCardType:       optional(values.idCardType),
     photoUrl:         optional(values.passportPhoto),
     enrolmentType,
   }

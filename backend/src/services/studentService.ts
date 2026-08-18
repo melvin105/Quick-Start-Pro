@@ -1,6 +1,7 @@
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
 import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
+import { assertIdentity, normalizeGhanaPhone } from '../utils/registrationValidation';
 
 const STUDENT_BALANCE_FIELDS = ['total_fees', 'total_paid', 'balance'] as const;
 
@@ -24,6 +25,7 @@ export interface CreateStudentInput {
   address?: string;
   emergencyContact?: string;
   ghanaCardNo?: string;
+  idCardType?: string;
   photoUrl?: string;
   enrolmentType: string;
   packageId?: string;
@@ -40,6 +42,7 @@ export interface UpdateStudentInput {
   address?: string;
   emergencyContact?: string;
   ghanaCardNo?: string;
+  idCardType?: string;
   photoUrl?: string;
   status?: string;
   enrolmentType?: string;
@@ -118,7 +121,7 @@ export async function insertStudentRow(
 ) {
   const {
     firstName, lastName, gender, dob, phone, email, address, emergencyContact,
-    ghanaCardNo, photoUrl, enrolmentType, packageId, confirmDifferentPerson,
+    ghanaCardNo, idCardType, photoUrl, enrolmentType, packageId, confirmDifferentPerson,
   } = input;
 
   if (!firstName || !lastName || !phone || !dob) {
@@ -126,8 +129,10 @@ export async function insertStudentRow(
   }
   assertGender(gender);
   assertEnrolmentType(enrolmentType);
+  const normalizedPhone = normalizeGhanaPhone(phone);
+  assertIdentity(idCardType, ghanaCardNo);
 
-  const duplicate = await findPossibleDuplicate(firstName, lastName, phone);
+  const duplicate = await findPossibleDuplicate(firstName, lastName, normalizedPhone);
   if (duplicate && !confirmDifferentPerson) {
     throw new ApiError(409, 'POSSIBLE_DUPLICATE', 'A student with a matching name or phone number already exists.');
   }
@@ -135,11 +140,11 @@ export async function insertStudentRow(
   const { rows } = await client.query(
     `insert into public.students
        (first_name, last_name, gender, dob, phone, email, address,
-        emergency_contact, ghana_card_no, photo_url, enrolment_type)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        emergency_contact, ghana_card_no, id_card_type, photo_url, enrolment_type)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      returning id, student_number`,
-    [firstName, lastName, gender, dob, phone, email ?? null, address ?? null,
-      emergencyContact ?? null, ghanaCardNo ?? null, photoUrl ?? null, enrolmentType],
+    [firstName, lastName, gender, dob, normalizedPhone, email ?? null, address ?? null,
+      emergencyContact ?? null, ghanaCardNo ?? null, idCardType ?? null, photoUrl ?? null, enrolmentType],
   );
   const student = rows[0];
 
@@ -273,6 +278,8 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
   if (input.gender) assertGender(input.gender);
   if (input.status) assertStatus(input.status);
   if (input.enrolmentType) assertEnrolmentType(input.enrolmentType);
+  if (input.phone) input.phone = normalizeGhanaPhone(input.phone);
+  if (input.idCardType !== undefined || input.ghanaCardNo !== undefined) assertIdentity(input.idCardType, input.ghanaCardNo);
 
   const fieldMap: Record<string, unknown> = {
     first_name: input.firstName,
@@ -284,6 +291,7 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
     address: input.address,
     emergency_contact: input.emergencyContact,
     ghana_card_no: input.ghanaCardNo,
+    id_card_type: input.idCardType,
     photo_url: input.photoUrl,
     status: input.status,
     enrolment_type: input.enrolmentType,

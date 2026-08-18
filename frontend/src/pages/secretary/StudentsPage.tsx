@@ -6,7 +6,7 @@ import StudentCardList from '../../features/students/shared/StudentCardList'
 import PendingSubmissions from '../../features/students/secretary/PendingSubmissions'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import SelfRegisterQrModal from '../../features/students/secretary/SelfRegisterQrModal'
-import ApproveRegistrationModal from '../../features/registrations/ApproveRegistrationModal'
+import CompleteRegistrationModal from '../../features/registrations/CompleteRegistrationModal'
 import RejectRegistrationModal from '../../features/registrations/RejectRegistrationModal'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
@@ -202,7 +202,7 @@ export default function StudentsPage() {
         ) : (
           <PendingSubmissions
             items={pendingItems}
-            onApprove={setApproveTarget}
+            onReview={setApproveTarget}
             onReject={setRejectTarget}
           />
         )
@@ -217,10 +217,10 @@ export default function StudentsPage() {
       {showQrModal && <SelfRegisterQrModal onClose={() => setShowQrModal(false)} />}
 
       {approveTarget && (
-        <ApproveRegistrationModal
+        <CompleteRegistrationModal
           registration={approveTarget}
           onClose={() => setApproveTarget(null)}
-          onApproved={() => {
+          onCompleted={() => {
             setApproveTarget(null)
             refetchPending()
             refetch()

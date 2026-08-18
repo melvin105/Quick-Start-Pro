@@ -57,6 +57,7 @@ export interface UpdateStudentInput {
   address?:          string
   emergencyContact?: string
   ghanaCardNo?:      string
+  idCardType?:       string
   photoUrl?:         string
   status?:           ApiStudentStatus
   enrolmentType?:    ApiEnrolmentType
@@ -78,6 +79,7 @@ export interface CreateStudentInput {
   address?:                string
   emergencyContact?:       string
   ghanaCardNo?:            string
+  idCardType?:             string
   photoUrl?:               string
   enrolmentType:           ApiEnrolmentType
   packageId?:              string
@@ -141,6 +143,7 @@ export interface ApiStudentProfile extends ApiLicenceFields {
   address:           string | null
   emergency_contact: string | null
   ghana_card_no:     string | null
+  id_card_type?:     string | null
   photo_url:         string | null
   registration_date: string | null
   total_fees:        number

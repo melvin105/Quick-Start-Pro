@@ -27,7 +27,10 @@ import { ApiError } from './utils/ApiError';
 
 export const app = express();
 app.use(cors());
-app.use(express.json());
+// Public self-registration embeds the passport photo as a base64 data URI, which
+// blows past express.json()'s 100kb default and would throw PayloadTooLargeError
+// (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
+app.use(express.json({ limit: '10mb' }));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

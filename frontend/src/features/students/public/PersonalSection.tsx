@@ -4,19 +4,20 @@ import Dropdown from '../secretary/registration/Dropdown'
 import PassportPhotoUpload from '../secretary/registration/PassportPhotoUpload'
 import DatePicker from '../../../components/ui/DatePicker'
 import type { PublicFormSectionProps } from './formTypes'
+import ControlledFormField from '../shared/ControlledFormField'
+import { formatIdNumber, formatPhoneInput, ID_CARD_TYPES, idNumberPlaceholder } from '../shared/registrationFormats'
 
 const GENDERS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
 ] as const
 
-const ID_CARD_TYPES = ["Ghana Card", 'Voter ID', 'Passport', "Driver's Licence", 'Other']
-
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export default function PersonalSection({ register, control, errors }: PublicFormSectionProps) {
+export default function PersonalSection({ register, control, errors, watch, setValue }: PublicFormSectionProps) {
+  const cardType = watch('idCardType') ?? ''
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Personal Details</h2>
@@ -70,7 +71,7 @@ export default function PersonalSection({ register, control, errors }: PublicFor
           {errors.gender && <p className="text-[12px] text-danger mt-1">{errors.gender.message}</p>}
         </div>
 
-        <FormField label="Phone Number" required error={errors.phone?.message} registration={register('phone')} />
+        <ControlledFormField control={control} name="phone" label="Phone Number" required error={errors.phone?.message} inputMode="tel" placeholder="024 123 4567" formatter={formatPhoneInput} />
         <FormField label="Email" type="email" error={errors.email?.message} registration={register('email')} />
         <FormField label="Residential Address" error={errors.address?.message} registration={register('address')} />
 
@@ -82,14 +83,14 @@ export default function PersonalSection({ register, control, errors }: PublicFor
             render={({ field }) => (
               <Dropdown
                 value={field.value ?? ''}
-                onChange={field.onChange}
+                onChange={(value) => { field.onChange(value); setValue('idCardNumber', '') }}
                 placeholder="Select ID type"
                 options={ID_CARD_TYPES.map((t) => ({ value: t, label: t }))}
               />
             )}
           />
         </div>
-        <FormField label="Identity Number" error={errors.idCardNumber?.message} registration={register('idCardNumber')} />
+        <ControlledFormField control={control} name="idCardNumber" label="Identity Number" error={errors.idCardNumber?.message} inputMode={cardType === 'Ghana Card' || cardType === 'Voter ID' ? 'numeric' : 'text'} placeholder={idNumberPlaceholder(cardType)} formatter={(value) => formatIdNumber(cardType, value)} />
       </div>
     </div>
   )

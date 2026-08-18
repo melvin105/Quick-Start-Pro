@@ -1,5 +1,6 @@
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { assertIdentity, assertRelationship, normalizeGhanaPhone } from '../utils/registrationValidation';
 import * as studentService from './studentService';
 import { assertRegistrationToken } from './publicTokenService';
 
@@ -85,7 +86,7 @@ const REGISTRATION_SELECT = `
 export async function submitRegistration(input: SubmitRegistrationInput) {
   const firstName = requireString(input?.firstName, 'firstName');
   const lastName = requireString(input?.lastName, 'lastName');
-  const phone = requireString(input?.phone, 'phone');
+  const phone = normalizeGhanaPhone(requireString(input?.phone, 'phone'));
   assertRegistrationToken(input?.sessionToken, phone);
   const dob = requireString(input?.dob, 'dob');
   if (!DATE_RE.test(dob)) {
@@ -106,7 +107,8 @@ export async function submitRegistration(input: SubmitRegistrationInput) {
   const nok = input?.nextOfKin ?? ({} as NextOfKinInput);
   const nokName = requireString(nok.name, 'nextOfKin.name');
   const nokRelationship = requireString(nok.relationship, 'nextOfKin.relationship');
-  const nokPhone = requireString(nok.phone, 'nextOfKin.phone');
+  const nokPhone = normalizeGhanaPhone(requireString(nok.phone, 'nextOfKin.phone'), 'nextOfKin.phone');
+  assertRelationship(nokRelationship, 'nextOfKin.relationship');
   const nokEmail = optionalString(nok.email);
   if (nokEmail && !EMAIL_RE.test(nokEmail)) {
     throw new ApiError(400, 'INVALID_INPUT', 'nextOfKin.email must be a valid email address.');
@@ -114,8 +116,10 @@ export async function submitRegistration(input: SubmitRegistrationInput) {
 
   const ec = input?.emergencyContact ?? ({} as EmergencyContactInput);
   const ecName = requireString(ec.name, 'emergencyContact.name');
-  const ecPhone = requireString(ec.phone, 'emergencyContact.phone');
+  const ecPhone = normalizeGhanaPhone(requireString(ec.phone, 'emergencyContact.phone'), 'emergencyContact.phone');
   const ecRelationship = requireString(ec.relationship, 'emergencyContact.relationship');
+  assertRelationship(ecRelationship, 'emergencyContact.relationship');
+  assertIdentity(optionalString(input?.idCardType) ?? undefined, optionalString(input?.idCardNumber) ?? undefined);
 
   const { rows } = await pool.query(
     `insert into public.student_registrations
@@ -193,6 +197,7 @@ export async function approveRegistration(
         address: registration.address ?? undefined,
         emergencyContact,
         ghanaCardNo: registration.id_card_number ?? undefined,
+        idCardType: registration.id_card_type ?? undefined,
         photoUrl: registration.photo_url ?? undefined,
         enrolmentType,
         packageId: input?.packageId,

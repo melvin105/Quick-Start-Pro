@@ -11,6 +11,7 @@ import { toEditFormValues, toUpdateStudentInput } from '../../features/students/
 import { type DetailsFormValues } from '../../features/students/secretary/registration/schema'
 import PersonalDetailsSection from '../../features/students/secretary/registration/PersonalDetailsSection'
 import FormField from '../../features/students/secretary/registration/FormField'
+import Dropdown from '../../features/students/secretary/registration/Dropdown'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
 import { ApiError } from '../../lib/apiError'
@@ -91,16 +92,14 @@ function EditStudentForm({ id, profile }: { id: string; profile: ApiStudentProfi
       <div className="bg-white border border-gray-200 rounded-2xl p-5">
         <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-4">Enrolment</h2>
         <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Enrolment Type <span className="text-danger">*</span></label>
-        <select
-          value={enrolmentType}
-          onChange={(e) => setEnrolmentType(e.target.value as ApiEnrolmentType)}
-          className="w-full sm:max-w-xs px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-900
-            focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 transition-colors"
-        >
-          {ENROLMENT_TYPES.map((t) => (
-            <option key={t} value={t}>{enrolmentLabel(t)}</option>
-          ))}
-        </select>
+        <div className="sm:max-w-xs">
+          <Dropdown
+            value={enrolmentType}
+            onChange={(value) => setEnrolmentType(value as ApiEnrolmentType)}
+            placeholder="Select enrolment"
+            options={ENROLMENT_TYPES.map((t) => ({ value: t, label: enrolmentLabel(t) }))}
+          />
+        </div>
         <p className="text-[12px] text-gray-500 mt-2">
           Package, next-of-kin and notes aren't editable here.
         </p>

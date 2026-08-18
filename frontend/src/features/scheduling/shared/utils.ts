@@ -1,16 +1,7 @@
-import { INSTRUCTORS } from '../../attendance/shared/mockData'
 import type { Day, SlotAssignment } from './types'
 
 export const DAYS: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 export const START_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16]
-
-// A slot can only hold as many lessons as there are instructors to run them —
-// one student per active driving instructor, per hour.
-export const MAX_STUDENTS_PER_SLOT = INSTRUCTORS.filter((i) => i.active).length
-
-export function isSlotFull(assignments: SlotAssignment[]) {
-  return assignments.length >= MAX_STUDENTS_PER_SLOT
-}
 
 export const DAY_ABBR: Record<Day, string> = {
   MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri', SAT: 'Sat',

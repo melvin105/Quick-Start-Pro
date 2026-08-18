@@ -11,17 +11,34 @@ import type { ApiEnrolmentType } from '../students/shared/studentService'
 export type RegistrationStatus = 'pending' | 'approved' | 'rejected'
 
 // One row of GET /registrations (backend registrationService.REGISTRATION_SELECT).
-// Only the fields the frontend reads are typed; the rest are carried on approval.
+// The backend returns the full submitted form; the secretary reviews all of it
+// in the Complete Registration modal before finalising, so it's all typed here.
 export interface Registration {
-  id:            string
-  first_name:    string
-  last_name:     string
-  phone:         string
-  email:         string | null
-  status:        RegistrationStatus
-  student_id:    string | null
-  submitted_at:  string
-  created_at:    string
+  id:               string
+  first_name:       string
+  last_name:        string
+  dob:              string
+  gender:           'male' | 'female'
+  phone:            string
+  email:            string | null
+  address:          string | null
+  photo_url:        string | null
+  id_card_type:     string | null
+  id_card_number:   string | null
+  nok_name:         string | null
+  nok_relationship: string | null
+  nok_phone:        string | null
+  nok_email:        string | null
+  ec_name:          string | null
+  ec_phone:         string | null
+  ec_relationship:  string | null
+  status:           RegistrationStatus
+  student_id:       string | null
+  rejection_reason: string | null
+  reviewed_by:      string | null
+  reviewed_at:      string | null
+  submitted_at:     string
+  created_at:       string
 }
 
 // Public self-registration payload — everything the student knows about
@@ -99,11 +116,11 @@ export async function getPendingRegistrations(): Promise<Registration[]> {
   }
 }
 
-// Staff-supplied enrolment decision at approval (the desk "Step 4"). Package
-// assignment is deferred until the settings/packages domain is on live data —
-// passing a mock package id here would break the real foreign key — so only
-// the enrolment type is sent for now. `confirmDifferentPerson` retries past the
-// backend's POSSIBLE_DUPLICATE (409) guard when staff confirm it's a new person.
+// Staff-supplied enrolment decision made when completing a registration. The
+// secretary reviews the submitted form and picks the enrolment type; package and
+// fees are set on the student's profile afterwards. `confirmDifferentPerson`
+// retries past the backend's POSSIBLE_DUPLICATE (409) guard when staff confirm
+// it's a genuinely new person.
 export interface ApproveRegistrationInput {
   enrolmentType:           ApiEnrolmentType
   confirmDifferentPerson?: boolean

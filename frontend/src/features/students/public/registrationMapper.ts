@@ -1,5 +1,6 @@
 import type { PublicRegistrationValues } from './registrationSchema'
 import type { SubmitRegistrationInput } from '../../registrations/registrationService'
+import { normalizePhone } from '../shared/registrationFormats'
 
 // Empty optional fields come off the form as '' — send them as undefined so the
 // backend stores NULL rather than an empty string.
@@ -16,7 +17,7 @@ export function toSubmitInput(values: PublicRegistrationValues): SubmitRegistrat
     lastName:     values.lastName.trim(),
     dob:          values.dob,
     gender:       values.gender,
-    phone:        values.phone.trim(),
+    phone:        normalizePhone(values.phone),
     email:        optional(values.email),
     address:      optional(values.address),
     photo:        optional(values.passportPhoto),
@@ -25,12 +26,12 @@ export function toSubmitInput(values: PublicRegistrationValues): SubmitRegistrat
     nextOfKin: {
       name:         values.nokName.trim(),
       relationship: values.nokRelationship.trim(),
-      phone:        values.nokPhone.trim(),
+      phone:        normalizePhone(values.nokPhone),
       email:        optional(values.nokEmail),
     },
     emergencyContact: {
       name:         values.ecName.trim(),
-      phone:        values.ecPhone.trim(),
+      phone:        normalizePhone(values.ecPhone),
       relationship: values.ecRelationship.trim(),
     },
   }
