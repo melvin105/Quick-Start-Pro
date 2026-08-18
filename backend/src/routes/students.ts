@@ -12,6 +12,7 @@ router.get('/', studentController.list);
 router.get('/licences', studentController.listLicences);
 router.get('/:id', studentController.getById);
 router.patch('/:id', studentController.update);
+router.patch('/:id/package', studentController.assignPackage);
 router.patch('/:id/licence', studentController.updateLicence);
 
 export default router;

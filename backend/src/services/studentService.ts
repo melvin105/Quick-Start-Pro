@@ -324,6 +324,51 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
   });
 }
 
+export interface AssignPackageInput {
+  packageId: string;
+}
+
+/**
+ * Set an existing student's driving package. Sets the package for students who
+ * came through the public self-registration queue (where none is chosen at
+ * submission) and lets staff switch a student to a different package later.
+ *
+ * This REPLACES any existing package rather than adding a second one:
+ * v_student_balances sums total_fee across every student_packages row, so a
+ * student must only ever hold one — otherwise switching packages would
+ * double-charge them. We delete the student's existing package row(s) and
+ * insert the new one, atomically (withUserContext wraps this in a transaction).
+ */
+export async function assignPackage(studentId: string, input: AssignPackageInput, actingUser: ActingUser) {
+  const packageId = typeof input?.packageId === 'string' ? input.packageId.trim() : '';
+  if (!packageId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'packageId is required.');
+  }
+
+  return withUserContext(actingUser.id, async (client) => {
+    const studentRes = await client.query(`select id from public.students where id = $1`, [studentId]);
+    if (!studentRes.rows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+    }
+    const pkgRes = await client.query(
+      `select id from public.driving_packages where id = $1 and is_active = true`,
+      [packageId],
+    );
+    if (!pkgRes.rows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Package not found or inactive.');
+    }
+
+    await client.query(`delete from public.student_packages where student_id = $1`, [studentId]);
+    await client.query(
+      `insert into public.student_packages (student_id, package_id) values ($1, $2)`,
+      [studentId, packageId],
+    );
+
+    const profile = await client.query(`select * from public.v_student_profile where id = $1`, [studentId]);
+    return normalizeNumericFields(profile.rows[0], STUDENT_BALANCE_FIELDS);
+  });
+}
+
 const SELECT_LICENCE = `select * from public.licence_tracking where student_id = $1`;
 
 export async function upsertLicence(studentId: string, input: UpsertLicenceInput, actingUser: ActingUser) {
