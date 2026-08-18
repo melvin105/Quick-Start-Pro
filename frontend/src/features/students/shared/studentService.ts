@@ -211,6 +211,20 @@ export async function updateStudent(id: string, patch: UpdateStudentInput): Prom
   }
 }
 
+// PATCH /students/:id/package — assign (or switch) the student's driving
+// package. Adds a student_packages row dated today, which the views read as the
+// current package. Used both to set a package for students approved from the
+// public queue (where none is picked) and to change it later. Returns the
+// refreshed profile row.
+export async function assignStudentPackage(id: string, packageId: string): Promise<ApiStudentProfile> {
+  try {
+    const { data } = await api.patch<ApiStudentProfile>(`/students/${id}/package`, { packageId })
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
 // GET /students/licences — the licence pipeline for the Students → Licences
 // screen (all licence-enrolled students, ordered by student number).
 export async function listLicences(): Promise<ApiLicencePipelineRow[]> {

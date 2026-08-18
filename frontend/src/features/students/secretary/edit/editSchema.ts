@@ -8,7 +8,10 @@ import { detailsSchema } from '../registration/schema'
 // aren't rendered on the edit form, so they're relaxed to optional here (they
 // stay in the type, defaulting to ''), leaving only the editable, persisted
 // fields required. The inferred type stays identical to DetailsFormValues.
-export const editSchema = detailsSchema.extend({
+// `.safeExtend` (not `.extend`) because detailsSchema ends in a `.superRefine`
+// (the ID-number check). Zod v4 refuses `.extend()` on a refined object schema;
+// `.safeExtend` overwrites these keys while preserving that refinement.
+export const editSchema = detailsSchema.safeExtend({
   nokName:         z.string().optional().default(''),
   nokRelationship: z.string().optional().default(''),
   nokPhone:        z.string().optional().default(''),

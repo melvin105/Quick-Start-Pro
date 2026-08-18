@@ -117,12 +117,13 @@ export async function getPendingRegistrations(): Promise<Registration[]> {
 }
 
 // Staff-supplied enrolment decision made when completing a registration. The
-// secretary reviews the submitted form and picks the enrolment type; package and
-// fees are set on the student's profile afterwards. `confirmDifferentPerson`
-// retries past the backend's POSSIBLE_DUPLICATE (409) guard when staff confirm
-// it's a genuinely new person.
+// secretary reviews the submitted form, picks the enrolment type and optionally
+// a package (it can also be assigned later from the student's profile).
+// `confirmDifferentPerson` retries past the backend's POSSIBLE_DUPLICATE (409)
+// guard when staff confirm it's a genuinely new person.
 export interface ApproveRegistrationInput {
   enrolmentType:           ApiEnrolmentType
+  packageId?:              string
   confirmDifferentPerson?: boolean
 }
 

@@ -4,19 +4,18 @@ import { approveRegistration } from './registrationService'
 import type { PendingItem } from './registrationMappers'
 import { ApiError } from '../../lib/apiError'
 import type { ApiEnrolmentType } from '../students/shared/studentService'
-import { enrolmentLabel } from '../students/shared/studentMappers'
-import Dropdown from '../students/secretary/registration/Dropdown'
+import { enrolmentEnum } from '../students/shared/studentMappers'
+import { deriveEnrolment } from '../settings/enrolment'
+import { listPackages } from '../settings/packagesService'
+import { toPackageOption } from '../settings/packageMappers'
+import { useApiResource } from '../../lib/useApiResource'
+import { formatGHS } from '../payments/utils'
 
 interface CompleteRegistrationModalProps {
   registration: PendingItem
   onClose:      () => void
   onCompleted:  () => void
 }
-
-// The three enrolment types the desk chooses, in the register wizard's order.
-// Package and fees are set on the student's profile after completion (same as
-// before), so enrolment is the only pick made here.
-const ENROLMENT_TYPES: ApiEnrolmentType[] = ['driving_and_licence', 'driving_only', 'licence_only']
 
 // One read-only field in the review. Renders nothing when the student left it
 // blank, so optional fields don't leave empty rows.
@@ -46,7 +45,18 @@ export default function CompleteRegistrationModal({
 }: CompleteRegistrationModalProps) {
   const { details } = registration
 
-  const [enrolmentType, setEnrolmentType] = useState<ApiEnrolmentType>('driving_and_licence')
+  // Active packages — the only desk decision at completion. The enrolment type
+  // (Driving Only / Licence Only / Driving + Licence) isn't picked separately;
+  // it's derived from the chosen package's name, same as the register wizard.
+  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(() => listPackages(true))
+  const packages = (packageRows ?? []).map(toPackageOption)
+  // When packages exist, one must be picked to complete. If the catalogue is
+  // empty or failed to load, completion is still allowed (fallback: derives the
+  // default enrolment, no package linked) so an empty catalogue can't hard-block
+  // the desk — a package can be assigned later from the profile.
+  const canPickPackage = !packagesLoading && !packagesError && packages.length > 0
+
+  const [packageId, setPackageId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Set when the backend flags a possible duplicate (409). Completing again with
@@ -59,8 +69,17 @@ export default function CompleteRegistrationModal({
     setSubmitting(true)
     setError(null)
     try {
+      // Derive the enrolment bucket from the picked package's name (defaulting
+      // to the safest option, which includes licence tracking). The student
+      // table needs a non-null enrolment_type even though the desk only picks a
+      // package here.
+      const pkg = packages.find((p) => p.id === packageId)
+      const enrolmentType: ApiEnrolmentType =
+        (pkg && enrolmentEnum(deriveEnrolment(pkg.name))) || 'driving_and_licence'
+
       const student = await approveRegistration(registration.id, {
         enrolmentType,
+        packageId: packageId ?? undefined,
         confirmDifferentPerson,
       })
       setStudentNumber(student.student_number)
@@ -112,7 +131,7 @@ export default function CompleteRegistrationModal({
               <div>
                 <h2 className="text-[15px] font-semibold text-gray-900">Complete Registration</h2>
                 <p className="text-[12px] text-gray-500 mt-0.5">
-                  Review {registration.name}'s details, then set the enrolment.
+                  Review {registration.name}'s details, then choose a package.
                 </p>
               </div>
               <button
@@ -163,25 +182,44 @@ export default function CompleteRegistrationModal({
                 <Field label="Phone" value={details.emergency.phone} />
               </ReviewSection>
 
-              {/* Enrolment — the desk decision. Scrolls together with the review
-                  above (one body, no static panel). Its menu opens upward
-                  (menuPlacement) so it isn't clipped at the scroll edge. Package
-                  and fees are set on the student's profile after, as before. */}
+              {/* Package — the only desk decision at completion. Scrolls with
+                  the review above (one body). The enrolment type is derived from
+                  the chosen package on submit, so it isn't picked here. */}
               <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Enrolment</h3>
+                <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Package</h3>
                 <label className="block text-[12px] font-medium text-gray-800 mb-1.5">
-                  Enrolment Type <span className="text-danger">*</span>
+                  Select a package <span className="text-danger">*</span>
                 </label>
-                <Dropdown
-                  value={enrolmentType}
-                  onChange={(value) => setEnrolmentType(value as ApiEnrolmentType)}
-                  placeholder="Select enrolment"
-                  disabled={submitting}
-                  menuPlacement="up"
-                  options={ENROLMENT_TYPES.map((t) => ({ value: t, label: enrolmentLabel(t) }))}
-                />
+                {packagesLoading ? (
+                  <p className="text-[11.5px] text-gray-500">Loading packages…</p>
+                ) : packagesError || packages.length === 0 ? (
+                  <p className="text-[11.5px] text-gray-500">
+                    No packages available. Add one under Settings, or complete now and assign one later from the student's profile.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {packages.map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => setPackageId((current) => (current === pkg.id ? null : pkg.id))}
+                        className={`text-left px-3.5 py-2.5 rounded-xl border-2 transition-colors disabled:opacity-60 ${
+                          packageId === pkg.id ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <p className={`text-[13px] font-medium ${packageId === pkg.id ? 'text-brand-600' : 'text-gray-800'}`}>
+                          {pkg.name}
+                        </p>
+                        <p className={`text-[11.5px] mt-0.5 ${packageId === pkg.id ? 'text-brand-600/80' : 'text-gray-500'}`}>
+                          {formatGHS(pkg.price)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-1.5 text-[11.5px] text-gray-500">
-                  The package and fees are set on the student's profile after completion.
+                  Sets the student's fees and enrolment. You can also change it later from their profile.
                 </p>
               </div>
 
@@ -206,7 +244,7 @@ export default function CompleteRegistrationModal({
               </button>
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || packagesLoading || (canPickPackage && !packageId)}
                 onClick={() => submit(duplicate)}
                 className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
               >

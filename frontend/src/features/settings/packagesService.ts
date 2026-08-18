@@ -52,3 +52,14 @@ export async function updatePackage(id: string, input: Partial<SavePackageInput>
     throw toApiError(err)
   }
 }
+
+// DELETE /packages/:id — manager-only. The backend refuses (409 CONFLICT) when
+// students are enrolled on the package, suggesting deactivation instead; the
+// caller surfaces that message.
+export async function deletePackage(id: string): Promise<void> {
+  try {
+    await api.delete(`/packages/${id}`)
+  } catch (err) {
+    throw toApiError(err)
+  }
+}

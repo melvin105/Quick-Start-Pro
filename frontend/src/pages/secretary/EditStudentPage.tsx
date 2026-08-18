@@ -4,20 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, type Resolver } from 'react-hook-form'
 import { ArrowLeft } from 'lucide-react'
 import { useApiResource } from '../../lib/useApiResource'
-import { getStudent, updateStudent, type ApiStudentProfile, type ApiEnrolmentType } from '../../features/students/shared/studentService'
-import { enrolmentLabel } from '../../features/students/shared/studentMappers'
+import { getStudent, updateStudent, assignStudentPackage, type ApiStudentProfile, type ApiEnrolmentType } from '../../features/students/shared/studentService'
+import { enrolmentEnum } from '../../features/students/shared/studentMappers'
+import { listPackages } from '../../features/settings/packagesService'
+import { toPackageOption } from '../../features/settings/packageMappers'
+import { deriveEnrolment } from '../../features/settings/enrolment'
+import { formatGHS } from '../../features/payments/utils'
 import { editSchema } from '../../features/students/secretary/edit/editSchema'
 import { toEditFormValues, toUpdateStudentInput } from '../../features/students/secretary/edit/editMapper'
 import { type DetailsFormValues } from '../../features/students/secretary/registration/schema'
 import PersonalDetailsSection from '../../features/students/secretary/registration/PersonalDetailsSection'
 import FormField from '../../features/students/secretary/registration/FormField'
-import Dropdown from '../../features/students/secretary/registration/Dropdown'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
 import { ApiError } from '../../lib/apiError'
 import { ROUTES } from '../../lib/constants'
-
-const ENROLMENT_TYPES: ApiEnrolmentType[] = ['driving_and_licence', 'driving_only', 'licence_only']
 
 export default function EditStudentPage() {
   const { id } = useParams<{ id: string }>()
@@ -49,7 +50,21 @@ function EditStudentForm({ id, profile }: { id: string; profile: ApiStudentProfi
     defaultValues: toEditFormValues(profile),
   })
 
-  const [enrolmentType, setEnrolmentType] = useState<ApiEnrolmentType>(profile.enrolment_type)
+  // Active packages — the enrolment type is derived from the chosen package's
+  // name (same rule as the register wizard and Complete Registration modal), so
+  // the desk picks a package here rather than an enrolment type directly.
+  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(() => listPackages(true))
+  const packages = (packageRows ?? []).map(toPackageOption)
+  // The student's current package, matched by name (the profile row carries the
+  // name, not the id). Used as the default selection and to skip a needless
+  // re-assign when the package is left unchanged.
+  const currentPackageId = packages.find((p) => p.name === profile.package_name)?.id ?? null
+
+  // `picked` is the staff's explicit choice; until they touch a card the form
+  // shows the current package. `?? currentPackageId` also lets the default fill
+  // in once the packages finish loading, no effect syncing required.
+  const [picked, setPicked] = useState<string | null>(null)
+  const selectedPackageId = picked ?? currentPackageId
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -57,7 +72,18 @@ function EditStudentForm({ id, profile }: { id: string; profile: ApiStudentProfi
     setSaving(true)
     setSaveError(null)
     try {
+      // Derive the enrolment bucket from the picked package; keep the student's
+      // existing enrolment if no package could be resolved (empty catalogue).
+      const pkg = packages.find((p) => p.id === selectedPackageId)
+      const enrolmentType: ApiEnrolmentType =
+        (pkg && enrolmentEnum(deriveEnrolment(pkg.name))) || profile.enrolment_type
+
       await updateStudent(id, toUpdateStudentInput(values, enrolmentType))
+      // Only re-link when the package actually changed (assign replaces the row
+      // and re-sets the fee, so avoid it on an unchanged edit).
+      if (selectedPackageId && selectedPackageId !== currentPackageId) {
+        await assignStudentPackage(id, selectedPackageId)
+      }
       navigate(ROUTES.STUDENTS)
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : 'Could not save changes.')
@@ -90,18 +116,37 @@ function EditStudentForm({ id, profile }: { id: string; profile: ApiStudentProfi
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5">
-        <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-4">Enrolment</h2>
-        <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Enrolment Type <span className="text-danger">*</span></label>
-        <div className="sm:max-w-xs">
-          <Dropdown
-            value={enrolmentType}
-            onChange={(value) => setEnrolmentType(value as ApiEnrolmentType)}
-            placeholder="Select enrolment"
-            options={ENROLMENT_TYPES.map((t) => ({ value: t, label: enrolmentLabel(t) }))}
-          />
-        </div>
-        <p className="text-[12px] text-gray-500 mt-2">
-          Package, next-of-kin and notes aren't editable here.
+        <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-4">Package</h2>
+        {packagesLoading ? (
+          <p className="text-[12.5px] text-gray-500">Loading packages…</p>
+        ) : packagesError || packages.length === 0 ? (
+          <p className="text-[12.5px] text-gray-500">
+            No packages available. Add one under Settings to change this student's package.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {packages.map((pkg) => (
+              <button
+                key={pkg.id}
+                type="button"
+                disabled={saving}
+                onClick={() => setPicked(pkg.id)}
+                className={`text-left px-4 py-3 rounded-xl border-2 transition-colors disabled:opacity-60 ${
+                  selectedPackageId === pkg.id ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className={`text-[13.5px] font-medium ${selectedPackageId === pkg.id ? 'text-brand-600' : 'text-gray-800'}`}>
+                  {pkg.name}
+                </p>
+                <p className={`text-[12px] mt-0.5 ${selectedPackageId === pkg.id ? 'text-brand-600/80' : 'text-gray-500'}`}>
+                  {formatGHS(pkg.price)}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-[12px] text-gray-500 mt-3">
+          Sets the student's fees and enrolment type. Next-of-kin and notes aren't editable here.
         </p>
       </div>
 
