@@ -155,3 +155,18 @@ export async function listAttendance(query: ListAttendanceQuery) {
 
   return { date: targetDate, attendance: rows };
 }
+
+export async function getStudentAttendanceHistory(studentId: string) {
+  const { rows: studentRows } = await pool.query(`select id from public.students where id = $1`, [studentId]);
+  if (!studentRows[0]) {
+    throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+  }
+
+  const { rows } = await pool.query(
+    `${SELECT_ATTENDANCE}
+     where a.student_id = $1
+     order by a.attendance_date desc, a.created_at desc`,
+    [studentId],
+  );
+  return { studentId, attendance: rows };
+}

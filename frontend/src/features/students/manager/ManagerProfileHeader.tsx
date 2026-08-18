@@ -22,7 +22,7 @@ export default function ManagerProfileHeader({ student }: { student: Student }) 
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">{student.name}</h1>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className="text-[12.5px] text-gray-500">{student.id}</span>
+              <span className="text-[12.5px] text-gray-500">{student.studentNumber ?? student.id}</span>
               <span className="inline-flex items-center text-[11px] font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700 whitespace-nowrap">
                 {student.programme ?? student.enrolment}
               </span>

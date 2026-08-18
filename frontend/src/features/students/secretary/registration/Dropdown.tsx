@@ -12,9 +12,13 @@ interface DropdownProps {
   options: DropdownOption[]
   placeholder: string
   disabled?: boolean
+  // Which way the menu opens. Defaults to 'down'; use 'up' when the control sits
+  // near the bottom of its container (e.g. a modal footer) so the menu doesn't
+  // spill past the edge.
+  menuPlacement?: 'down' | 'up'
 }
 
-export default function Dropdown({ value, onChange, options, placeholder, disabled }: DropdownProps) {
+export default function Dropdown({ value, onChange, options, placeholder, disabled, menuPlacement = 'down' }: DropdownProps) {
   const [open, setOpen] = useState(false)
   const selected = options.find((o) => o.value === value)
 
@@ -34,7 +38,9 @@ export default function Dropdown({ value, onChange, options, placeholder, disabl
       {open && !disabled && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <ul className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-card">
+          <ul className={`absolute z-20 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-card ${
+            menuPlacement === 'up' ? 'bottom-full mb-1' : 'mt-1'
+          }`}>
             {options.map((opt) => (
               <li key={opt.value}>
                 <button

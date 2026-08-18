@@ -5,18 +5,28 @@ import type { CoursePackage } from './types'
 interface PackageModalProps {
   editing?: CoursePackage
   onClose:  () => void
-  onSave:   (input: { name: string; price: number }) => void
+  onSave:   (input: { name: string; price: number; lessonCount: number }) => void | Promise<void>
 }
 
 export default function PackageModal({ editing, onClose, onSave }: PackageModalProps) {
   const [name, setName] = useState(editing?.name ?? '')
   const [price, setPrice] = useState(String(editing?.price ?? ''))
+  const [lessonCount, setLessonCount] = useState(String(editing?.lessonCount ?? 15))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const canSave = name.trim() !== '' && Number(price) > 0
+  const canSave = name.trim() !== '' && Number(price) > 0 && Number(lessonCount) > 0
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) return
-    onSave({ name: name.trim(), price: Number(price) })
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave({ name: name.trim(), price: Number(price), lessonCount: Number(lessonCount) })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save this package.')
+      setSaving(false)
+    }
   }
 
   return (
@@ -52,7 +62,13 @@ export default function PackageModal({ editing, onClose, onSave }: PackageModalP
           />
         </div>
 
+        <div>
+          <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Number of Lessons</label>
+          <input type="number" min={1} value={lessonCount} onChange={(e) => setLessonCount(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600" />
+        </div>
+
         <div className="flex justify-end gap-2 mt-1">
+          {error && <p className="mr-auto text-[12px] text-danger self-center">{error}</p>}
           <button
             type="button"
             onClick={onClose}
@@ -62,11 +78,11 @@ export default function PackageModal({ editing, onClose, onSave }: PackageModalP
           </button>
           <button
             type="button"
-            disabled={!canSave}
-            onClick={handleSave}
+            disabled={!canSave || saving}
+            onClick={() => void handleSave()}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
-            {editing ? 'Save Changes' : 'Add Package'}
+            {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Package'}
           </button>
         </div>
       </div>

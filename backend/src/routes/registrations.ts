@@ -14,6 +14,7 @@ router.use(authenticate);
 // The pending queue is worked by both roles — the secretary adds enrolment at
 // approval, the manager oversees. Matches the leads queue's permissiveness.
 router.get('/', requireRole('manager', 'secretary'), registrationController.list);
+router.post('/invite', requireRole('manager', 'secretary'), registrationController.createInvitation);
 router.post('/:id/approve', requireRole('manager', 'secretary'), registrationController.approve);
 router.post('/:id/reject', requireRole('manager', 'secretary'), registrationController.reject);
 

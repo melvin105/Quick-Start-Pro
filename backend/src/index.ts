@@ -22,11 +22,15 @@ import dashboardRoutes from './routes/dashboard';
 import schedulingRoutes from './routes/scheduling';
 import uploadRoutes from './routes/uploads';
 import registrationRoutes from './routes/registrations';
+import recordsRoutes from './routes/records';
 import { ApiError } from './utils/ApiError';
 
-const app = express();
+export const app = express();
 app.use(cors());
-app.use(express.json());
+// Public self-registration embeds the passport photo as a base64 data URI, which
+// blows past express.json()'s 100kb default and would throw PayloadTooLargeError
+// (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
+app.use(express.json({ limit: '10mb' }));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -61,6 +65,7 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/scheduling', schedulingRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/registrations', registrationRoutes);
+app.use('/api/v1/records', recordsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
@@ -74,6 +79,8 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR' });
 });
 
-app.listen(process.env.PORT || 5000, () => {
-  console.log(`Server running on port ${process.env.PORT || 5000}`);
-});
+if (require.main === module) {
+  app.listen(process.env.PORT || 5000, () => {
+    console.log(`Server running on port ${process.env.PORT || 5000}`);
+  });
+}

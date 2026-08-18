@@ -1,4 +1,6 @@
-export type AttendanceStatus = 'present' | 'absent'
+// The backend records four attendance states (present/absent/late/excused);
+// self check-ins and manual marks both flow through the same POST /attendance.
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 export type CheckInSource = 'self' | 'manual'
 
 export interface AttendanceRecord {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import useStaffStore from './store'
+import { createInstructor } from './staffService'
 
 interface AddStaffModalProps {
   onClose:  () => void
@@ -8,17 +8,24 @@ interface AddStaffModalProps {
 }
 
 export default function AddStaffModal({ onClose, onAdded }: AddStaffModalProps) {
-  const addStaff = useStaffStore((s) => s.addStaff)
-
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const canSubmit = name.trim() !== '' && phone.trim() !== ''
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return
-    const member = addStaff({ name: name.trim(), role: 'instructor', phone: phone.trim() })
-    onAdded(member.name)
+    setSaving(true)
+    setError('')
+    try {
+      const member = await createInstructor({ name: name.trim(), phone: phone.trim() })
+      onAdded(member.name)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add instructor.')
+      setSaving(false)
+    }
   }
 
   return (
@@ -55,6 +62,7 @@ export default function AddStaffModal({ onClose, onAdded }: AddStaffModalProps) 
         </div>
 
         <div className="flex justify-end gap-2 mt-1">
+          {error && <p className="mr-auto text-[12px] text-danger">{error}</p>}
           <button
             type="button"
             onClick={onClose}
@@ -64,11 +72,11 @@ export default function AddStaffModal({ onClose, onAdded }: AddStaffModalProps) 
           </button>
           <button
             type="button"
-            disabled={!canSubmit}
+            disabled={!canSubmit || saving}
             onClick={handleSubmit}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
-            Add Instructor
+            {saving ? 'Adding…' : 'Add Instructor'}
           </button>
         </div>
       </div>

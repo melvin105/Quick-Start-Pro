@@ -7,4 +7,15 @@ export interface StaffMember {
   phone:     string
   email?:    string
   addedDate: string
+  lessonsCount: number
+  status: 'active' | 'inactive' | 'suspended'
+}
+
+export interface StaffLesson {
+  id: string
+  lessonDate: string
+  startTime: string
+  status: string
+  studentId: string
+  studentName: string
 }

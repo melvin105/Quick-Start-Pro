@@ -1,49 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Camera, Plus } from 'lucide-react'
-import useAttendanceStore from '../../features/attendance/shared/store'
+import { useApiResource } from '../../lib/useApiResource'
+import { listAttendance } from '../../features/attendance/shared/attendanceService'
+import { toAttendanceRoster } from '../../features/attendance/shared/attendanceMappers'
 import AttendanceTable from '../../features/attendance/shared/AttendanceTable'
 import AttendanceCardList from '../../features/attendance/shared/AttendanceCardList'
 import QrCodePanel from '../../features/attendance/secretary/QrCodePanel'
 import ManualMarkModal from '../../features/attendance/secretary/ManualMarkModal'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 import { formatTodayLong } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
 
-const POLL_INTERVAL_MS = 30000
-const PULSE_DURATION_MS = 1500
+const REFRESH_INTERVAL_MS = 30000
 
 export default function AttendancePage() {
-  const records = useAttendanceStore((s) => s.records)
-  const simulateSelfCheckIn = useAttendanceStore((s) => s.simulateSelfCheckIn)
-  const lastLiveUpdateAt = useAttendanceStore((s) => s.lastLiveUpdateAt)
+  const { data, loading, error, refetch } = useApiResource(listAttendance)
 
   const [showQr, setShowQr] = useState(false)
   const [showManualMark, setShowManualMark] = useState(false)
-  const [pulse, setPulse] = useState(false)
-  const [seenUpdateAt, setSeenUpdateAt] = useState(lastLiveUpdateAt)
 
-  // Stand-in for a real-time feed: poll for newly self-checked-in students.
-  // (The 60-minute no-show auto-absent sweep runs globally in AppShell.)
+  // Auto-refresh so marks made here, self check-ins, or another open session's
+  // changes surface without a manual reload — the backend recomputes the whole
+  // roster on each call.
   useEffect(() => {
-    const interval = setInterval(() => simulateSelfCheckIn(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { void refetch() }, REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [simulateSelfCheckIn])
+  }, [refetch])
 
-  // Pulse the "Live" dot when a new self-check-in arrives. The change is
-  // detected during render ("adjust state when a value changes"); the fade-out
-  // timer stays in the effect below, which restarts on each update.
-  if (lastLiveUpdateAt !== seenUpdateAt) {
-    setSeenUpdateAt(lastLiveUpdateAt)
-    if (lastLiveUpdateAt !== null) setPulse(true)
-  }
+  // The board shows students scheduled today; walk-ins (no slot) aren't surfaced
+  // here, matching the previous behaviour.
+  const scheduled = useMemo(
+    () => (data ? toAttendanceRoster(data).filter((r) => r.hasSlot) : []),
+    [data],
+  )
 
-  useEffect(() => {
-    if (lastLiveUpdateAt === null) return
-    const t = setTimeout(() => setPulse(false), PULSE_DURATION_MS)
-    return () => clearTimeout(t)
-  }, [lastLiveUpdateAt])
-
-  const scheduled = records.filter((r) => r.hasSlot)
+  if (loading) return <LoadingState message="Loading attendance…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="flex flex-col gap-5">
@@ -56,9 +50,7 @@ export default function AttendancePage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 px-1 text-[12px] font-medium text-gray-600">
-            <span
-              className={`w-2 h-2 rounded-full bg-success animate-pulse transition-transform duration-300 ${pulse ? 'scale-150' : 'scale-100'}`}
-            />
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
             Live
           </div>
           <Link
@@ -81,16 +73,6 @@ export default function AttendancePage() {
           >
             <Plus size={15} /> Mark Manually
           </button>
-          {import.meta.env.DEV && (
-            <button
-              type="button"
-              onClick={() => simulateSelfCheckIn()}
-              title="Dev only — simulates a student scanning the QR and checking in, without needing a second device"
-              className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-warning bg-warning-bg border border-warning/30 rounded-lg hover:bg-warning-bg/70 transition-colors"
-            >
-              🧪 Simulate Check-In
-            </button>
-          )}
         </div>
       </div>
 
@@ -98,7 +80,9 @@ export default function AttendancePage() {
       <AttendanceCardList records={scheduled} />
 
       {showQr && <QrCodePanel onClose={() => setShowQr(false)} />}
-      {showManualMark && <ManualMarkModal onClose={() => setShowManualMark(false)} />}
+      {showManualMark && (
+        <ManualMarkModal onClose={() => setShowManualMark(false)} onMarked={() => void refetch()} />
+      )}
     </div>
   )
 }

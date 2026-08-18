@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import useRecordsStore from '../shared/store'
 import Dropdown from '../shared/Dropdown'
 import DatePicker from '../../../components/ui/DatePicker'
 import { todayIso } from '../../payments/utils'
 import { EXPENSE_CATEGORIES } from '../shared/types'
 import type { ExpenseCategory, ExpenseEntry } from '../shared/types'
+import { createExpense, updateExpense } from '../shared/recordsService'
+import { apiExpenseToEntry, expenseCategoryValue } from '../shared/recordsMappers'
 
 interface RecordExpenseModalProps {
   date:      string
@@ -14,28 +15,35 @@ interface RecordExpenseModalProps {
 }
 
 export default function RecordExpenseModal({ date, editing, onClose, onSaved }: RecordExpenseModalProps) {
-  const addExpense = useRecordsStore((s) => s.addExpense)
-  const updateExpense = useRecordsStore((s) => s.updateExpense)
-
   const [category, setCategory] = useState<ExpenseCategory>(editing?.category ?? EXPENSE_CATEGORIES[0])
   const [description, setDescription] = useState(editing?.description ?? '')
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
   const [entryDate, setEntryDate] = useState(editing?.date ?? date)
-  const [notes, setNotes] = useState(editing?.notes ?? '')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!description.trim()) { setError('Enter a description'); return }
     const amountNumber = Number(amount)
     if (!amountNumber || amountNumber <= 0) { setError('Enter an amount greater than zero'); return }
 
-    if (editing) {
-      const patch = { description: description.trim(), category, amount: amountNumber, notes: notes || undefined }
-      updateExpense(editing.id, patch)
-      onSaved({ ...editing, ...patch })
-    } else {
-      const entry = addExpense({ date: entryDate, description: description.trim(), category, amount: amountNumber, notes: notes || undefined })
-      onSaved(entry)
+    setSubmitting(true)
+    setError('')
+    try {
+      const input = {
+        description: description.trim(),
+        category: expenseCategoryValue(category),
+        amount: amountNumber,
+        expenseDate: entryDate,
+      }
+      const saved = editing
+        ? await updateExpense(editing.id, input)
+        : await createExpense(input)
+      onSaved(apiExpenseToEntry(saved))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The expense could not be saved. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -97,16 +105,6 @@ export default function RecordExpenseModal({ date, editing, onClose, onSaved }: 
             <DatePicker value={entryDate} onChange={setEntryDate} maxDate={todayIso()} disabled={!!editing} className="w-full" />
           </div>
 
-          <div>
-            <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Optional"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-            />
-          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-5">
@@ -119,10 +117,11 @@ export default function RecordExpenseModal({ date, editing, onClose, onSaved }: 
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
+            disabled={submitting}
+            onClick={() => void handleSubmit()}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
           >
-            {editing ? 'Save Changes' : 'Record Expense'}
+            {submitting ? 'Saving…' : editing ? 'Save Changes' : 'Record Expense'}
           </button>
         </div>
       </div>

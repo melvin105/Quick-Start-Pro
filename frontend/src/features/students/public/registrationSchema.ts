@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { idNumberError, PHONE_PATTERN } from '../shared/registrationFormats'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -11,7 +12,7 @@ export const publicRegistrationSchema = z.object({
   lastName:  z.string().min(1, 'Last name is required'),
   dob:       z.string().min(1, 'Date of birth is required'),
   gender:    z.enum(['male', 'female'], { error: 'Please select a gender' }),
-  phone:     z.string().min(1, 'Phone number is required'),
+  phone:     z.string().regex(PHONE_PATTERN, 'Enter a 10-digit Ghana phone number'),
   email:        z.string().optional(),
   address:      z.string().optional(),
   passportPhoto: z.string().optional(),
@@ -20,13 +21,16 @@ export const publicRegistrationSchema = z.object({
 
   nokName:         z.string().min(1, 'Next of kin name is required'),
   nokRelationship: z.string().min(1, 'Relationship is required'),
-  nokPhone:        z.string().min(1, 'Phone number is required'),
+  nokPhone:        z.string().regex(PHONE_PATTERN, 'Enter a 10-digit Ghana phone number'),
   nokEmail:        z.string().optional().refine((v) => !v || EMAIL_RE.test(v), 'Enter a valid email address'),
 
   sameAsNok:      z.boolean(),
   ecName:         z.string().min(1, 'Contact name is required'),
-  ecPhone:        z.string().min(1, 'Phone is required'),
+  ecPhone:        z.string().regex(PHONE_PATTERN, 'Enter a 10-digit Ghana phone number'),
   ecRelationship: z.string().min(1, 'Relationship is required'),
+}).superRefine((values, context) => {
+  const message = idNumberError(values.idCardType, values.idCardNumber)
+  if (message) context.addIssue({ code: 'custom', path: ['idCardNumber'], message })
 })
 
 export type PublicRegistrationValues = z.infer<typeof publicRegistrationSchema>

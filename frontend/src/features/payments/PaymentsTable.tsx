@@ -43,7 +43,7 @@ export default function PaymentsTable({ records, onView }: PaymentsTableProps) {
                   </button>
                   {' | '}
                   <Link
-                    to={paymentReceiptPath(r.id)}
+                    to={paymentReceiptPath(r.receiptId ?? r.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-brand-600 hover:text-brand-700 font-medium"

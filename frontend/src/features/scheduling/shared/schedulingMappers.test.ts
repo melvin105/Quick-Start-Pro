@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toScheduleGrid, toCellAssignment, isCellFull } from './schedulingMappers'
+import { toScheduleGrid, toCellAssignment, isCellFull, findStudentCellSlots } from './schedulingMappers'
 import type { ApiScheduleSlot, ApiSlotAssignment } from './schedulingService'
 
 const assignment: ApiSlotAssignment = {
@@ -56,5 +56,28 @@ describe('isCellFull', () => {
     const grid = toScheduleGrid({ slots: [slot({ capacity: 2, assignments: [assignment] })] })
     expect(isCellFull(grid['MON-8'])).toBe(false)
     expect(isCellFull(undefined)).toBe(false)
+  })
+})
+
+describe('findStudentCellSlots', () => {
+  const other: ApiSlotAssignment = { ...assignment, studentId: 'uuid-b', studentNumber: 'DP-2026-0002', studentName: 'Ama Owusu' }
+
+  it('returns every slot a student holds, as day/hour refs', () => {
+    const grid = toScheduleGrid({
+      slots: [
+        slot({ id: 'a', assignments: [assignment] }),
+        slot({ id: 'b', day: 'WED', dayOfWeek: 3, startHour: 13, assignments: [other, assignment] }),
+        slot({ id: 'c', day: 'FRI', dayOfWeek: 5, startHour: 10, assignments: [other] }),
+      ],
+    })
+    expect(findStudentCellSlots(grid, 'uuid-a')).toEqual([
+      { day: 'MON', hour: 8 },
+      { day: 'WED', hour: 13 },
+    ])
+  })
+
+  it('returns an empty array for a student in no slot', () => {
+    const grid = toScheduleGrid({ slots: [slot({ assignments: [assignment] })] })
+    expect(findStudentCellSlots(grid, 'uuid-z')).toEqual([])
   })
 })

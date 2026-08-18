@@ -1,33 +1,33 @@
 import { useMemo, useState } from 'react'
 import { Search, X, Users } from 'lucide-react'
-import useStudentsStore from '../../students/shared/store'
-import { formatSlotLabel, isSlotFull, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
-import type { Day, SlotAssignment } from '../shared/types'
+import { useAssignableStudents } from '../shared/useAssignableStudents'
+import { formatSlotLabel } from '../shared/utils'
+import type { CellAssignment } from '../shared/schedulingMappers'
+import type { Day } from '../shared/types'
 
 interface MobileSlotSheetProps {
   day: Day
   hour: number
-  assignments: SlotAssignment[]
+  assignments: CellAssignment[]
+  capacity: number
   onAssign: (studentId: string) => void
   onRemove: (studentId: string) => void
   onClose: () => void
 }
 
-export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRemove, onClose }: MobileSlotSheetProps) {
-  const students = useStudentsStore((s) => s.students)
+export default function MobileSlotSheet({ day, hour, assignments, capacity, onAssign, onRemove, onClose }: MobileSlotSheetProps) {
+  const { students, loading, error } = useAssignableStudents()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const assignedIds = assignments.map((a) => a.studentId)
-  const full = isSlotFull(assignments)
+  const full = assignments.length >= capacity
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     return students
-      .filter((s) => s.status !== 'completed')
-      .filter((s) => s.enrolment !== 'Licence Only')
       .filter((s) => !assignedIds.includes(s.id))
-      .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+      .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.studentNumber.toLowerCase().includes(q))
       .slice(0, 6)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students, query, assignments])
@@ -47,9 +47,7 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
           {assignments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {assignments.map((a) => {
-                const student = students.find((s) => s.id === a.studentId)
-                if (!student) return null
-                const [first, last] = student.name.split(' ')
+                const [first, last] = a.name.split(' ')
                 return (
                   <button
                     key={a.studentId}
@@ -70,7 +68,7 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
               <Users size={20} className="text-gray-300" />
               <p className="text-[13px] font-medium text-gray-700">This slot is full</p>
               <p className="text-[12px] text-gray-500">
-                Max {MAX_STUDENTS_PER_SLOT} student{MAX_STUDENTS_PER_SLOT === 1 ? '' : 's'} per hour — one per instructor.
+                Max {capacity} student{capacity === 1 ? '' : 's'} per hour — one per instructor.
               </p>
             </div>
           ) : (
@@ -87,7 +85,11 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
               </div>
 
               <div className="flex flex-col gap-1">
-                {results.map((s) => (
+                {loading && <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">Loading students…</p>}
+                {error && !loading && (
+                  <p className="text-[12.5px] text-danger px-2.5 py-3 text-center">Couldn’t load students.</p>
+                )}
+                {!loading && !error && results.map((s) => (
                   <button
                     key={s.id}
                     type="button"
@@ -97,10 +99,10 @@ export default function MobileSlotSheet({ day, hour, assignments, onAssign, onRe
                     }`}
                   >
                     <p className="font-medium">{s.name}</p>
-                    <p className="text-[11.5px] text-gray-500">{s.id} · {s.enrolment}</p>
+                    <p className="text-[11.5px] text-gray-500">{s.studentNumber} · {s.enrolmentLabel}</p>
                   </button>
                 ))}
-                {query.trim() !== '' && results.length === 0 && (
+                {!loading && !error && query.trim() !== '' && results.length === 0 && (
                   <p className="text-[12.5px] text-gray-400 px-2.5 py-3 text-center">No matching students.</p>
                 )}
               </div>

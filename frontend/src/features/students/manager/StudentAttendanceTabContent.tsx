@@ -1,22 +1,25 @@
-import { useMemo } from 'react'
-import useAttendanceStore from '../../attendance/shared/store'
-import { HISTORICAL_ATTENDANCE } from '../../attendance/shared/mockData'
 import StatusBadge from '../../attendance/shared/StatusBadge'
 import SourceBadge from '../../attendance/shared/SourceBadge'
 import { formatDateDisplay } from '../../attendance/shared/utils'
+import { getStudentAttendanceHistory } from '../../attendance/shared/attendanceService'
+import { toStudentAttendanceRecord } from '../../attendance/shared/attendanceMappers'
 import type { Student } from '../shared/types'
+import { useApiResource } from '../../../lib/useApiResource'
+import LoadingState from '../../../components/ui/LoadingState'
+import ErrorState from '../../../components/ui/ErrorState'
 
 const COLUMNS = ['Date', 'Slot', 'Check-in Time', 'Driver', 'Source', 'Status']
 
 export default function StudentAttendanceTabContent({ student }: { student: Student }) {
-  const todayRecords = useAttendanceStore((s) => s.records)
-
-  const records = useMemo(
-    () => [...todayRecords, ...HISTORICAL_ATTENDANCE]
-      .filter((r) => r.studentId === student.id)
-      .sort((a, b) => b.date.localeCompare(a.date)),
-    [todayRecords, student.id],
+  const { data, loading, error, refetch } = useApiResource(
+    () => getStudentAttendanceHistory(student.id),
+    [student.id],
   )
+
+  if (loading) return <LoadingState message="Loading attendance history…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
+
+  const records = data?.attendance.map(toStudentAttendanceRecord) ?? []
 
   if (records.length === 0) {
     return (

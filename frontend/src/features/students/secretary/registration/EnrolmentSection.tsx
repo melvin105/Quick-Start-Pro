@@ -1,11 +1,15 @@
 import { Controller } from 'react-hook-form'
-import usePackagesStore from '../../../settings/packagesStore'
 import { formatGHS } from '../../../payments/utils'
 import type { FormSectionProps } from './formTypes'
+import type { PackageOption } from '../../../settings/packageMappers'
 
-export default function EnrolmentSection({ register, control, errors }: FormSectionProps) {
-  const packages = usePackagesStore((s) => s.packages)
+interface EnrolmentSectionProps extends FormSectionProps {
+  // Live packages (GET /packages) — the picker's id is sent as packageId, and
+  // the enrolment type is derived from the selected name on submit.
+  packages: PackageOption[]
+}
 
+export default function EnrolmentSection({ register, control, errors, packages }: EnrolmentSectionProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
       <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-4">Enrolment</h2>

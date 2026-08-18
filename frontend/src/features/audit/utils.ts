@@ -9,6 +9,7 @@ export function formatAuditTimestamp(iso: string) {
 export const ACTION_TYPE_LABELS: Record<string, string> = {
   create:  'Created',
   edit:    'Edited',
+  delete:  'Deleted',
   approve: 'Approved',
   flag:    'Flagged',
   login:   'Login',

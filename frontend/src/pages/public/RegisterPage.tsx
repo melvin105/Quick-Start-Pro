@@ -1,9 +1,8 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { CheckCircle2 } from 'lucide-react'
-import useStudentsStore from '../../features/students/shared/store'
-import { nextPendingId } from '../../features/students/shared/utils'
+import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import RegisterShell from '../../features/students/public/RegisterShell'
 import PersonalSection from '../../features/students/public/PersonalSection'
 import NextOfKinSection from '../../features/students/public/NextOfKinSection'
@@ -11,11 +10,14 @@ import EmergencyContactSection from '../../features/students/public/EmergencyCon
 import {
   publicRegistrationSchema, PUBLIC_REGISTRATION_DEFAULTS, type PublicRegistrationValues,
 } from '../../features/students/public/registrationSchema'
-import type { PendingSubmission } from '../../features/students/shared/types'
+import { submitRegistration } from '../../features/registrations/registrationService'
+import { toSubmitInput } from '../../features/students/public/registrationMapper'
+import { ApiError } from '../../lib/apiError'
 
 export default function RegisterPage() {
-  const addPending = useStudentsStore((s) => s.addPending)
+  const { token = '' } = useParams<{ token: string }>()
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const {
     register, control, handleSubmit, watch, setValue, formState: { errors, isSubmitting },
@@ -24,36 +26,27 @@ export default function RegisterPage() {
     defaultValues: PUBLIC_REGISTRATION_DEFAULTS,
   })
 
-  const onSubmit = handleSubmit((values) => {
-    const submission: PendingSubmission = {
-      id: nextPendingId(),
-      name: `${values.firstName} ${values.lastName}`.trim(),
-      phone: values.phone,
-      submittedLabel: 'Just now',
-      firstName: values.firstName,
-      lastName:  values.lastName,
-      dob:       values.dob,
-      gender:    values.gender,
-      email:     values.email || undefined,
-      address:   values.address || undefined,
-      photo:     values.passportPhoto || undefined,
-      idCardType:   (values.idCardType as PendingSubmission['idCardType']) || undefined,
-      idCardNumber: values.idCardNumber || undefined,
-      nextOfKin: {
-        name: values.nokName,
-        relationship: values.nokRelationship,
-        phone: values.nokPhone,
-        email: values.nokEmail || undefined,
-      },
-      emergencyContact: {
-        name: values.ecName,
-        phone: values.ecPhone,
-        relationship: values.ecRelationship,
-      },
+  const onSubmit = handleSubmit(async (values) => {
+    setError(null)
+    try {
+      await submitRegistration(toSubmitInput(values), token)
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not submit your registration. Please try again.')
     }
-    addPending(submission)
-    setSubmitted(true)
   })
+
+  if (!token) {
+    return (
+      <RegisterShell>
+        <div className="bg-white rounded-2xl shadow-card p-8 flex flex-col items-center text-center gap-4 max-w-md mx-auto">
+          <AlertTriangle size={36} className="text-warning" />
+          <h1 className="text-[17px] font-semibold text-gray-900">Registration link required</h1>
+          <p className="text-[13px] text-gray-500">Please scan the QR code provided by the driving school.</p>
+        </div>
+      </RegisterShell>
+    )
+  }
 
   if (submitted) {
     return (
@@ -90,12 +83,19 @@ export default function RegisterPage() {
           <EmergencyContactSection register={register} control={control} errors={errors} watch={watch} setValue={setValue} />
         </div>
 
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg bg-danger-bg px-3 py-2.5 text-[13px] text-danger">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={isSubmitting}
           className="px-5 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-[14px] font-medium rounded-lg transition-colors"
         >
-          Submit Registration
+          {isSubmitting ? 'Submitting…' : 'Submit Registration'}
         </button>
       </form>
     </RegisterShell>

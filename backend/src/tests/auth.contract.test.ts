@@ -1,29 +1,47 @@
 import 'dotenv/config';
-import { test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { Server } from 'node:http';
+import { app } from '../index';
 
 // Contract test for the authentication endpoint (Problem 1).
 //
-// This is a live contract test: it exercises the running backend over HTTP and
+// This is a live contract test: it starts the Express app on an ephemeral port,
+// exercises it over HTTP, and
 // asserts the agreed request/response shape that the frontend depends on (see
 // docs/API-Schema.md and frontend/src/features/auth/authService.ts).
 //
-// Run it against a booted server:
-//   1. In one terminal:  npm run dev            (backend on :5000)
-//   2. In another:        npm test
-//
 // Config via env:
-//   TEST_API_URL           base URL incl. /api/v1  (default http://localhost:5000/api/v1)
+//   TEST_API_URL           optional external base URL incl. /api/v1
 //   TEST_MANAGER_PASSWORD  a valid manager password — enables the happy-path test.
 //                          If unset, the happy-path test is skipped (the
 //                          invalid-credentials and validation tests always run,
 //                          since they need no seeded data).
 
-const BASE_URL = process.env.TEST_API_URL ?? 'http://localhost:5000/api/v1';
+let baseUrl = process.env.TEST_API_URL ?? '';
+let server: Server | undefined;
 const MANAGER_PASSWORD = process.env.TEST_MANAGER_PASSWORD;
 
+before(async () => {
+  if (baseUrl) return;
+  await new Promise<void>((resolve, reject) => {
+    const listener = app.listen(0, '127.0.0.1', () => resolve());
+    listener.once('error', reject);
+    server = listener;
+  });
+  const runningServer = server;
+  if (!runningServer) throw new Error('Test server did not start.');
+  const address = runningServer.address();
+  if (!address || typeof address === 'string') throw new Error('Could not determine test server port.');
+  baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+});
+
+after(async () => {
+  if (server) await new Promise<void>((resolve, reject) => server!.close((error) => error ? reject(error) : resolve()));
+});
+
 async function postLogin(body: unknown) {
-  const res = await fetch(`${BASE_URL}/auth/login`, {
+  const res = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

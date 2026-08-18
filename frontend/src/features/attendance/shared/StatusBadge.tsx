@@ -1,9 +1,11 @@
-import { CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, MinusCircle } from 'lucide-react'
 import type { AttendanceStatus } from './types'
 
 const CONFIG: Record<AttendanceStatus, { label: string; className: string; Icon: typeof CheckCircle2 }> = {
   present: { label: 'Present', className: 'bg-success-bg text-success', Icon: CheckCircle2 },
   absent:  { label: 'Absent',  className: 'bg-danger-bg text-danger',   Icon: XCircle },
+  late:    { label: 'Late',    className: 'bg-warning-bg text-warning', Icon: Clock },
+  excused: { label: 'Excused', className: 'bg-gray-100 text-gray-600', Icon: MinusCircle },
 }
 
 interface StatusBadgeProps {

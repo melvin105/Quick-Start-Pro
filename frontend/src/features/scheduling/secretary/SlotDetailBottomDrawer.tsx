@@ -1,21 +1,24 @@
 import { X, Plus } from 'lucide-react'
 import SlotOccupantsList from './SlotOccupantsList'
-import { formatSlotLabel, isSlotFull, MAX_STUDENTS_PER_SLOT } from '../shared/utils'
-import type { Day, SlotAssignment } from '../shared/types'
+import { formatSlotLabel } from '../shared/utils'
+import type { CellAssignment, ScheduleGridData } from '../shared/schedulingMappers'
+import type { Day } from '../shared/types'
 
 interface SlotDetailBottomDrawerProps {
   day: Day
   hour: number
-  assignments: SlotAssignment[]
+  grid: ScheduleGridData
+  capacity: number
+  assignments: CellAssignment[]
   onClear: (studentId: string) => void
   onAssignAnother: () => void
   onClose: () => void
 }
 
 export default function SlotDetailBottomDrawer({
-  day, hour, assignments, onClear, onAssignAnother, onClose,
+  day, hour, grid, capacity, assignments, onClear, onAssignAnother, onClose,
 }: SlotDetailBottomDrawerProps) {
-  const full = isSlotFull(assignments)
+  const full = assignments.length >= capacity
 
   return (
     <div className="fixed inset-0 z-50">
@@ -35,7 +38,7 @@ export default function SlotDetailBottomDrawer({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <SlotOccupantsList day={day} hour={hour} assignments={assignments} onClear={onClear} />
+          <SlotOccupantsList day={day} hour={hour} grid={grid} assignments={assignments} onClear={onClear} />
         </div>
         <div className="p-4 border-t border-gray-200 shrink-0">
           <button
@@ -48,7 +51,7 @@ export default function SlotDetailBottomDrawer({
           </button>
           {full && (
             <p className="text-[11.5px] text-gray-500 text-center mt-2">
-              Slot full — max {MAX_STUDENTS_PER_SLOT} per hour (one per instructor)
+              Slot full — max {capacity} per hour (one per instructor)
             </p>
           )}
         </div>

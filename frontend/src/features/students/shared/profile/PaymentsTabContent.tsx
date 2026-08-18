@@ -1,17 +1,22 @@
-import { useMemo } from 'react'
 import type { Student } from '../types'
 import { formatGHS } from '../utils'
-import usePaymentsStore from '../../../payments/store'
 import { formatDateDisplay } from '../../../payments/utils'
+import { paymentMethodLabel } from '../../../payments/paymentMappers'
+import { getStudentPaymentHistory } from '../../../payments/paymentService'
+import { useApiResource } from '../../../../lib/useApiResource'
+import LoadingState from '../../../../components/ui/LoadingState'
+import ErrorState from '../../../../components/ui/ErrorState'
 
 export default function PaymentsTabContent({ student }: { student: Student }) {
-  const packageFee = student.packageFee ?? 0
-  const totalPaid = packageFee - student.balance
-  const records = usePaymentsStore((s) => s.records)
-  const sorted = useMemo(
-    () => records.filter((r) => r.studentId === student.id).sort((a, b) => b.date.localeCompare(a.date)),
-    [records, student.id],
-  )
+  const { data, loading, error, refetch } = useApiResource(() => getStudentPaymentHistory(student.id), [student.id])
+
+  if (loading) return <LoadingState message="Loading payment history…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
+
+  const packageFee = data?.summary.total_fees ?? student.packageFee ?? 0
+  const totalPaid = data?.summary.total_paid ?? 0
+  const balance = data?.summary.balance ?? student.balance
+  const payments = data?.payments ?? []
 
   return (
     <div className="flex flex-col gap-4">
@@ -26,13 +31,13 @@ export default function PaymentsTabContent({ student }: { student: Student }) {
         </div>
         <div>
           <p className="text-[11.5px] text-gray-500">Remaining</p>
-          <p className={`text-[14.5px] font-semibold ${student.balance > 0 ? 'text-danger' : 'text-success'}`}>
-            {formatGHS(student.balance)}
+          <p className={`text-[14.5px] font-semibold ${balance > 0 ? 'text-danger' : 'text-success'}`}>
+            {formatGHS(balance)}
           </p>
         </div>
       </div>
 
-      {sorted.length === 0 ? (
+      {payments.length === 0 ? (
         <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
           No payments recorded yet.
         </div>
@@ -50,13 +55,13 @@ export default function PaymentsTabContent({ student }: { student: Student }) {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((p) => (
+                {payments.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 last:border-0">
-                    <td className="px-4 py-3 text-[13px] font-medium text-gray-900 whitespace-nowrap">{p.id}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(p.date)}</td>
+                    <td className="px-4 py-3 text-[13px] font-medium text-gray-900 whitespace-nowrap">{p.receipt_no}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatDateDisplay(p.payment_date)}</td>
                     <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{formatGHS(p.amount)}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{p.method}</td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatGHS(p.balanceAfter)}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{paymentMethodLabel(p.method)}</td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{formatGHS(p.balance_after)}</td>
                   </tr>
                 ))}
               </tbody>

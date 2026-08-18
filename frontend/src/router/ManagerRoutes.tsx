@@ -13,7 +13,7 @@ import RecordsPage from '../pages/manager/RecordsPage'
 import FinancesPage from '../pages/manager/FinancesPage'
 import ReportsPage from '../pages/manager/ReportsPage'
 import DriverReportPage from '../pages/manager/reports/DriverReportPage'
-import ReportPlaceholderPage from '../features/reports/ReportPlaceholderPage'
+import LiveReportPage from '../features/reports/LiveReportPage'
 import StaffPage from '../pages/manager/StaffPage'
 import StaffProfilePage from '../pages/manager/StaffProfilePage'
 import AuditLogPage from '../pages/manager/AuditLogPage'
@@ -38,11 +38,11 @@ const managerRoutes: RouteObject = {
         { path: 'finances', element: <FinancesPage /> },
         { path: 'reports', element: <ReportsPage /> },
         { path: 'reports/driver', element: <DriverReportPage /> },
-        { path: 'reports/students', element: <ReportPlaceholderPage title="Student Reports" /> },
-        { path: 'reports/attendance', element: <ReportPlaceholderPage title="Attendance Reports" /> },
-        { path: 'reports/revenue', element: <ReportPlaceholderPage title="Revenue Reports" /> },
-        { path: 'reports/expenses', element: <ReportPlaceholderPage title="Expense Reports" /> },
-        { path: 'reports/schedule', element: <ReportPlaceholderPage title="Schedule Reports" /> },
+        { path: 'reports/students', element: <LiveReportPage kind="students" /> },
+        { path: 'reports/attendance', element: <LiveReportPage kind="attendance" /> },
+        { path: 'reports/revenue', element: <LiveReportPage kind="revenue" /> },
+        { path: 'reports/expenses', element: <LiveReportPage kind="expenses" /> },
+        { path: 'reports/schedule', element: <LiveReportPage kind="schedule" /> },
         { path: 'staff', element: <StaffPage /> },
         { path: 'staff/:id', element: <StaffProfilePage /> },
         { path: 'audit-log', element: <AuditLogPage /> },

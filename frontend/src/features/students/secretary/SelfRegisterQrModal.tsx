@@ -1,13 +1,26 @@
 import { X } from 'lucide-react'
-import QrCodeDisplay from '../../../components/ui/QrCodeDisplay'
+import { createRegistrationInvitation } from '../../registrations/registrationService'
 import { APP_URL, ROUTES } from '../../../lib/constants'
+import { useApiResource } from '../../../lib/useApiResource'
+import QrCodeDisplay from '../../../components/ui/QrCodeDisplay'
+import LoadingState from '../../../components/ui/LoadingState'
+import ErrorState from '../../../components/ui/ErrorState'
 
 interface SelfRegisterQrModalProps {
   onClose: () => void
 }
 
 export default function SelfRegisterQrModal({ onClose }: SelfRegisterQrModalProps) {
-  const link = `${APP_URL}${ROUTES.REGISTER}`
+  // Mint a registration token so the QR points at /register/<token>. A tokenless
+  // /register link is rejected by RegisterPage ("Registration link required") and
+  // the backend submit (assertRegistrationToken). No phone is bound here, so a
+  // single shared token serves every walk-in for the 24h window — they all land
+  // in the Pending tab for staff to review. Reprint the poster daily as it expires.
+  const { data: invitation, loading, error, refetch } = useApiResource(
+    () => createRegistrationInvitation(),
+    [],
+  )
+  const link = invitation ? `${APP_URL}${ROUTES.REGISTER}/${encodeURIComponent(invitation.token)}` : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -24,11 +37,14 @@ export default function SelfRegisterQrModal({ onClose }: SelfRegisterQrModalProp
         </div>
 
         <div className="mt-4">
-          <QrCodeDisplay value={link} caption={link} showControls />
+          {loading && <LoadingState message="Generating secure link…" className="py-10" />}
+          {error && <ErrorState error={error} onRetry={refetch} className="py-8" />}
+          {invitation && <QrCodeDisplay value={link} caption={link} showControls />}
         </div>
 
         <p className="text-[12px] text-gray-500 text-center mt-3 print:hidden">
           Walk-ins scan this to fill in their own details. Submissions appear in the Pending tab for you to review.
+          This link expires in 24 hours — reprint to refresh it.
         </p>
 
         <button

@@ -1,4 +1,6 @@
 import { slotKey } from './utils'
+import type { Day } from './types'
+import type { SlotRef } from './utils'
 import type { ApiScheduleSlot, ApiSlotAssignment, ListSlotsResult } from './schedulingService'
 
 // The shape the grid components render from: one cell per Mon–Sat slot, keyed
@@ -55,4 +57,18 @@ function toScheduleCell(slot: ApiScheduleSlot): ScheduleCell {
 // cells (an hour with no seeded slot) are treated as not-full/empty.
 export function isCellFull(cell: ScheduleCell | undefined): boolean {
   return cell ? cell.assignments.length >= cell.capacity : false
+}
+
+// Every slot a student currently holds this week. The mock board had the same
+// helper in utils (over the store's grid shape); this is the live-grid version,
+// used by the assign confirmation to warn "already scheduled at …".
+export function findStudentCellSlots(grid: ScheduleGridData, studentId: string): SlotRef[] {
+  const slots: SlotRef[] = []
+  for (const [key, cell] of Object.entries(grid)) {
+    if (cell.assignments.some((a) => a.studentId === studentId)) {
+      const [day, hourStr] = key.split('-')
+      slots.push({ day: day as Day, hour: Number(hourStr) })
+    }
+  }
+  return slots
 }

@@ -1,8 +1,12 @@
 import { useEffect } from 'react'
+import { Controller } from 'react-hook-form'
 import FormField from './FormField'
+import Dropdown from './Dropdown'
+import ControlledFormField from '../../shared/ControlledFormField'
+import { formatPhoneInput, RELATIONSHIP_OPTIONS } from '../../shared/registrationFormats'
 import type { FormSectionProps } from './formTypes'
 
-export default function EmergencyContactSection({ register, errors, watch, setValue }: FormSectionProps) {
+export default function EmergencyContactSection({ register, control, errors, watch, setValue }: FormSectionProps) {
   const sameAsNok = watch('sameAsNok')
   const nokName = watch('nokName')
   const nokPhone = watch('nokPhone')
@@ -27,8 +31,8 @@ export default function EmergencyContactSection({ register, errors, watch, setVa
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField label="Contact Name" required disabled={sameAsNok} error={errors.ecName?.message} registration={register('ecName')} />
-        <FormField label="Phone" required disabled={sameAsNok} error={errors.ecPhone?.message} registration={register('ecPhone')} />
-        <FormField label="Relationship" required disabled={sameAsNok} error={errors.ecRelationship?.message} registration={register('ecRelationship')} />
+        <ControlledFormField control={control} name="ecPhone" label="Phone" required disabled={sameAsNok} error={errors.ecPhone?.message} inputMode="tel" placeholder="024 123 4567" formatter={formatPhoneInput} />
+        <div><label className="block text-[13px] font-medium text-gray-800 mb-1.5">Relationship <span className="text-danger">*</span></label><Controller name="ecRelationship" control={control} render={({ field }) => <Dropdown value={field.value} onChange={field.onChange} disabled={sameAsNok} placeholder="Select relationship" options={RELATIONSHIP_OPTIONS} />} />{errors.ecRelationship && <p className="text-[12px] text-danger mt-1">{errors.ecRelationship.message}</p>}</div>
       </div>
     </div>
   )

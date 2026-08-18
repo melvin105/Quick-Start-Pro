@@ -1,6 +1,6 @@
 export type AuditRole   = 'Manager' | 'Secretary' | 'Instructor'
 export type AuditModule = 'Students' | 'Payments' | 'Attendance' | 'Finances' | 'Scheduling' | 'Staff' | 'Auth'
-export type ActionType  = 'create' | 'edit' | 'approve' | 'flag' | 'login'
+export type ActionType  = 'create' | 'edit' | 'delete' | 'approve' | 'flag' | 'login'
 
 export interface AuditFieldChange {
   field: string

@@ -1,19 +1,22 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
-import useAttendanceStore from '../shared/store'
-import useStudentsStore from '../../students/shared/store'
-import Dropdown from '../shared/Dropdown'
-import { INSTRUCTORS } from '../shared/mockData'
-import type { AttendanceStatus } from '../shared/types'
+import { Search, AlertCircle } from 'lucide-react'
+import { useApiResource } from '../../../lib/useApiResource'
+import { listStudents } from '../../students/shared/studentService'
+import { markAttendance, type ApiAttendanceStatus } from '../shared/attendanceService'
+import type { ApiError } from '../../../lib/apiError'
 
 interface ManualMarkModalProps {
   title?: string
   onClose: () => void
+  // Called after a successful mark so the page can refetch the roster.
+  onMarked: () => void
 }
 
-const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
-  { value: 'present', label: 'Present' },
-  { value: 'absent',  label: 'Absent' },
+const STATUS_OPTIONS: { value: ApiAttendanceStatus; label: string; activeClass: string }[] = [
+  { value: 'present', label: 'Present', activeClass: 'border-success bg-success-bg text-success' },
+  { value: 'absent',  label: 'Absent',  activeClass: 'border-danger bg-danger-bg text-danger' },
+  { value: 'late',    label: 'Late',    activeClass: 'border-warning bg-warning-bg text-warning' },
+  { value: 'excused', label: 'Excused', activeClass: 'border-gray-400 bg-gray-100 text-gray-700' },
 ]
 
 function nowTimeInputValue() {
@@ -21,61 +24,66 @@ function nowTimeInputValue() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: ManualMarkModalProps) {
-  const students = useStudentsStore((s) => s.students)
-  const findTodayRecord = useAttendanceStore((s) => s.findTodayRecordByStudentId)
-  const mark = useAttendanceStore((s) => s.mark)
-  const addWalkIn = useAttendanceStore((s) => s.addWalkIn)
+// Arrival time only accompanies a present/late mark; absent/excused leave the
+// backend to null check_in_time.
+function timeToIso(timeHHmm: string): string {
+  const [h, m] = timeHHmm.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h || 0, m || 0, 0, 0)
+  return d.toISOString()
+}
+
+interface PickedStudent {
+  id:   string
+  name: string
+}
+
+export default function ManualMarkModal({ title = 'Mark Attendance', onClose, onMarked }: ManualMarkModalProps) {
+  // Active students, fetched once when the modal opens (the picker matches
+  // client-side). Licence-only enrolments never take driving lessons, so they're
+  // dropped — the same rule the scheduling assign picker uses.
+  const { data, loading: studentsLoading } = useApiResource(() => listStudents({ status: 'active', limit: 100 }))
 
   const [query, setQuery] = useState('')
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
-  const [status, setStatus] = useState<AttendanceStatus>('present')
+  const [selected, setSelected] = useState<PickedStudent | null>(null)
+  const [status, setStatus] = useState<ApiAttendanceStatus>('present')
   const [arrivalTime, setArrivalTime] = useState(nowTimeInputValue())
-  const [driver, setDriver] = useState('')
-  const [lessonsLeft, setLessonsLeft] = useState(10)
   const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (q === '') return []
-    return students
-      .filter((s) => s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+    if (q === '' || !data) return []
+    return data.students
+      .filter((s) => s.enrolment_type !== 'licence_only')
+      .filter((s) =>
+        `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) ||
+        s.student_number.toLowerCase().includes(q),
+      )
       .slice(0, 6)
-  }, [students, query])
+  }, [data, query])
 
-  const selectedStudent = selectedStudentId ? students.find((s) => s.id === selectedStudentId) : undefined
-  const suggestedLessons =
-    selectedStudent?.lessonsPackageTotal != null && selectedStudent.lessonsTaken != null
-      ? Math.max(selectedStudent.lessonsPackageTotal - selectedStudent.lessonsTaken, 0)
-      : undefined
+  const recordsCheckIn = status === 'present' || status === 'late'
 
-  const handleSelectStudent = (id: string) => {
-    setSelectedStudentId(id)
-    setQuery('')
-    const student = students.find((s) => s.id === id)
-    if (student?.lessonsPackageTotal != null && student.lessonsTaken != null) {
-      setLessonsLeft(Math.max(student.lessonsPackageTotal - student.lessonsTaken, 0))
-    }
-  }
-
-  const handleSave = () => {
-    if (!selectedStudent) return
-    const existing = findTodayRecord(selectedStudent.id)
-    const driverName = status !== 'absent' ? (driver || undefined) : undefined
-    if (existing) {
-      mark(existing.id, status, { driverName, lessonsLeft, checkInTime: arrivalTime, notes: notes || undefined })
-    } else {
-      addWalkIn({
-        studentId: selectedStudent.id,
-        studentName: selectedStudent.name,
+  const handleSave = async () => {
+    if (!selected || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await markAttendance({
+        studentId:   selected.id,
         status,
-        driverName,
-        checkInTime: arrivalTime,
-        lessonsLeft,
-        notes: notes || undefined,
+        method:      'manual',
+        checkInTime: recordsCheckIn ? timeToIso(arrivalTime) : undefined,
+        notes:       notes.trim() || undefined,
       })
+      onMarked()
+      onClose()
+    } catch (err) {
+      setError((err as ApiError)?.message ?? 'Could not save. Please try again.')
+      setSaving(false)
     }
-    onClose()
   }
 
   return (
@@ -89,10 +97,10 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
             <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
               Student <span className="text-danger">*</span>
             </label>
-            {selectedStudent ? (
+            {selected ? (
               <div className="flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg bg-gray-50">
-                <span className="text-[13.5px] font-medium text-gray-900">{selectedStudent.name}</span>
-                <button type="button" onClick={() => setSelectedStudentId(null)} className="text-[12px] text-brand-600 hover:text-brand-700">
+                <span className="text-[13.5px] font-medium text-gray-900">{selected.name}</span>
+                <button type="button" onClick={() => setSelected(null)} className="text-[12px] text-brand-600 hover:text-brand-700">
                   Change
                 </button>
               </div>
@@ -103,8 +111,9 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search student name..."
-                  className="w-full pl-8 pr-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+                  placeholder={studentsLoading ? 'Loading students…' : 'Search student name or number…'}
+                  disabled={studentsLoading}
+                  className="w-full pl-8 pr-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 disabled:bg-gray-50"
                 />
                 {results.length > 0 && (
                   <div className="mt-1 border border-gray-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
@@ -112,11 +121,14 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => handleSelectStudent(s.id)}
+                        onClick={() => {
+                          setSelected({ id: s.id, name: `${s.first_name} ${s.last_name}` })
+                          setQuery('')
+                        }}
                         className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors"
                       >
-                        <p className="font-medium text-gray-900">{s.name}</p>
-                        <p className="text-[11px] text-gray-500">{s.id}</p>
+                        <p className="font-medium text-gray-900">{s.first_name} {s.last_name}</p>
+                        <p className="text-[11px] text-gray-500">{s.student_number}</p>
                       </button>
                     ))}
                   </div>
@@ -129,18 +141,14 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
             <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
               Status <span className="text-danger">*</span>
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {STATUS_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setStatus(opt.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-[12.5px] font-medium border-2 transition-colors ${
-                    status === opt.value
-                      ? opt.value === 'present'
-                        ? 'border-success bg-success-bg text-success'
-                        : 'border-danger bg-danger-bg text-danger'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  className={`px-3 py-2 rounded-lg text-[12.5px] font-medium border-2 transition-colors ${
+                    status === opt.value ? opt.activeClass : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
                   {opt.label}
@@ -149,7 +157,7 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {recordsCheckIn && (
             <div>
               <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Arrival Time</label>
               <input
@@ -157,32 +165,6 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
                 value={arrivalTime}
                 onChange={(e) => setArrivalTime(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-              />
-            </div>
-            <div>
-              <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Lessons Left</label>
-              <input
-                type="number"
-                min={0}
-                value={lessonsLeft}
-                onChange={(e) => setLessonsLeft(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-              />
-              {suggestedLessons !== undefined && (
-                <p className="text-[11px] text-gray-400 mt-1">System calculated: {suggestedLessons}</p>
-              )}
-            </div>
-          </div>
-
-          {status !== 'absent' && (
-            <div>
-              <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Driver</label>
-              <Dropdown
-                label="Select instructor (optional)"
-                value={driver}
-                onChange={setDriver}
-                options={INSTRUCTORS.filter((i) => i.active).map((i) => ({ value: i.name, label: i.name }))}
-                fullWidth
               />
             </div>
           )}
@@ -197,6 +179,13 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
             />
           </div>
+
+          {error && (
+            <div className="flex items-start gap-2 text-[12.5px] text-danger bg-danger-bg rounded-lg px-3 py-2">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-5">
@@ -209,11 +198,11 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose }: 
           </button>
           <button
             type="button"
-            disabled={!selectedStudent}
+            disabled={!selected || saving}
             onClick={handleSave}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
-            Save
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

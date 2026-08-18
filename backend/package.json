@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "start": "node dist/index.js",
-    "test": "tsx --test src/tests/auth.contract.test.ts"
+    "test": "tsx --test src/tests/auth.contract.test.ts src/tests/publicToken.test.ts",
+    "smoke": "tsx src/tests/smoke.runtime.ts",
+    "set-manager-password": "tsx src/tools/setManagerPassword.ts"
   },
   "keywords": [],
   "author": "",

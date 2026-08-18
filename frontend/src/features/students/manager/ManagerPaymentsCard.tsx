@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import type { Student } from '../shared/types'
 import { formatGHS } from '../shared/utils'
-import usePaymentsStore from '../../payments/store'
 import { formatDateDisplay } from '../../payments/utils'
+import { getStudentPaymentHistory } from '../../payments/paymentService'
+import { useApiResource } from '../../../lib/useApiResource'
 
 interface ManagerPaymentsCardProps {
   student: Student
@@ -11,13 +11,11 @@ interface ManagerPaymentsCardProps {
 }
 
 export default function ManagerPaymentsCard({ student, onViewReceipts }: ManagerPaymentsCardProps) {
-  const records = usePaymentsStore((s) => s.records)
-  const packageFee = student.packageFee ?? 0
-  const totalPaid = packageFee - student.balance
-  const lastPayment = useMemo(
-    () => records.filter((r) => r.studentId === student.id).sort((a, b) => b.date.localeCompare(a.date))[0],
-    [records, student.id],
-  )
+  const { data, loading, error } = useApiResource(() => getStudentPaymentHistory(student.id), [student.id])
+  const packageFee = data?.summary.total_fees ?? student.packageFee ?? 0
+  const totalPaid = data?.summary.total_paid ?? 0
+  const balance = data?.summary.balance ?? student.balance
+  const lastPayment = data?.payments[0]
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-3">
@@ -34,16 +32,19 @@ export default function ManagerPaymentsCard({ student, onViewReceipts }: Manager
         </div>
       </div>
 
-      {student.balance > 0 && (
+      {loading && <p className="text-[11.5px] text-gray-400">Refreshing payment summary…</p>}
+      {error && <p className="text-[11.5px] text-danger">{error.message}</p>}
+
+      {balance > 0 && (
         <div className="flex items-center gap-1.5 text-danger">
           <AlertTriangle size={14} />
-          <p className="text-[13px] font-medium">Balance {formatGHS(student.balance)}</p>
+          <p className="text-[13px] font-medium">Balance {formatGHS(balance)}</p>
         </div>
       )}
 
       {lastPayment && (
         <p className="text-[11.5px] text-gray-400">
-          Last payment: {formatDateDisplay(lastPayment.date)} ({formatGHS(lastPayment.amount)})
+          Last payment: {formatDateDisplay(lastPayment.payment_date)} ({formatGHS(lastPayment.amount)})
         </p>
       )}
 

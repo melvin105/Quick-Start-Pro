@@ -5,11 +5,12 @@ import PeriodBarChart from '../../features/finances/PeriodBarChart'
 import DayByDayTable from '../../features/finances/DayByDayTable'
 import IncomeTab from '../../features/finances/IncomeTab'
 import ExpensesTab from '../../features/finances/ExpensesTab'
-import useRecordsStore from '../../features/records/shared/store'
-import usePaymentsStore from '../../features/payments/store'
-import { computeDayTotals } from '../../features/records/shared/utils'
-import { OUTSTANDING } from '../../features/finances/mockData'
 import { computePeriodRange, eachDateInRange, formatPeriodLabel, type PeriodKey, type PeriodRange } from '../../features/finances/period'
+import { getFinances } from '../../features/finances/financeService'
+import { expenseCategoryLabel } from '../../features/records/shared/recordsMappers'
+import { useApiResource } from '../../lib/useApiResource'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 
 type TabKey = 'day-by-day' | 'income' | 'expenses'
 
@@ -39,22 +40,23 @@ export default function FinancesPage() {
   const [period, setPeriod] = useState<PeriodKey>('this-month')
   const [customRange, setCustomRange] = useState<PeriodRange>(() => computePeriodRange('this-month'))
 
-  const expenses = useRecordsStore((s) => s.expenses)
-  const paymentRecords = usePaymentsStore((s) => s.records)
-
   const range = period === 'custom' ? customRange : computePeriodRange(period)
+  const { data, loading, error, refetch } = useApiResource(
+    () => getFinances(range.from, range.to),
+    [range.from, range.to],
+  )
 
   const dailyTotals = useMemo(
     () => eachDateInRange(range).map((date) => {
-      const { totalIncome, totalExpense } = computeDayTotals(date, expenses, paymentRecords)
-      return { date, income: totalIncome, expense: totalExpense }
+      const day = data?.days.find((item) => item.date.slice(0, 10) === date)
+      return { date, income: day?.income ?? 0, expense: day?.expenses ?? 0 }
     }),
-    [range, expenses, paymentRecords],
+    [range, data],
   )
 
-  const periodIncome = dailyTotals.reduce((sum, d) => sum + d.income, 0)
-  const periodExpense = dailyTotals.reduce((sum, d) => sum + d.expense, 0)
-  const netValue = periodIncome - periodExpense
+  const periodIncome = data?.income ?? 0
+  const periodExpense = data?.expenses ?? 0
+  const netValue = data?.net ?? 0
 
   const handleApplyCustomRange = (r: PeriodRange) => {
     setCustomRange(r)
@@ -63,13 +65,13 @@ export default function FinancesPage() {
 
   const handleExport = () => {
     if (tab === 'income') {
-      const rows = paymentRecords.filter((r) => r.date >= range.from && r.date <= range.to)
+      const rows = data?.incomeEntries ?? []
       downloadCsv('finances-income.csv', ['Date', 'Student', 'Description', 'Amount'],
-        rows.map((r) => [r.date, r.studentName, r.programme ?? `${r.method} payment`, String(r.amount)]))
+        rows.map((r) => [r.date, r.student_name, r.package_name ?? `${r.method.replace('_', ' ')} payment`, String(r.amount)]))
     } else if (tab === 'expenses') {
-      const rows = expenses.filter((e) => e.date >= range.from && e.date <= range.to)
+      const rows = data?.expenseEntries ?? []
       downloadCsv('finances-expenses.csv', ['Date', 'Description', 'Category', 'Amount'],
-        rows.map((e) => [e.date, e.description, e.category, String(e.amount)]))
+        rows.map((e) => [e.date, e.description ?? expenseCategoryLabel(e.category), expenseCategoryLabel(e.category), String(e.amount)]))
     } else {
       downloadCsv('finances-day-by-day.csv', ['Date', 'Income', 'Expenses', 'Net'],
         dailyTotals.map((d) => [d.date, String(d.income), String(d.expense), String(d.income - d.expense)]))
@@ -93,11 +95,15 @@ export default function FinancesPage() {
         />
       </div>
 
+      {loading && <LoadingState message="Loading finances…" />}
+      {error && <ErrorState error={error} onRetry={refetch} />}
+
+      {!loading && !error && data && <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Income" value={`GHS ${periodIncome.toLocaleString()}`} />
         <StatCard label="Expenses" value={`GHS ${periodExpense.toLocaleString()}`} />
         <StatCard label="Net" value={`GHS ${netValue.toLocaleString()}`} tone="positive" />
-        <StatCard label="Outstanding" value={`GHS ${OUTSTANDING.amount.toLocaleString()}`} tone="warning" />
+        <StatCard label="Outstanding" value={`GHS ${data.outstandingBalance.toLocaleString()}`} tone="warning" />
       </div>
 
       <PeriodBarChart daily={dailyTotals} range={range} />
@@ -117,9 +123,10 @@ export default function FinancesPage() {
         ))}
       </div>
 
-      {tab === 'day-by-day' && <DayByDayTable range={range} />}
-      {tab === 'income' && <IncomeTab range={range} />}
-      {tab === 'expenses' && <ExpensesTab range={range} />}
+      {tab === 'day-by-day' && <DayByDayTable range={range} days={data.days} closures={data.closures} />}
+      {tab === 'income' && <IncomeTab rows={data.incomeEntries} />}
+      {tab === 'expenses' && <ExpensesTab rows={data.expenseEntries} />}
+      </>}
     </div>
   )
 }

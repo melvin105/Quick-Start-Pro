@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
-import { AUDIT_LOG } from '../../features/audit/mockData'
+import { listAuditLogs } from '../../features/audit/auditService'
 import { ACTION_TYPE_LABELS } from '../../features/audit/utils'
 import AuditLogTable from '../../features/audit/AuditLogTable'
 import AuditLogCardList from '../../features/audit/AuditLogCardList'
 import AuditDetailDrawer from '../../features/audit/AuditDetailDrawer'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import type { AuditEntry } from '../../features/audit/types'
+import { useApiResource } from '../../lib/useApiResource'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 
 const RANGE_OPTIONS = [
   { value: '7',   label: 'Last 7 days' },
@@ -13,27 +16,37 @@ const RANGE_OPTIONS = [
   { value: 'all', label: 'All time' },
 ]
 
+const EMPTY_ENTRIES: AuditEntry[] = []
+
 export default function AuditLogPage() {
   const [userFilter, setUserFilter] = useState('')
   const [actionFilter, setActionFilter] = useState('')
   const [moduleFilter, setModuleFilter] = useState('')
   const [range, setRange] = useState('7')
   const [selected, setSelected] = useState<AuditEntry | null>(null)
+  const dateFrom = useMemo(() => {
+    if (range === 'all') return undefined
+    const date = new Date()
+    date.setDate(date.getDate() - Number(range))
+    return date.toISOString()
+  }, [range])
+  const { data, loading, error, refetch } = useApiResource(() => listAuditLogs(dateFrom), [dateFrom])
+  const entries = data ?? EMPTY_ENTRIES
 
   const userOptions = useMemo(() => {
-    const users = Array.from(new Set(AUDIT_LOG.map((e) => e.user))).sort()
+    const users = Array.from(new Set(entries.map((e) => e.user))).sort()
     return [{ value: '', label: 'All Users' }, ...users.map((u) => ({ value: u, label: u }))]
-  }, [])
+  }, [entries])
 
   const actionOptions = useMemo(() => {
-    const types = Array.from(new Set(AUDIT_LOG.map((e) => e.actionType)))
+    const types = Array.from(new Set(entries.map((e) => e.actionType)))
     return [{ value: '', label: 'All Actions' }, ...types.map((t) => ({ value: t, label: ACTION_TYPE_LABELS[t] ?? t }))]
-  }, [])
+  }, [entries])
 
   const moduleOptions = useMemo(() => {
-    const modules = Array.from(new Set(AUDIT_LOG.map((e) => e.module))).sort()
+    const modules = Array.from(new Set(entries.map((e) => e.module))).sort()
     return [{ value: '', label: 'All Modules' }, ...modules.map((m) => ({ value: m, label: m }))]
-  }, [])
+  }, [entries])
 
   const hasActiveFilters = userFilter !== '' || actionFilter !== '' || moduleFilter !== '' || range !== '7'
 
@@ -45,22 +58,15 @@ export default function AuditLogPage() {
   }
 
   const filtered = useMemo(() => {
-    const cutoff = range === 'all' ? null : (() => {
-      const d = new Date()
-      d.setDate(d.getDate() - Number(range))
-      return d
-    })()
-
-    return AUDIT_LOG
+    return entries
       .filter((e) => {
-        if (cutoff && new Date(e.timestamp) < cutoff) return false
         if (userFilter && e.user !== userFilter) return false
         if (actionFilter && e.actionType !== actionFilter) return false
         if (moduleFilter && e.module !== moduleFilter) return false
         return true
       })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-  }, [userFilter, actionFilter, moduleFilter, range])
+  }, [entries, userFilter, actionFilter, moduleFilter])
 
   return (
     <div className="flex flex-col gap-5">
@@ -85,8 +91,10 @@ export default function AuditLogPage() {
         )}
       </div>
 
-      <AuditLogTable entries={filtered} onSelect={setSelected} />
-      <AuditLogCardList entries={filtered} onSelect={setSelected} />
+      {loading && <LoadingState message="Loading audit log…" />}
+      {error && <ErrorState error={error} onRetry={refetch} />}
+      {!loading && !error && <AuditLogTable entries={filtered} onSelect={setSelected} />}
+      {!loading && !error && <AuditLogCardList entries={filtered} onSelect={setSelected} />}
 
       {selected && <AuditDetailDrawer entry={selected} onClose={() => setSelected(null)} />}
     </div>

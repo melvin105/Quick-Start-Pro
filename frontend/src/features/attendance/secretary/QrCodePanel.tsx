@@ -2,13 +2,18 @@ import { X } from 'lucide-react'
 import QrCodeDisplay from '../../../components/ui/QrCodeDisplay'
 import { APP_URL, ROUTES } from '../../../lib/constants'
 import { formatTodayLong } from '../shared/utils'
+import { createDailyCheckinToken } from '../checkin/checkinService'
+import { useApiResource } from '../../../lib/useApiResource'
+import LoadingState from '../../../components/ui/LoadingState'
+import ErrorState from '../../../components/ui/ErrorState'
 
 interface QrCodePanelProps {
   onClose: () => void
 }
 
 export default function QrCodePanel({ onClose }: QrCodePanelProps) {
-  const link = `${APP_URL}${ROUTES.CHECK_IN}`
+  const { data, loading, error, refetch } = useApiResource(createDailyCheckinToken)
+  const link = data ? `${APP_URL}${ROUTES.CHECK_IN}?token=${encodeURIComponent(data.token)}` : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -25,11 +30,13 @@ export default function QrCodePanel({ onClose }: QrCodePanelProps) {
         </div>
 
         <div className="mt-4">
-          <QrCodeDisplay value={link} caption={link} showControls />
+          {loading && <LoadingState message="Generating today's code…" className="py-10" />}
+          {error && <ErrorState error={error} onRetry={refetch} className="py-8" />}
+          {data && <QrCodeDisplay value={link} caption={`${APP_URL}${ROUTES.CHECK_IN}`} showControls />}
         </div>
 
         <p className="text-[12px] text-gray-500 text-center mt-3 print:hidden">
-          Students scan this to mark themselves present. Print once — it works every day.
+          Students scan this to mark themselves present. This code expires at the end of today.
         </p>
 
         <button

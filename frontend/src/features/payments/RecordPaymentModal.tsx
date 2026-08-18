@@ -1,22 +1,20 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import useStudentsStore from '../students/shared/store'
-import usePaymentsStore from './store'
 import DatePicker from '../../components/ui/DatePicker'
 import { formatGHS, todayIso } from './utils'
-import type { PaymentMethod, PaymentRecord } from './types'
+import { paymentMethodValue } from './paymentMappers'
+import { recordPayment } from './paymentService'
+import type { ApiStudentListRow } from '../students/shared/studentService'
+import type { PaymentMethod } from './types'
 
 interface RecordPaymentModalProps {
   onClose: () => void
-  onRecorded: (record: PaymentRecord) => void
+  onRecorded: (record: { receiptId: string; receiptNo: string }) => void | Promise<void>
+  students: ApiStudentListRow[]
   initialStudentId?: string
 }
 
-export default function RecordPaymentModal({ onClose, onRecorded, initialStudentId }: RecordPaymentModalProps) {
-  const students = useStudentsStore((s) => s.students)
-  const recordPayment = usePaymentsStore((s) => s.recordPayment)
-  const nextReceiptNo = usePaymentsStore((s) => s.nextReceiptNo)
-
+export default function RecordPaymentModal({ onClose, onRecorded, students, initialStudentId }: RecordPaymentModalProps) {
   const [query, setQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId ?? null)
   const [amount, setAmount] = useState('')
@@ -24,20 +22,23 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
   const [date, setDate] = useState(todayIso())
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (q === '') return []
-    return students.filter((s) => s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)).slice(0, 6)
+    return students.filter((s) => {
+      const name = `${s.first_name} ${s.last_name}`.toLowerCase()
+      return name.includes(q) || s.student_number.toLowerCase().includes(q)
+    }).slice(0, 6)
   }, [students, query])
 
   const selectedStudent = selectedStudentId ? students.find((s) => s.id === selectedStudentId) : undefined
-  const packageFee = selectedStudent?.packageFee ?? 0
+  const packageFee = selectedStudent?.total_fees ?? 0
   const currentBalance = selectedStudent?.balance ?? 0
   const totalPaidSoFar = packageFee - currentBalance
   const amountNumber = Number(amount) || 0
   const remainingAfter = Math.max(currentBalance - amountNumber, 0)
-  const receiptPreview = nextReceiptNo()
 
   const handleSelectStudent = (id: string) => {
     setSelectedStudentId(id)
@@ -46,24 +47,27 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
     setError('')
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedStudent) return
     if (amountNumber <= 0) { setError('Enter an amount greater than zero'); return }
     if (amountNumber > currentBalance) { setError('Amount cannot exceed the outstanding balance'); return }
 
-    const record = recordPayment({
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.name,
-      programme: selectedStudent.programme,
-      amount: amountNumber,
-      method,
-      date,
-      notes: notes || undefined,
-      recordedBy: 'Mercy Osei',
-      packageFee,
-      currentBalance,
-    })
-    onRecorded(record)
+    setSubmitting(true)
+    setError('')
+    try {
+      const created = await recordPayment({
+        studentId: selectedStudent.id,
+        amount: amountNumber,
+        method: paymentMethodValue(method),
+        paymentDate: date,
+        notes: notes || undefined,
+      })
+      await onRecorded({ receiptId: created.receipt_id, receiptNo: created.receipt_no })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The payment could not be recorded. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -79,7 +83,9 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
             </label>
             {selectedStudent ? (
               <div className="flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg bg-gray-50">
-                <span className="text-[13.5px] font-medium text-gray-900">{selectedStudent.name}</span>
+                <span className="text-[13.5px] font-medium text-gray-900">
+                  {selectedStudent.first_name} {selectedStudent.last_name}
+                </span>
                 <button type="button" onClick={() => setSelectedStudentId(null)} className="text-[12px] text-brand-600 hover:text-brand-700">
                   Change
                 </button>
@@ -103,8 +109,8 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
                         onClick={() => handleSelectStudent(s.id)}
                         className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors"
                       >
-                        <p className="font-medium text-gray-900">{s.name}</p>
-                        <p className="text-[11px] text-gray-500">{s.id}</p>
+                        <p className="font-medium text-gray-900">{s.first_name} {s.last_name}</p>
+                        <p className="text-[11px] text-gray-500">{s.student_number}</p>
                       </button>
                     ))}
                   </div>
@@ -120,7 +126,7 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
                 <div className="flex flex-col gap-1 text-[13px]">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Package</span>
-                    <span className="text-gray-900">{selectedStudent.programme ?? '—'}</span>
+                    <span className="text-gray-900">{selectedStudent.package_name ?? '—'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Package Fee</span>
@@ -198,7 +204,7 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
                 </div>
                 <div className="flex justify-between text-[13px] mt-1">
                   <span className="text-gray-600">Receipt No.</span>
-                  <span className="font-semibold text-gray-900">{receiptPreview}</span>
+                  <span className="font-semibold text-gray-900">Generated after saving</span>
                 </div>
               </div>
             </>
@@ -215,11 +221,11 @@ export default function RecordPaymentModal({ onClose, onRecorded, initialStudent
           </button>
           <button
             type="button"
-            disabled={!selectedStudent}
-            onClick={handleSubmit}
+            disabled={!selectedStudent || submitting}
+            onClick={() => void handleSubmit()}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
-            Record Payment
+            {submitting ? 'Recording…' : 'Record Payment'}
           </button>
         </div>
       </div>

@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { QrCode, Plus, Search, Filter, IdCard } from 'lucide-react'
-import useStudentsStore from '../../features/students/shared/store'
 import StudentsTable from '../../features/students/secretary/StudentsTable'
 import StudentCardList from '../../features/students/shared/StudentCardList'
 import PendingSubmissions from '../../features/students/secretary/PendingSubmissions'
 import FilterDropdown from '../../features/students/shared/FilterDropdown'
 import SelfRegisterQrModal from '../../features/students/secretary/SelfRegisterQrModal'
+import CompleteRegistrationModal from '../../features/registrations/CompleteRegistrationModal'
+import RejectRegistrationModal from '../../features/registrations/RejectRegistrationModal'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
 import { listStudents, type ApiStudentStatus } from '../../features/students/shared/studentService'
 import { toStudentListItem, enrolmentEnum } from '../../features/students/shared/studentMappers'
+import { getPendingRegistrations } from '../../features/registrations/registrationService'
+import { toPendingItem, type PendingItem } from '../../features/registrations/registrationMappers'
 import { useApiResource } from '../../lib/useApiResource'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { ROUTES } from '../../lib/constants'
@@ -33,9 +36,6 @@ const STATUS_OPTIONS = [
 
 export default function StudentsPage() {
   const navigate = useNavigate()
-  // Pending self-registrations still come from the store until the approval
-  // flow is migrated (#124 slice 2); the Active roster is live below.
-  const pending = useStudentsStore((s) => s.pending)
 
   const [tab, setTab] = useState<TabKey>('active')
   const [search, setSearch] = useState('')
@@ -43,6 +43,8 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
+  const [approveTarget, setApproveTarget] = useState<PendingItem | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null)
 
   const debouncedSearch = useDebouncedValue(search, 300)
   // 'outstanding' is derived from balance, not a backend status, so it is
@@ -66,9 +68,19 @@ export default function StudentsPage() {
     ? allItems.filter((s) => s.status === 'outstanding')
     : allItems
 
+  // Pending self-registration queue (live). Its own resource so approving or
+  // rejecting one refetches just the queue, not the whole roster.
+  const {
+    data: registrations,
+    loading: pendingLoading,
+    error: pendingError,
+    refetch: refetchPending,
+  } = useApiResource(getPendingRegistrations)
+  const pendingItems = (registrations ?? []).map(toPendingItem)
+
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning' }[] = [
     { key: 'active',   label: 'Active',   count: data?.total },
-    { key: 'pending',  label: 'Pending',  count: pending.length, tone: 'warning' },
+    { key: 'pending',  label: 'Pending',  count: registrations?.length, tone: 'warning' },
     { key: 'archived', label: 'Archived' },
   ]
 
@@ -182,7 +194,19 @@ export default function StudentsPage() {
         </>
       )}
 
-      {tab === 'pending' && <PendingSubmissions items={pending} />}
+      {tab === 'pending' && (
+        pendingLoading ? (
+          <LoadingState message="Loading submissions…" />
+        ) : pendingError ? (
+          <ErrorState error={pendingError} onRetry={refetchPending} />
+        ) : (
+          <PendingSubmissions
+            items={pendingItems}
+            onReview={setApproveTarget}
+            onReject={setRejectTarget}
+          />
+        )
+      )}
 
       {tab === 'archived' && (
         <div className="py-16 text-center text-[13px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
@@ -191,6 +215,29 @@ export default function StudentsPage() {
       )}
 
       {showQrModal && <SelfRegisterQrModal onClose={() => setShowQrModal(false)} />}
+
+      {approveTarget && (
+        <CompleteRegistrationModal
+          registration={approveTarget}
+          onClose={() => setApproveTarget(null)}
+          onCompleted={() => {
+            setApproveTarget(null)
+            refetchPending()
+            refetch()
+          }}
+        />
+      )}
+
+      {rejectTarget && (
+        <RejectRegistrationModal
+          registration={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onRejected={() => {
+            setRejectTarget(null)
+            refetchPending()
+          }}
+        />
+      )}
     </div>
   )
 }

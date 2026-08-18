@@ -1,43 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import useAttendanceStore from '../../features/attendance/shared/store'
+import { useApiResource } from '../../lib/useApiResource'
+import { listAttendance } from '../../features/attendance/shared/attendanceService'
+import { toAttendanceRoster } from '../../features/attendance/shared/attendanceMappers'
 import ManagerAttendanceTable from '../../features/attendance/manager/ManagerAttendanceTable'
 import ManagerAttendanceCardList from '../../features/attendance/manager/ManagerAttendanceCardList'
 import AttendanceSummaryRow from '../../features/attendance/manager/AttendanceSummaryRow'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
 import { formatTodayLong } from '../../features/attendance/shared/utils'
 import { ROUTES } from '../../lib/constants'
 
-const POLL_INTERVAL_MS = 30000
-const PULSE_DURATION_MS = 1500
+const REFRESH_INTERVAL_MS = 30000
 
 export default function AttendancePage() {
-  const records = useAttendanceStore((s) => s.records)
-  const simulateSelfCheckIn = useAttendanceStore((s) => s.simulateSelfCheckIn)
-  const lastLiveUpdateAt = useAttendanceStore((s) => s.lastLiveUpdateAt)
+  const { data, loading, error, refetch } = useApiResource(listAttendance)
 
-  const [pulse, setPulse] = useState(false)
-  const [seenUpdateAt, setSeenUpdateAt] = useState(lastLiveUpdateAt)
-
-  // Stand-in for a real-time feed: poll for newly self-checked-in students.
-  // (The 60-minute no-show auto-absent sweep runs globally in AppShell.)
+  // Auto-refresh so the manager sees marks/check-ins the secretary makes without
+  // a manual reload — the backend recomputes the roster on each call.
   useEffect(() => {
-    const interval = setInterval(() => simulateSelfCheckIn(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { void refetch() }, REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [simulateSelfCheckIn])
+  }, [refetch])
 
-  // Pulse the "Live" dot when a new self-check-in arrives. The change is
-  // detected during render ("adjust state when a value changes"); the fade-out
-  // timer stays in the effect below, which restarts on each update.
-  if (lastLiveUpdateAt !== seenUpdateAt) {
-    setSeenUpdateAt(lastLiveUpdateAt)
-    if (lastLiveUpdateAt !== null) setPulse(true)
-  }
+  const records = useMemo(() => (data ? toAttendanceRoster(data) : []), [data])
 
-  useEffect(() => {
-    if (lastLiveUpdateAt === null) return
-    const t = setTimeout(() => setPulse(false), PULSE_DURATION_MS)
-    return () => clearTimeout(t)
-  }, [lastLiveUpdateAt])
+  if (loading) return <LoadingState message="Loading attendance…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   const scheduled = records.filter((r) => r.hasSlot)
 
@@ -52,9 +41,7 @@ export default function AttendancePage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 px-1 text-[12px] font-medium text-gray-600">
-            <span
-              className={`w-2 h-2 rounded-full bg-success animate-pulse transition-transform duration-300 ${pulse ? 'scale-150' : 'scale-100'}`}
-            />
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
             Live
           </div>
           <Link
