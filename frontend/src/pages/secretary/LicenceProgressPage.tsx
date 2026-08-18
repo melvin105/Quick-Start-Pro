@@ -1,11 +1,19 @@
 import { useState } from 'react'
-import { useParams, Link, Navigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { Check, Lock, ArrowLeft } from 'lucide-react'
-import useStudentsStore from '../../features/students/shared/store'
-import { DEFAULT_LICENCE_PROGRESS, buildLicenceSteps } from '../../features/students/shared/licence'
+import { useApiResource } from '../../lib/useApiResource'
+import {
+  getStudent,
+  updateLicence,
+  type ApiStudentProfile,
+  type UpdateLicenceInput,
+} from '../../features/students/shared/studentService'
+import { toLicenceProgress } from '../../features/students/shared/licenceMappers'
+import { buildLicenceSteps } from '../../features/students/shared/licence'
 import DatePicker from '../../components/ui/DatePicker'
-import type { LicenceProgress } from '../../features/students/shared/types'
-import { ROUTES } from '../../lib/constants'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
+import { ApiError } from '../../lib/apiError'
 import { studentProfilePath } from '../../features/students/shared/utils'
 
 function today() {
@@ -14,45 +22,70 @@ function today() {
 
 export default function LicenceProgressPage() {
   const { id } = useParams<{ id: string }>()
-  const student = useStudentsStore((s) => s.students.find((st) => st.id === id))
-  const updateStudent = useStudentsStore((s) => s.updateStudent)
+  const { data: profile, loading, error, refetch } = useApiResource(
+    () => getStudent(id as string),
+    [id],
+  )
 
+  if (loading) return <LoadingState message="Loading licence progress…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
+  if (!profile) return null
+
+  // Keyed by id so switching students remounts with fresh, prop-seeded progress
+  // state — no effect syncing after load.
+  return <LicenceEditor key={profile.id} id={id as string} profile={profile} />
+}
+
+function LicenceEditor({ id, profile }: { id: string; profile: ApiStudentProfile }) {
+  const [progress, setProgress] = useState(() => toLicenceProgress(profile))
   const [eyeTestDate, setEyeTestDate] = useState(today())
   const [learnerDate, setLearnerDate] = useState(today())
   const [examDate, setExamDate] = useState('')
-  const [examVenue, setExamVenue] = useState('')
   const [examDateError, setExamDateError] = useState('')
-  const [fullLicenceNo, setFullLicenceNo] = useState('')
   const [fullLicenceDate, setFullLicenceDate] = useState(today())
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  if (!student) {
-    return <Navigate to={ROUTES.STUDENTS} replace />
-  }
-
-  const progress = student.licenceProgress ?? DEFAULT_LICENCE_PROGRESS
   const steps = buildLicenceSteps(progress)
 
-  const save = (patch: Partial<LicenceProgress>) => {
-    updateStudent(student.id, { licenceProgress: { ...progress, ...patch } })
+  // Persist a step, then re-derive progress from the returned licence row so the
+  // pipeline reflects server state (unlocking the next step).
+  const save = async (patch: UpdateLicenceInput) => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const row = await updateLicence(id, patch)
+      setProgress(toLicenceProgress(row))
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Could not save. Try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
     <div className="flex flex-col gap-5 max-w-2xl">
       <div className="flex flex-col gap-1">
-        <p className="text-[12px] text-gray-500">Dashboard / Students / {student.name} / Licence</p>
+        <p className="text-[12px] text-gray-500">Dashboard / Students / {profile.student_name} / Licence</p>
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Licence Progress</h1>
-            <p className="text-[12.5px] text-gray-500 mt-0.5">{student.name} — {student.id}</p>
+            <p className="text-[12.5px] text-gray-500 mt-0.5">{profile.student_name} — {profile.student_number}</p>
           </div>
           <Link
-            to={studentProfilePath(student.id)}
+            to={studentProfilePath(id)}
             className="text-[13px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0"
           >
             <ArrowLeft size={14} /> Back to profile
           </Link>
         </div>
       </div>
+
+      {saveError && (
+        <div className="bg-danger-bg border border-danger/20 rounded-2xl p-4">
+          <p className="text-[13.5px] text-danger">{saveError}</p>
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100">
         {steps.map((step, i) => {
@@ -108,10 +141,11 @@ export default function LicenceProgressPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => save({ eyeTest: { done: true, dateDone: eyeTestDate } })}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
+                    disabled={saving}
+                    onClick={() => save({ eyeTestDone: true, eyeTestDate })}
+                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[13px] font-medium rounded-lg transition-colors"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               )}
@@ -124,79 +158,57 @@ export default function LicenceProgressPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => save({ learnerLicence: { issued: true, dateIssued: learnerDate } })}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
+                    disabled={saving}
+                    onClick={() => save({ learnerLicenceIssued: true, learnerLicenceDate: learnerDate })}
+                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[13px] font-medium rounded-lg transition-colors"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               )}
 
               {step.status === 'active' && step.key === 'examDate' && (
                 <div className="pl-8 flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
-                        Exam date * (today or future)
-                      </label>
-                      <DatePicker
-                        value={examDate}
-                        onChange={(v) => { setExamDate(v); setExamDateError('') }}
-                        minDate={today()}
-                        className="w-full"
-                      />
-                      {examDateError && <p className="text-[12px] text-danger mt-1">{examDateError}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Venue</label>
-                      <input
-                        type="text"
-                        value={examVenue}
-                        onChange={(e) => setExamVenue(e.target.value)}
-                        placeholder="e.g. DVLA Kumasi"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                      />
-                    </div>
+                  <div className="max-w-xs">
+                    <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
+                      Exam date * (today or future)
+                    </label>
+                    <DatePicker
+                      value={examDate}
+                      onChange={(v) => { setExamDate(v); setExamDateError('') }}
+                      minDate={today()}
+                      className="w-full"
+                    />
+                    {examDateError && <p className="text-[12px] text-danger mt-1">{examDateError}</p>}
                   </div>
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => {
                       if (!examDate) { setExamDateError('Exam date is required'); return }
                       if (examDate < today()) { setExamDateError('Exam date must be today or in the future'); return }
-                      save({ examDate: { date: examDate, venue: examVenue || undefined } })
+                      save({ examDate })
                     }}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"
+                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[13px] font-medium rounded-lg transition-colors"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               )}
 
               {step.status === 'active' && step.key === 'fullLicence' && (
                 <div className="pl-8 flex flex-col gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date issued</label>
-                      <DatePicker value={fullLicenceDate} onChange={setFullLicenceDate} maxDate={today()} className="w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Licence No.</label>
-                      <input
-                        type="text"
-                        value={fullLicenceNo}
-                        onChange={(e) => setFullLicenceNo(e.target.value)}
-                        placeholder="e.g. GHA-FULL-00234"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
-                      />
-                    </div>
+                  <div className="max-w-xs">
+                    <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Date issued</label>
+                    <DatePicker value={fullLicenceDate} onChange={setFullLicenceDate} maxDate={today()} className="w-full" />
                   </div>
                   <button
                     type="button"
-                    disabled={!fullLicenceNo.trim()}
-                    onClick={() => save({ fullLicence: { issued: true, dateIssued: fullLicenceDate, licenceNo: fullLicenceNo } })}
-                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-lg transition-colors"
+                    disabled={saving}
+                    onClick={() => save({ licenceIssued: true, licenceIssuedDate: fullLicenceDate })}
+                    className="self-start px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[13px] font-medium rounded-lg transition-colors"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               )}
@@ -204,6 +216,10 @@ export default function LicenceProgressPage() {
           )
         })}
       </div>
+
+      <p className="text-[12px] text-gray-500">
+        Exam venue and the issued licence number aren't stored yet — only dates and stage completion are saved.
+      </p>
     </div>
   )
 }
