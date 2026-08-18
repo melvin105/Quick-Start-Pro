@@ -81,6 +81,17 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR' });
 });
 
+// Last-resort safety net: a stray async error or rejected promise anywhere in
+// the app should be logged, not left to crash the process (which is what takes
+// the whole API offline). Errors inside a request are already handled by the
+// error middleware above — this only catches what escapes it.
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection', reason);
+});
+
 if (require.main === module) {
   app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
