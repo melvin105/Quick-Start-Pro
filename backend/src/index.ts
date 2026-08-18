@@ -23,6 +23,7 @@ import schedulingRoutes from './routes/scheduling';
 import uploadRoutes from './routes/uploads';
 import registrationRoutes from './routes/registrations';
 import recordsRoutes from './routes/records';
+import notificationRoutes from './routes/notifications';
 import { ApiError } from './utils/ApiError';
 
 export const app = express();
@@ -66,6 +67,7 @@ app.use('/api/v1/scheduling', schedulingRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/registrations', registrationRoutes);
 app.use('/api/v1/records', recordsRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
