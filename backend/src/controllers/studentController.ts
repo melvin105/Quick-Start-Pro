@@ -41,9 +41,7 @@ export const getById = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const update = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.body || typeof req.body !== 'object') {
-    throw new ApiError(400, 'INVALID_INPUT', 'Request body is required.');
-  }
+  // Body shape is guaranteed by validateBody(updateStudentSchema) at the route.
   const student = await studentService.updateStudent(paramId(req), req.body, actingUser(req));
   res.json(student);
 });

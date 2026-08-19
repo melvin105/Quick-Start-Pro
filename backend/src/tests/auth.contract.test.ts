@@ -40,8 +40,8 @@ after(async () => {
   if (server) await new Promise<void>((resolve, reject) => server!.close((error) => error ? reject(error) : resolve()));
 });
 
-async function postLogin(body: unknown) {
-  const res = await fetch(`${baseUrl}/auth/login`, {
+async function postJson(path: string, body: unknown) {
+  const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -49,6 +49,8 @@ async function postLogin(body: unknown) {
   const data = await res.json().catch(() => ({}));
   return { status: res.status, data } as { status: number; data: Record<string, unknown> };
 }
+
+const postLogin = (body: unknown) => postJson('/auth/login', body);
 
 test('rejects invalid credentials with a generic 401 and leaks no session', async () => {
   const { status, data } = await postLogin({ role: 'manager', password: 'definitely-wrong' });
@@ -70,11 +72,13 @@ test('rejects an unknown role with the same generic 401', async () => {
   assert.equal(data.code, 'INVALID_CREDENTIALS');
 });
 
-test('rejects a malformed request body with 400 INVALID_INPUT', async () => {
+test('rejects a malformed request body with 400 VALIDATION_ERROR', async () => {
   const { status, data } = await postLogin({ role: 'manager' }); // no password
 
+  // Centralised request validation (validateBody) now guards the boundary and
+  // returns a single consistent code for every malformed request.
   assert.equal(status, 400);
-  assert.equal(data.code, 'INVALID_INPUT');
+  assert.equal(data.code, 'VALIDATION_ERROR');
 });
 
 test(
@@ -86,6 +90,11 @@ test(
     assert.equal(status, 200);
     assert.equal(typeof data.token, 'string');
     assert.ok((data.token as string).length > 0);
+    // The split access/refresh model: login returns both. The frontend stores
+    // the refresh token to silently renew the short-lived access token.
+    assert.equal(typeof data.refreshToken, 'string');
+    assert.ok((data.refreshToken as string).length > 0);
+    assert.notEqual(data.token, data.refreshToken);
 
     const user = data.user as Record<string, unknown>;
     assert.ok(user, 'response must include a user object');
@@ -95,5 +104,36 @@ test(
     assert.equal(typeof user.email, 'string');
     // staffId is either a string or null — both are valid per the contract.
     assert.ok(typeof user.staffId === 'string' || user.staffId === null);
+  },
+);
+
+test('rejects a missing or garbage refresh token with 401 INVALID_REFRESH', async () => {
+  const missing = await postJson('/auth/refresh', {});
+  assert.equal(missing.status, 401);
+  assert.equal(missing.data.code, 'INVALID_REFRESH');
+
+  const garbage = await postJson('/auth/refresh', { refreshToken: 'not-a-jwt' });
+  assert.equal(garbage.status, 401);
+  assert.equal(garbage.data.code, 'INVALID_REFRESH');
+});
+
+test(
+  'rotates the refresh token: a used token issues a new pair and is then rejected',
+  { skip: MANAGER_PASSWORD ? false : 'set TEST_MANAGER_PASSWORD to run the happy path' },
+  async () => {
+    const login = await postLogin({ role: 'manager', password: MANAGER_PASSWORD });
+    const firstRefresh = login.data.refreshToken as string;
+
+    // First use succeeds and returns a fresh, different pair.
+    const rotated = await postJson('/auth/refresh', { refreshToken: firstRefresh });
+    assert.equal(rotated.status, 200);
+    assert.equal(typeof rotated.data.token, 'string');
+    assert.equal(typeof rotated.data.refreshToken, 'string');
+    assert.notEqual(rotated.data.refreshToken, firstRefresh);
+
+    // Replaying the now-rotated token must fail (single-use rotation).
+    const replay = await postJson('/auth/refresh', { refreshToken: firstRefresh });
+    assert.equal(replay.status, 401);
+    assert.equal(replay.data.code, 'INVALID_REFRESH');
   },
 );

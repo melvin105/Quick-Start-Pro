@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { pool } from './db';
+import { validateEnv } from './config/env';
+import { globalLimiter } from './middleware/rateLimit';
 import authRoutes from './routes/auth';
 import studentRoutes from './routes/students';
 import paymentRoutes from './routes/payments';
@@ -27,7 +30,51 @@ import notificationRoutes from './routes/notifications';
 import { ApiError } from './utils/ApiError';
 
 export const app = express();
-app.use(cors());
+
+// Deployed behind a reverse proxy, so req.ip must come from X-Forwarded-For —
+// otherwise every request shares the proxy's IP and the rate limiters key on a
+// single bucket (locking everyone out at once, or letting one abuser exhaust
+// the shared limit). `trust proxy` = the number of proxy hops to trust: 1 for a
+// single proxy in front (the default here). Do NOT use `true` (trust all hops),
+// which lets a client spoof X-Forwarded-For and forge its rate-limit key. If you
+// add another hop (e.g. Cloudflare in front of Nginx), bump TRUST_PROXY_HOPS.
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+app.set('trust proxy', Number.isFinite(trustProxyHops) ? trustProxyHops : 1);
+
+// Security headers (HSTS, X-Content-Type-Options, frame denial, etc.). Defaults
+// are appropriate for a JSON API. Placed first so every response — including
+// errors and 404s — carries the headers.
+app.use(helmet());
+
+// ─── CORS ────────────────────────────────────────────────────────────────────
+// Allowlist the browser origin(s) permitted to call the API. Set CORS_ORIGINS
+// in the backend env to a comma-separated list in production
+// (e.g. "https://app.example.com"). When it's unset we fall back to reflecting
+// any origin — convenient for local/LAN dev (the phone-testing setup uses a
+// changing LAN IP) — but you MUST set CORS_ORIGINS in production to lock this
+// down. Non-browser callers (no Origin header: curl, health checks) are always
+// allowed, since browser CORS doesn't apply to them.
+const corsAllowlist = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (corsAllowlist.length === 0) {
+  console.warn('[cors] warning: CORS_ORIGINS not set — reflecting all origins. Set it in production.');
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || corsAllowlist.length === 0 || corsAllowlist.includes(origin)) {
+        return callback(null, true);
+      }
+      // Disallowed origin: deny by omitting CORS headers (the browser blocks the
+      // response) rather than throwing a 500.
+      return callback(null, false);
+    },
+  }),
+);
 // Public self-registration embeds the passport photo as a base64 data URI, which
 // blows past express.json()'s 100kb default and would throw PayloadTooLargeError
 // (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
@@ -62,6 +109,11 @@ app.get('/api/health/db', async (req, res) => {
     res.status(500).json({ status: 'error', message: (err as Error).message });
   }
 });
+
+// Loose global rate-limit net over the whole versioned API (health checks under
+// /api/health are intentionally exempt). Per-route limiters above add tighter
+// caps on login and the public QR flows.
+app.use('/api/v1', globalLimiter);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/students', studentRoutes);
@@ -110,6 +162,15 @@ process.on('unhandledRejection', (reason) => {
 });
 
 if (require.main === module) {
+  // Fail fast on missing/weak secrets before opening the port, so the server
+  // never runs in an insecure half-configured state.
+  try {
+    validateEnv();
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
+
   const startedAt = Date.now();
   app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);

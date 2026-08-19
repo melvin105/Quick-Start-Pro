@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { pool, withUserContext } from '../db';
+import { passwordProblems } from '../utils/passwordPolicy';
 
 // One-off admin helper to (re)set the MANAGER login password on the live DB.
 // Use it when the manager password is lost — logins store only a one-way bcrypt
@@ -22,11 +23,16 @@ const ROLE = 'manager';          // login is role-based; exactly one manager row
 const EMAIL = 'manager@drivepro.test';
 
 async function main(): Promise<void> {
-  const password = process.env.NEW_MANAGER_PASSWORD;
-  if (!password || password.length < 8) {
+  // Default to '' so `password` is always a string (the policy rejects '' with a
+  // length problem anyway) — keeps the rest of the flow simply typed.
+  const password = process.env.NEW_MANAGER_PASSWORD ?? '';
+  // Enforce the same strength policy the app applies to every other password,
+  // so the recovery path can't quietly set a weak manager password.
+  const problems = passwordProblems(password);
+  if (problems.length > 0) {
     console.error(
       'Refusing to set the password.\n' +
-      'Set NEW_MANAGER_PASSWORD to at least 8 characters, e.g.\n' +
+      `NEW_MANAGER_PASSWORD must ${problems.join(' and ')}. For example:\n` +
       '  $env:NEW_MANAGER_PASSWORD = "your-new-password"; npm run set-manager-password',
     );
     process.exit(1);
