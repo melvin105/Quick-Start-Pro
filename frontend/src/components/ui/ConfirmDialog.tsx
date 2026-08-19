@@ -6,6 +6,9 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
+// Generic confirm-then-act dialog. Danger-styled confirm button; sits above
+// other modals (z-[70]). Shared across features — scheduling slot-clears and
+// settings package deletes both use it.
 export default function ConfirmDialog({ title, message, confirmLabel = 'Yes', onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">

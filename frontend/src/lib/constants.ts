@@ -44,6 +44,16 @@ function currentBase(): string {
   return (role && ROLE_BASE[role]) || '/secretary'
 }
 
+// Resolve a role-agnostic app path to the signed-in user's route tree. DB-written
+// notification links (e.g. '/records', '/finances', '/audit-log') have no role
+// prefix, so without this they hit the router catch-all and bounce to the
+// dashboard. Already-prefixed paths and external/hash links pass through unchanged.
+export function resolveRoleLink(path: string): string {
+  if (!path.startsWith('/')) return path
+  if (path.startsWith('/manager/') || path.startsWith('/secretary/')) return path
+  return `${currentBase()}${path}`
+}
+
 export const ROUTES = {
   LOGIN:    '/login',
   CHECK_IN: '/check-in',
@@ -62,6 +72,7 @@ export const ROUTES = {
   get ATTENDANCE_HISTORY() { return `${currentBase()}/attendance/history` },
   get PAYMENTS()   { return `${currentBase()}/payments` },
   get RECORDS()    { return `${currentBase()}/records` },
+  get NOTIFICATIONS() { return `${currentBase()}/notifications` },
 
   // Manager-only screens — no secretary equivalent exists.
   FINANCES:       '/manager/finances',

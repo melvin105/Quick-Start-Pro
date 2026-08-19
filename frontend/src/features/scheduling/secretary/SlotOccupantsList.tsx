@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageSquare, Bell, Check } from 'lucide-react'
-import ConfirmDialog from './ConfirmDialog'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { findStudentCellSlots, type CellAssignment, type ScheduleGridData } from '../shared/schedulingMappers'
 import { getInitials, formatSlotLabel } from '../shared/utils'
 import { studentProfilePath } from '../../students/shared/utils'

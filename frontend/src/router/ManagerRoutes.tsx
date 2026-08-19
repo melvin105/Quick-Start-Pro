@@ -18,6 +18,7 @@ import StaffPage from '../pages/manager/StaffPage'
 import StaffProfilePage from '../pages/manager/StaffProfilePage'
 import AuditLogPage from '../pages/manager/AuditLogPage'
 import SettingsPage from '../pages/manager/SettingsPage'
+import NotificationsPage from '../features/notifications/NotificationsPage'
 
 // role !== 'manager' redirects to /secretary/dashboard (ProtectedRoute -> ROUTES.DASHBOARD
 // resolves per the signed-in user's own role).
@@ -47,6 +48,7 @@ const managerRoutes: RouteObject = {
         { path: 'staff/:id', element: <StaffProfilePage /> },
         { path: 'audit-log', element: <AuditLogPage /> },
         { path: 'settings', element: <SettingsPage /> },
+        { path: 'notifications', element: <NotificationsPage /> },
       ],
     },
   ],

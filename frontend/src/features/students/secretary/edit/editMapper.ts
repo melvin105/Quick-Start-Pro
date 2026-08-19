@@ -34,10 +34,11 @@ export function toEditFormValues(p: ApiStudentProfile): DetailsFormValues {
   }
 }
 
-// Build the PATCH /students/:id body. Enrolment type comes from the dedicated
-// selector (not the package picker — package linkage isn't editable here). Blank
-// optionals map to undefined, so this form can update a field but not clear one
-// back to NULL; that's the safe default (no accidental data loss).
+// Build the PATCH /students/:id body. Enrolment type is derived from the chosen
+// package by the caller and passed in (the package link itself is saved
+// separately via assignStudentPackage). Blank optionals map to undefined, so
+// this form can update a field but not clear one back to NULL; that's the safe
+// default (no accidental data loss).
 export function toUpdateStudentInput(
   values: DetailsFormValues,
   enrolmentType: ApiEnrolmentType,

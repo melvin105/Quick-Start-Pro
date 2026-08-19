@@ -16,6 +16,7 @@ import AttendancePage from '../pages/secretary/AttendancePage'
 import AttendanceHistoryPage from '../pages/secretary/AttendanceHistoryPage'
 import PaymentsPage from '../pages/secretary/PaymentsPage'
 import RecordsPage from '../pages/secretary/RecordsPage'
+import NotificationsPage from '../features/notifications/NotificationsPage'
 import ReceiptPage from '../pages/public/ReceiptPage'
 
 // role !== 'secretary' redirects to /manager/dashboard (ProtectedRoute -> ROUTES.DASHBOARD
@@ -42,6 +43,7 @@ const secretaryRoutes: RouteObject = {
         { path: 'attendance/history', element: <AttendanceHistoryPage /> },
         { path: 'payments', element: <PaymentsPage /> },
         { path: 'records', element: <RecordsPage /> },
+        { path: 'notifications', element: <NotificationsPage /> },
       ],
     },
   ],

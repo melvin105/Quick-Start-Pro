@@ -20,7 +20,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <PackagesTab onSaved={() => showToast('Package saved')} />
+      <PackagesTab onSaved={(message) => showToast(message ?? 'Package saved')} />
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-gray-900 text-white text-[13px] font-medium rounded-lg shadow-modal">
