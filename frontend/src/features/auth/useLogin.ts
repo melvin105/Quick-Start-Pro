@@ -29,8 +29,8 @@ export function useLogin() {
     setError(null)
 
     try {
-      const { token, user } = await authService.login({ role, password })
-      setAuth(user, token)
+      const { token, refreshToken, user } = await authService.login({ role, password })
+      setAuth(user, token, refreshToken)
       navigate(ROLE_HOME[user.role], { replace: true })
     } catch (err) {
       // Invalid credentials come back as 401 INVALID_CREDENTIALS; anything else

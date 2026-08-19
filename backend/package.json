@@ -8,7 +8,7 @@
     "build": "tsc",
     "lint": "tsc --noEmit",
     "start": "node dist/index.js",
-    "test": "tsx --test src/tests/auth.contract.test.ts src/tests/publicToken.test.ts",
+    "test": "tsx --test src/tests/auth.contract.test.ts src/tests/publicToken.test.ts src/tests/passwordPolicy.test.ts src/tests/loginLockout.test.ts src/tests/dbSsl.test.ts src/tests/validation.test.ts",
     "smoke": "tsx src/tests/smoke.runtime.ts",
     "set-manager-password": "tsx src/tools/setManagerPassword.ts"
   },
@@ -22,9 +22,12 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

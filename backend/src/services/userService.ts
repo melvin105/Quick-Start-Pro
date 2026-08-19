@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { assertStrongPassword } from '../utils/passwordPolicy';
 
 // Only manager and secretary have login accounts — instructors are staff
 // records with no login (see CLAUDE.md and the role-only login screen).
@@ -9,7 +10,6 @@ type LoginRole = (typeof LOGIN_ROLES)[number];
 
 const ACCOUNT_STATUSES = ['active', 'inactive', 'suspended'] as const;
 
-const MIN_PASSWORD_LENGTH = 8;
 const BCRYPT_COST = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -54,12 +54,6 @@ function assertStatus(value: string) {
   }
 }
 
-function assertPassword(value: unknown) {
-  if (typeof value !== 'string' || value.length < MIN_PASSWORD_LENGTH) {
-    throw new ApiError(400, 'INVALID_INPUT', `password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-  }
-}
-
 // pg raises 23505 (unique_violation) on the email / staff_id unique indexes —
 // translate the two we can hit into clean, specific 409s.
 function translateUniqueViolation(err: unknown): never {
@@ -84,7 +78,7 @@ export async function createUser(input: CreateUserInput, actingUser: ActingUser)
     throw new ApiError(400, 'INVALID_INPUT', 'role is required.');
   }
   assertRole(role);
-  assertPassword(password);
+  assertStrongPassword(password);
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
@@ -128,7 +122,7 @@ export async function updateUser(id: string, input: UpdateUserInput, actingUser:
     fields.status = input.status;
   }
   if (input.password !== undefined) {
-    assertPassword(input.password);
+    assertStrongPassword(input.password);
     fields.password_hash = await bcrypt.hash(input.password, BCRYPT_COST);
   }
   if (Object.keys(fields).length === 0) {

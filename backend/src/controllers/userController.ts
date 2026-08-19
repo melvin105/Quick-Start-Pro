@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
-import { ApiError } from '../utils/ApiError';
 import * as userService from '../services/userService';
 
 function actingUser(req: Request) {
@@ -24,9 +23,7 @@ export const list = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const update = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.body || typeof req.body !== 'object') {
-    throw new ApiError(400, 'INVALID_INPUT', 'Request body is required.');
-  }
+  // Body shape is guaranteed by validateBody(updateUserSchema) at the route.
   const user = await userService.updateUser(paramId(req, 'id'), req.body, actingUser(req));
   res.json(user);
 });

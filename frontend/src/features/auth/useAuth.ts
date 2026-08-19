@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from './authStore'
+import * as authService from './authService'
 import { ROUTES } from '../../lib/constants'
 
 export function useAuth() {
@@ -9,6 +10,11 @@ export function useAuth() {
   const navigate = useNavigate()
 
   const logout = () => {
+    // Best-effort server-side revocation of the refresh token (and current
+    // access token). Fire-and-forget: a network hiccup must never block the user
+    // from signing out locally, which is what actually protects this device.
+    const { refreshToken } = useAuthStore.getState()
+    void authService.logout(refreshToken).catch(() => {})
     clearAuth()
     navigate(ROUTES.LOGIN, { replace: true })
   }

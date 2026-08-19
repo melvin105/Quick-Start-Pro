@@ -13,8 +13,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 });
 
+export const refresh = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body ?? {};
+  if (typeof refreshToken !== 'string' || refreshToken.length === 0) {
+    throw new ApiError(401, 'INVALID_REFRESH', 'Your session has expired. Please sign in again.');
+  }
+
+  const result = await authService.refresh(refreshToken);
+  res.json(result);
+});
+
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user as NonNullable<Request['user']>;
-  await authService.logout(user.jti, user.exp);
+  const { refreshToken } = req.body ?? {};
+  await authService.logout(user.jti, user.exp, typeof refreshToken === 'string' ? refreshToken : undefined);
   res.json({ status: 'ok' });
 });
