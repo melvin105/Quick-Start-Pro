@@ -73,7 +73,8 @@ export async function listAuditLogs(query: ListAuditLogsQuery) {
   const { rows } = await pool.query(
     `select
        al.id, al.table_name, al.record_id, al.action, al.old_data, al.new_data, al.created_at,
-       al.user_id, u.email as user_email, sf.first_name || ' ' || sf.last_name as user_name
+       al.user_id, u.email as user_email, u.role as user_role,
+       sf.first_name || ' ' || sf.last_name as user_name
      ${baseFrom}
      ${where}
      order by al.created_at desc

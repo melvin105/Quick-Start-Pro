@@ -30,6 +30,11 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 });
 
+export const listLicences = asyncHandler(async (_req: Request, res: Response) => {
+  const licences = await studentService.listLicences();
+  res.json(licences);
+});
+
 export const getById = asyncHandler(async (req: Request, res: Response) => {
   const student = await studentService.getStudentById(paramId(req));
   res.json(student);
@@ -40,6 +45,14 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'INVALID_INPUT', 'Request body is required.');
   }
   const student = await studentService.updateStudent(paramId(req), req.body, actingUser(req));
+  res.json(student);
+});
+
+export const assignPackage = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.body || typeof req.body !== 'object') {
+    throw new ApiError(400, 'INVALID_INPUT', 'Request body is required.');
+  }
+  const student = await studentService.assignPackage(paramId(req), req.body, actingUser(req));
   res.json(student);
 });
 

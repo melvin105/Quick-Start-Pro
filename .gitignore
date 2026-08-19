@@ -1,0 +1,9 @@
+# Root .gitignore
+node_modules
+.env
+dist
+build
+.DS_Store
+coverage
+*.log
+backend/supabase/.temp/

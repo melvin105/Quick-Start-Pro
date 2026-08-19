@@ -1,0 +1,134 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowLeft, Search } from 'lucide-react'
+import { useApiResource } from '../../lib/useApiResource'
+import { listAttendance } from '../../features/attendance/shared/attendanceService'
+import { toAttendanceRoster } from '../../features/attendance/shared/attendanceMappers'
+import Dropdown from '../../features/attendance/shared/Dropdown'
+import StatusBadge from '../../features/attendance/shared/StatusBadge'
+import SourceBadge from '../../features/attendance/shared/SourceBadge'
+import DatePicker from '../../components/ui/DatePicker'
+import LoadingState from '../../components/ui/LoadingState'
+import ErrorState from '../../components/ui/ErrorState'
+import { ROUTES } from '../../lib/constants'
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Status' },
+  { value: 'present', label: 'Present' },
+  { value: 'absent',  label: 'Absent' },
+  { value: 'late',    label: 'Late' },
+  { value: 'excused', label: 'Excused' },
+]
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+export default function AttendanceHistoryPage() {
+  const [date, setDate] = useState(todayIso())
+  const [search, setSearch] = useState('')
+  const [driverFilter, setDriverFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+
+  // The backend scopes the roster to the chosen date; driver/status/search are
+  // narrowed client-side over that day's rows.
+  const { data, loading, error, refetch } = useApiResource(() => listAttendance({ date }), [date])
+
+  const records = useMemo(() => (data ? toAttendanceRoster(data) : []), [data])
+
+  const driverOptions = useMemo(() => {
+    const names = Array.from(new Set(records.map((r) => r.driverName).filter((n): n is string => Boolean(n))))
+    return [{ value: '', label: 'Driver' }, ...names.map((n) => ({ value: n, label: n }))]
+  }, [records])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return records.filter((r) => {
+      if (driverFilter && r.driverName !== driverFilter) return false
+      if (statusFilter && r.status !== statusFilter) return false
+      if (q && !r.studentName.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [records, search, driverFilter, statusFilter])
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] text-gray-500">Dashboard / Attendance / History</p>
+          <Link to={ROUTES.ATTENDANCE} className="text-[13px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0">
+            <ArrowLeft size={14} /> Back to Today
+          </Link>
+        </div>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Attendance History</h1>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="w-full pl-9 pr-3 py-2 text-[13.5px] bg-white border border-gray-200 rounded-lg placeholder:text-gray-500
+              focus:outline-none focus:border-brand-600/40 focus:ring-2 focus:ring-brand-600/10 transition-colors"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DatePicker value={date} onChange={setDate} maxDate={todayIso()} />
+          <Dropdown label="Driver" value={driverFilter} options={driverOptions} onChange={setDriverFilter} />
+          <Dropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
+        </div>
+      </div>
+
+      {loading ? (
+        <LoadingState message="Loading attendance…" />
+      ) : error ? (
+        <ErrorState error={error} onRetry={refetch} />
+      ) : (
+        <>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    {['Student', 'Slot', 'Time', 'Driver', 'Lessons Left', 'Source', 'Status'].map((col) => (
+                      <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => (
+                    <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-[13.5px] font-medium text-gray-900 whitespace-nowrap">{r.studentName}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.slotLabel ?? '—'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.checkInTime ?? '—'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 whitespace-nowrap">{r.driverName ?? '—'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-900 whitespace-nowrap">{r.lessonsLeft}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {r.source ? <SourceBadge source={r.source} /> : <span className="text-gray-400 text-[12px]">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {r.status ? <StatusBadge status={r.status} autoMarked={r.autoMarked} /> : <span className="text-gray-400 text-[12px]">Unmarked</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filtered.length === 0 && (
+              <div className="py-12 text-center text-[13px] text-gray-500">No attendance records match your filters.</div>
+            )}
+          </div>
+
+          <p className="text-[12.5px] text-gray-500">
+            Showing {filtered.length} record{filtered.length === 1 ? '' : 's'}
+          </p>
+        </>
+      )}
+    </div>
+  )
+}

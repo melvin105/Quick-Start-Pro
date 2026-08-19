@@ -9,5 +9,7 @@ router.use(requireRole('manager'));
 
 router.get('/revenue', reportController.revenue);
 router.get('/dvla', reportController.dvla);
+router.get('/driver', reportController.driver);
+router.get('/:kind', reportController.operational);
 
 export default router;

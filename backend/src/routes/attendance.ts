@@ -8,5 +8,6 @@ router.use(authenticate);
 
 router.post('/', attendanceController.mark);
 router.get('/', attendanceController.list);
+router.get('/student/:studentId', attendanceController.studentHistory);
 
 export default router;

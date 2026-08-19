@@ -1,14 +1,17 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
-import ProtectedRoute from './ProtectedRoute'
-import LoginPage from '../pages/LoginPage'
-import { ROLES, ROUTES } from '../lib/constants'
+import { createBrowserRouter, redirect } from 'react-router-dom'
+import LoginPage from '../pages/auth/LoginPage'
+import CheckInPage from '../pages/public/CheckInPage'
+import RegisterPage from '../pages/public/RegisterPage'
+import ReceiptPage from '../pages/public/ReceiptPage'
+import secretaryRoutes from './SecretaryRoutes'
+import managerRoutes from './ManagerRoutes'
+import { ROUTES } from '../lib/constants'
 
-function PageShell({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-      {label} — coming soon
-    </div>
-  )
+// ROUTES.DASHBOARD depends on the signed-in user's role, so it's resolved in
+// a loader (runs fresh on every navigation) rather than baked into a route
+// element at module-load time.
+function homeLoader() {
+  return redirect(ROUTES.DASHBOARD)
 }
 
 const router = createBrowserRouter([
@@ -17,29 +20,33 @@ const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
+    // Public, unauthenticated student self check-in — no AppShell/sidebar.
+    path: ROUTES.CHECK_IN,
+    element: <CheckInPage />,
+  },
+  {
+    // Public, unauthenticated student self-registration — no AppShell/sidebar.
+    path: ROUTES.REGISTER,
+    element: <RegisterPage />,
+  },
+  {
+    path: `${ROUTES.REGISTER}/:token`,
+    element: <RegisterPage />,
+  },
+  {
+    // Public, unauthenticated shareable receipt — no login required.
+    path: '/receipt/:id',
+    element: <ReceiptPage />,
+  },
+  {
     path: '/',
-    element: <Navigate to={ROUTES.DASHBOARD} replace />,
+    loader: homeLoader,
   },
-  {
-    element: <ProtectedRoute />,
-    children: [
-      { path: ROUTES.DASHBOARD,  element: <PageShell label="Dashboard" /> },
-      { path: ROUTES.SCHEDULING, element: <PageShell label="Scheduling" /> },
-      { path: ROUTES.ATTENDANCE, element: <PageShell label="Attendance" /> },
-      { path: ROUTES.SETTINGS,   element: <PageShell label="Settings" /> },
-    ],
-  },
-  {
-    element: <ProtectedRoute roles={[ROLES.SECRETARY, ROLES.ADMIN]} />,
-    children: [
-      { path: ROUTES.STUDENTS, element: <PageShell label="Students" /> },
-      { path: ROUTES.PAYMENTS, element: <PageShell label="Payments" /> },
-      { path: ROUTES.RECORDS,  element: <PageShell label="Records" /> },
-    ],
-  },
+  secretaryRoutes,
+  managerRoutes,
   {
     path: '*',
-    element: <Navigate to={ROUTES.DASHBOARD} replace />,
+    loader: homeLoader,
   },
 ])
 

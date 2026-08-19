@@ -10,11 +10,45 @@ import auditRoutes from './routes/audit';
 import packageRoutes from './routes/packages';
 import reportRoutes from './routes/reports';
 import financeRoutes from './routes/finances';
+import endOfDayRoutes from './routes/endOfDay';
+import leadRoutes from './routes/leads';
+import lessonRoutes from './routes/lessons';
+import instructorRoutes from './routes/instructors';
+import attendanceRoutes from './routes/attendance';
+import checkinRoutes from './routes/checkin';
+import userRoutes from './routes/users';
+import expenseRoutes from './routes/expenses';
+import dashboardRoutes from './routes/dashboard';
+import schedulingRoutes from './routes/scheduling';
+import uploadRoutes from './routes/uploads';
+import registrationRoutes from './routes/registrations';
+import recordsRoutes from './routes/records';
+import notificationRoutes from './routes/notifications';
 import { ApiError } from './utils/ApiError';
 
-const app = express();
+export const app = express();
 app.use(cors());
-app.use(express.json());
+// Public self-registration embeds the passport photo as a base64 data URI, which
+// blows past express.json()'s 100kb default and would throw PayloadTooLargeError
+// (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
+app.use(express.json({ limit: '10mb' }));
+
+// ─── Diagnostics (temporary) ────────────────────────────────────────────────
+// Added to hunt down intermittent "can't reach the API" outages. Logs any
+// request that takes longer than SLOW_MS (so we can see hangs vs. quick fails),
+// plus requests the client aborts. Remove this block once the cause is found.
+const SLOW_MS = 2_000;
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms >= SLOW_MS) console.warn(`[slow] ${res.statusCode} ${req.method} ${req.originalUrl} ${ms}ms`);
+  });
+  res.on('close', () => {
+    if (!res.writableEnded) console.warn(`[aborted] ${req.method} ${req.originalUrl} after ${Date.now() - start}ms`);
+  });
+  next();
+});
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -37,6 +71,20 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/packages', packageRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/finances', financeRoutes);
+app.use('/api/v1/end-of-day', endOfDayRoutes);
+app.use('/api/v1/leads', leadRoutes);
+app.use('/api/v1/lessons', lessonRoutes);
+app.use('/api/v1/instructors', instructorRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/checkin', checkinRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/scheduling', schedulingRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/registrations', registrationRoutes);
+app.use('/api/v1/records', recordsRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: true, message: 'Not found.', code: 'NOT_FOUND' });
@@ -50,6 +98,33 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR' });
 });
 
-app.listen(process.env.PORT || 5000, () => {
-  console.log(`Server running on port ${process.env.PORT || 5000}`);
+// Last-resort safety net: a stray async error or rejected promise anywhere in
+// the app should be logged, not left to crash the process (which is what takes
+// the whole API offline). Errors inside a request are already handled by the
+// error middleware above — this only catches what escapes it.
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception', err);
 });
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection', reason);
+});
+
+if (require.main === module) {
+  const startedAt = Date.now();
+  app.listen(process.env.PORT || 5000, () => {
+    console.log(`Server running on port ${process.env.PORT || 5000}`);
+  });
+
+  // ─── Heartbeat (temporary) ────────────────────────────────────────────────
+  // Prints every 30s so an outage is self-diagnosing: if these lines keep coming
+  // while the page says "can't reach", the backend is alive and the problem is
+  // the network/address, not the server. If they stop and later a fresh "Server
+  // running…" appears, the process crashed and restarted. `waiting` climbing
+  // means requests are queued for a DB connection (pooler exhausted). Remove
+  // once the cause is found.
+  const heartbeat = setInterval(() => {
+    const up = Math.round((Date.now() - startedAt) / 1000);
+    console.log(`[hb] up=${up}s pool total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`);
+  }, 30_000);
+  heartbeat.unref();
+}

@@ -1,6 +1,14 @@
 import { Pool, PoolClient } from 'pg';
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
+
+const PAYMENT_FIELDS = ['amount'] as const;
+const PAYMENT_LIST_FIELDS = ['amount', 'package_fee', 'total_paid', 'balance'] as const;
+const PAYMENT_STATS_FIELDS = ['today_income', 'month_income', 'outstanding'] as const;
+const PAYMENT_ROW_FIELDS = ['amount', 'balance_after'] as const;
+const BALANCE_SUMMARY_FIELDS = ['total_fees', 'total_paid', 'balance'] as const;
+const RECEIPT_FIELDS = ['amount', 'package_fee', 'total_paid', 'balance'] as const;
 
 const PAYMENT_METHODS = ['cash', 'momo', 'bank_transfer', 'cheque'] as const;
 type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -45,19 +53,19 @@ function assertMethod(value: string): asserts value is PaymentMethod {
 // trg_lock_payments (block_closed_day_changes) raises a plain exception once a
 // day is closed via the end-of-day workflow — translate that into a clean 423.
 function isDayLockError(err: unknown): err is Error {
-  return err instanceof Error && /is closed and approved/.test(err.message);
+  return err instanceof Error && /is closed and approved|is submitted and locked/.test(err.message);
 }
 
 async function fetchPaymentWithReceipt(client: Pool | PoolClient, paymentId: string) {
   const { rows } = await client.query(
     `select p.id, p.student_id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
-            r.receipt_no, r.issued_at
+            r.id as receipt_id, r.receipt_no, r.issued_at
      from public.payments p
      left join public.receipts r on r.payment_id = p.id
      where p.id = $1`,
     [paymentId],
   );
-  return rows[0] ?? null;
+  return rows[0] ? normalizeNumericFields(rows[0], PAYMENT_FIELDS) : null;
 }
 
 export async function recordPayment(input: RecordPaymentInput, actingUser: ActingUser) {
@@ -71,24 +79,31 @@ export async function recordPayment(input: RecordPaymentInput, actingUser: Actin
   }
   assertMethod(method);
 
-  const { rows: balanceRows } = await pool.query(
-    `select balance from public.v_student_balances where id = $1`,
-    [studentId],
-  );
-  if (!balanceRows[0]) {
-    throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
-  }
-  const balance = Number(balanceRows[0].balance);
-  if (amount > balance) {
-    throw new ApiError(
-      400,
-      'EXCEEDS_BALANCE',
-      `Amount cannot exceed the outstanding balance of GHS ${balance.toFixed(2)}.`,
-    );
-  }
-
   try {
     return await withUserContext(actingUser.id, async (client) => {
+      // Lock the student row so two concurrent payments for the same student
+      // can't both read the same balance and both slip past the check below.
+      const { rows: studentRows } = await client.query(
+        `select id from public.students where id = $1 for update`,
+        [studentId],
+      );
+      if (!studentRows[0]) {
+        throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+      }
+
+      const { rows: balanceRows } = await client.query(
+        `select balance from public.v_student_balances where id = $1`,
+        [studentId],
+      );
+      const balance = Number(balanceRows[0].balance);
+      if (amount > balance) {
+        throw new ApiError(
+          400,
+          'EXCEEDS_BALANCE',
+          `Amount cannot exceed the outstanding balance of GHS ${balance.toFixed(2)}.`,
+        );
+      }
+
       const { rows } = await client.query(
         `insert into public.payments (student_id, amount, method, payment_date, recorded_by, notes)
          values ($1, $2, $3, coalesce($4, current_date), $5, $6)
@@ -150,17 +165,40 @@ export async function listPayments(query: ListPaymentsQuery) {
     join public.students st on st.id = p.student_id
     left join public.receipts r on r.payment_id = p.id
     left join public.v_student_balances vb on vb.id = p.student_id
+    left join lateral (
+      select dp.package_name
+      from public.student_packages sp
+      join public.driving_packages dp on dp.id = sp.package_id
+      where sp.student_id = st.id
+      order by sp.assigned_date desc, sp.created_at desc
+      limit 1
+    ) pkg on true
+    left join public.users u on u.id = p.recorded_by
+    left join public.staff sf on sf.id = u.staff_id
   `;
 
   const { rows: countRows } = await pool.query(`select count(*)::int as total ${baseFrom} ${where}`, params);
   const total = countRows[0].total;
+
+  const { rows: statsRows } = await pool.query(
+    `select
+       coalesce((select sum(amount) from public.payments where payment_date = current_date), 0) as today_income,
+       coalesce((select sum(amount) from public.payments where date_trunc('month', payment_date) = date_trunc('month', current_date)), 0) as month_income,
+       coalesce((select sum(balance) from public.v_student_balances where balance > 0), 0) as outstanding,
+       (select count(*)::int from public.v_student_balances where balance > 0) as students_with_balance`,
+  );
+  const stats = normalizeNumericFields(statsRows[0], PAYMENT_STATS_FIELDS);
 
   params.push(limit, offset);
   const { rows } = await pool.query(
     `select
        p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
        st.id as student_id, st.student_number, st.first_name || ' ' || st.last_name as student_name,
-       r.receipt_no,
+       r.id as receipt_id, r.receipt_no, pkg.package_name,
+       coalesce(vb.total_fees, 0) as package_fee,
+       coalesce(vb.total_paid, 0) as total_paid,
+       coalesce(vb.balance, 0) as balance,
+       nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
        case when coalesce(vb.balance, 0) <= 0 then 'paid' else 'partial' end as status
      ${baseFrom}
      ${where}
@@ -169,7 +207,7 @@ export async function listPayments(query: ListPaymentsQuery) {
     params,
   );
 
-  return { payments: rows, total, page, limit };
+  return { payments: normalizeNumericRows(rows, PAYMENT_LIST_FIELDS), stats, total, page, limit };
 }
 
 export async function getStudentPaymentHistory(studentId: string) {
@@ -182,23 +220,30 @@ export async function getStudentPaymentHistory(studentId: string) {
     `select total_fees, total_paid, balance from public.v_student_balances where id = $1`,
     [studentId],
   );
-  const summary = balanceRows[0] ?? { total_fees: 0, total_paid: 0, balance: 0 };
+  const summary = normalizeNumericFields(
+    balanceRows[0] ?? { total_fees: 0, total_paid: 0, balance: 0 },
+    BALANCE_SUMMARY_FIELDS,
+  );
 
   const { rows } = await pool.query(
     `select
-       p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at, r.receipt_no,
+       p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
+       r.id as receipt_id, r.receipt_no,
+       nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
        coalesce($2::numeric, 0) - sum(p.amount) over (
          order by p.payment_date, p.created_at
          rows between unbounded preceding and current row
        ) as balance_after
      from public.payments p
      left join public.receipts r on r.payment_id = p.id
+     left join public.users u on u.id = p.recorded_by
+     left join public.staff sf on sf.id = u.staff_id
      where p.student_id = $1
      order by p.payment_date desc, p.created_at desc`,
     [studentId, summary.total_fees],
   );
 
-  return { studentId, summary, payments: rows };
+  return { studentId, summary, payments: normalizeNumericRows(rows, PAYMENT_ROW_FIELDS) };
 }
 
 export async function updatePayment(id: string, input: UpdatePaymentInput, actingUser: ActingUser) {
@@ -284,7 +329,7 @@ export async function getReceiptById(id: string) {
   const settings = Object.fromEntries(settingRows.map((s) => [s.key, s.value]));
 
   return {
-    ...rows[0],
+    ...normalizeNumericFields(rows[0], RECEIPT_FIELDS),
     school: {
       name: settings.school_name ?? null,
       phone: settings.business_phone ?? null,

@@ -1,8 +1,12 @@
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
+import { normalizeNumericFields, normalizeNumericRows } from '../utils/normalizeNumeric';
+import { assertIdentity, normalizeGhanaPhone } from '../utils/registrationValidation';
+
+const STUDENT_BALANCE_FIELDS = ['total_fees', 'total_paid', 'balance'] as const;
 
 const GENDERS = ['male', 'female'] as const;
-const STUDENT_STATUSES = ['active', 'completed', 'suspended', 'withdrawn'] as const;
+const STUDENT_STATUSES = ['active', 'completed', 'suspended', 'withdrawn', 'archived'] as const;
 const ENROLMENT_TYPES = ['driving_only', 'licence_only', 'driving_and_licence'] as const;
 const EXAM_RESULTS = ['pending', 'passed', 'failed'] as const;
 
@@ -21,6 +25,7 @@ export interface CreateStudentInput {
   address?: string;
   emergencyContact?: string;
   ghanaCardNo?: string;
+  idCardType?: string;
   photoUrl?: string;
   enrolmentType: string;
   packageId?: string;
@@ -37,6 +42,7 @@ export interface UpdateStudentInput {
   address?: string;
   emergencyContact?: string;
   ghanaCardNo?: string;
+  idCardType?: string;
   photoUrl?: string;
   status?: string;
   enrolmentType?: string;
@@ -103,10 +109,19 @@ async function findPossibleDuplicate(firstName: string, lastName: string, phone:
   return rows[0] ?? null;
 }
 
-export async function createStudent(input: CreateStudentInput, actingUser: ActingUser) {
+// Core insert logic, runnable inside a caller-supplied transaction. Exported
+// so leadService.completeLead can run this AND its lead-completion update in
+// one shared transaction — otherwise a failure between the two would leave
+// a student created but its originating lead still marked incomplete,
+// letting the lead be "completed" again and creating a duplicate student.
+export async function insertStudentRow(
+  client: import('pg').PoolClient,
+  input: CreateStudentInput,
+  actingUser: ActingUser,
+) {
   const {
     firstName, lastName, gender, dob, phone, email, address, emergencyContact,
-    ghanaCardNo, photoUrl, enrolmentType, packageId, confirmDifferentPerson,
+    ghanaCardNo, idCardType, photoUrl, enrolmentType, packageId, confirmDifferentPerson,
   } = input;
 
   if (!firstName || !lastName || !phone || !dob) {
@@ -114,46 +129,50 @@ export async function createStudent(input: CreateStudentInput, actingUser: Actin
   }
   assertGender(gender);
   assertEnrolmentType(enrolmentType);
+  const normalizedPhone = normalizeGhanaPhone(phone);
+  assertIdentity(idCardType, ghanaCardNo);
 
-  const duplicate = await findPossibleDuplicate(firstName, lastName, phone);
+  const duplicate = await findPossibleDuplicate(firstName, lastName, normalizedPhone);
   if (duplicate && !confirmDifferentPerson) {
     throw new ApiError(409, 'POSSIBLE_DUPLICATE', 'A student with a matching name or phone number already exists.');
   }
 
-  return withUserContext(actingUser.id, async (client) => {
-    const { rows } = await client.query(
-      `insert into public.students
-         (first_name, last_name, gender, dob, phone, email, address,
-          emergency_contact, ghana_card_no, photo_url, enrolment_type)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-       returning id, student_number`,
-      [firstName, lastName, gender, dob, phone, email ?? null, address ?? null,
-        emergencyContact ?? null, ghanaCardNo ?? null, photoUrl ?? null, enrolmentType],
+  const { rows } = await client.query(
+    `insert into public.students
+       (first_name, last_name, gender, dob, phone, email, address,
+        emergency_contact, ghana_card_no, id_card_type, photo_url, enrolment_type)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     returning id, student_number`,
+    [firstName, lastName, gender, dob, normalizedPhone, email ?? null, address ?? null,
+      emergencyContact ?? null, ghanaCardNo ?? null, idCardType ?? null, photoUrl ?? null, enrolmentType],
+  );
+  const student = rows[0];
+
+  if (packageId) {
+    await client.query(
+      `insert into public.student_packages (student_id, package_id) values ($1, $2)`,
+      [student.id, packageId],
     );
-    const student = rows[0];
+  }
 
-    if (packageId) {
-      await client.query(
-        `insert into public.student_packages (student_id, package_id) values ($1, $2)`,
-        [student.id, packageId],
-      );
-    }
+  if (duplicate && confirmDifferentPerson && actingUser.role === 'secretary') {
+    await client.query(
+      `insert into public.notifications (recipient_role, type, title, body, link_url)
+       values ('manager', 'audit_alert', 'Duplicate warning overridden at registration',
+               $1, $2)`,
+      [
+        `${firstName} ${lastName} (${phone}) was registered despite matching an existing record (${duplicate.first_name} ${duplicate.last_name}, ${duplicate.student_number}).`,
+        `/students/${student.id}`,
+      ],
+    );
+  }
 
-    if (duplicate && confirmDifferentPerson && actingUser.role === 'secretary') {
-      await client.query(
-        `insert into public.notifications (recipient_role, type, title, body, link_url)
-         values ('manager', 'audit_alert', 'Duplicate warning overridden at registration',
-                 $1, $2)`,
-        [
-          `${firstName} ${lastName} (${phone}) was registered despite matching an existing record (${duplicate.first_name} ${duplicate.last_name}, ${duplicate.student_number}).`,
-          `/students/${student.id}`,
-        ],
-      );
-    }
+  const profile = await client.query(`select * from public.v_student_profile where id = $1`, [student.id]);
+  return normalizeNumericFields(profile.rows[0], STUDENT_BALANCE_FIELDS);
+}
 
-    const profile = await client.query(`select * from public.v_student_profile where id = $1`, [student.id]);
-    return profile.rows[0];
-  });
+export async function createStudent(input: CreateStudentInput, actingUser: ActingUser) {
+  return withUserContext(actingUser.id, (client) => insertStudentRow(client, input, actingUser));
 }
 
 export async function listStudents(query: ListStudentsQuery) {
@@ -217,21 +236,50 @@ export async function listStudents(query: ListStudentsQuery) {
     params,
   );
 
-  return { students: rows, total, page, limit };
+  return { students: normalizeNumericRows(rows, STUDENT_BALANCE_FIELDS), total, page, limit };
 }
 
 export async function getStudentById(id: string) {
-  const { rows } = await pool.query(`select * from public.v_student_profile where id = $1`, [id]);
+  const { rows } = await pool.query(
+    `select profile.*, pkg.package_name
+     from public.v_student_profile profile
+     left join lateral (
+       select dp.package_name
+       from public.student_packages sp
+       join public.driving_packages dp on dp.id = sp.package_id
+       where sp.student_id = profile.id
+       order by sp.assigned_date desc, sp.created_at desc
+       limit 1
+     ) pkg on true
+     where profile.id = $1`,
+    [id],
+  );
   if (!rows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
   }
-  return rows[0];
+  return normalizeNumericFields(rows[0], STUDENT_BALANCE_FIELDS);
+}
+
+// The licence-tracking list for the secretary's Students → Licences screen.
+// v_licence_pipeline already scopes to the licence-enrolled students
+// (licence_only + driving_and_licence) and left-joins licence_tracking, so
+// students who haven't started show through with null progress. Unlike the
+// manager-only DVLA report (reportService.getDvlaReport), this is unfiltered
+// and open to both roles — the secretary drives the pipeline day to day. No
+// numeric/money columns here, so the rows pass through unnormalized.
+export async function listLicences() {
+  const { rows } = await pool.query(
+    `select * from public.v_licence_pipeline order by student_number`,
+  );
+  return rows;
 }
 
 export async function updateStudent(id: string, input: UpdateStudentInput, actingUser: ActingUser) {
   if (input.gender) assertGender(input.gender);
   if (input.status) assertStatus(input.status);
   if (input.enrolmentType) assertEnrolmentType(input.enrolmentType);
+  if (input.phone) input.phone = normalizeGhanaPhone(input.phone);
+  if (input.idCardType !== undefined || input.ghanaCardNo !== undefined) assertIdentity(input.idCardType, input.ghanaCardNo);
 
   const fieldMap: Record<string, unknown> = {
     first_name: input.firstName,
@@ -243,6 +291,7 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
     address: input.address,
     emergency_contact: input.emergencyContact,
     ghana_card_no: input.ghanaCardNo,
+    id_card_type: input.idCardType,
     photo_url: input.photoUrl,
     status: input.status,
     enrolment_type: input.enrolmentType,
@@ -271,7 +320,52 @@ export async function updateStudent(id: string, input: UpdateStudentInput, actin
       throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
     }
     const profile = await client.query(`select * from public.v_student_profile where id = $1`, [id]);
-    return profile.rows[0];
+    return normalizeNumericFields(profile.rows[0], STUDENT_BALANCE_FIELDS);
+  });
+}
+
+export interface AssignPackageInput {
+  packageId: string;
+}
+
+/**
+ * Set an existing student's driving package. Sets the package for students who
+ * came through the public self-registration queue (where none is chosen at
+ * submission) and lets staff switch a student to a different package later.
+ *
+ * This REPLACES any existing package rather than adding a second one:
+ * v_student_balances sums total_fee across every student_packages row, so a
+ * student must only ever hold one — otherwise switching packages would
+ * double-charge them. We delete the student's existing package row(s) and
+ * insert the new one, atomically (withUserContext wraps this in a transaction).
+ */
+export async function assignPackage(studentId: string, input: AssignPackageInput, actingUser: ActingUser) {
+  const packageId = typeof input?.packageId === 'string' ? input.packageId.trim() : '';
+  if (!packageId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'packageId is required.');
+  }
+
+  return withUserContext(actingUser.id, async (client) => {
+    const studentRes = await client.query(`select id from public.students where id = $1`, [studentId]);
+    if (!studentRes.rows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+    }
+    const pkgRes = await client.query(
+      `select id from public.driving_packages where id = $1 and is_active = true`,
+      [packageId],
+    );
+    if (!pkgRes.rows[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'Package not found or inactive.');
+    }
+
+    await client.query(`delete from public.student_packages where student_id = $1`, [studentId]);
+    await client.query(
+      `insert into public.student_packages (student_id, package_id) values ($1, $2)`,
+      [studentId, packageId],
+    );
+
+    const profile = await client.query(`select * from public.v_student_profile where id = $1`, [studentId]);
+    return normalizeNumericFields(profile.rows[0], STUDENT_BALANCE_FIELDS);
   });
 }
 
