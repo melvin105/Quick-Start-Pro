@@ -1,4 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError } from 'axios'
+import type { InternalAxiosRequestConfig } from 'axios'
 import useAuthStore from '../features/auth/authStore'
 
 const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1'

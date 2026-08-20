@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Printer, FileDown, X, Link2, Check } from 'lucide-react'
+import { Printer, FileDown, X, MessageSquare, Check } from 'lucide-react'
 import { getReceipt } from '../../features/payments/paymentService'
 import { paymentMethodLabel } from '../../features/payments/paymentMappers'
-import { formatGHS, formatDateLong, shareReceipt } from '../../features/payments/utils'
+import { formatGHS, formatDateLong, shareReceiptViaSms, DEFAULT_SCHOOL_NAME } from '../../features/payments/utils'
 import { useApiResource } from '../../lib/useApiResource'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
@@ -20,9 +20,15 @@ export default function ReceiptPage() {
   }, [receipt])
 
   const handleShare = async () => {
-    const result = await shareReceipt(id)
+    if (!receipt) return
+    const result = await shareReceiptViaSms(
+      receipt.student_name,
+      receipt.amount,
+      receipt.school.name ?? DEFAULT_SCHOOL_NAME,
+      id,
+    )
     if (result === 'copied') {
-      setToast('Link copied')
+      setToast('Link copied — SMS only works from a phone')
       setTimeout(() => setToast(null), 3000)
     }
   }
@@ -74,7 +80,7 @@ export default function ReceiptPage() {
         <div className="flex gap-2 pt-2 print:hidden">
           <button type="button" onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-[13px] font-medium rounded-lg transition-colors"><Printer size={15} /> Print</button>
           <button type="button" onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"><FileDown size={15} /> Download PDF</button>
-          <button type="button" onClick={() => void handleShare()} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"><Link2 size={15} /> Share</button>
+          <button type="button" onClick={() => void handleShare()} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors whitespace-nowrap"><MessageSquare size={15} /> SMS</button>
           <button type="button" onClick={() => window.close()} className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors" aria-label="Close"><X size={15} /></button>
         </div>
       </div>
