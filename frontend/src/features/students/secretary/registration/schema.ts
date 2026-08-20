@@ -28,10 +28,19 @@ export const detailsSchema = z.object({
 
   programme: z.string().min(1, 'Select a package'),
   notes:     z.string().optional(),
-}).superRefine((values, context) => {
+}).superRefine(refineIdNumber)
+
+// Shared with editSchema.ts, which rebuilds the shape (relaxing a few fields to
+// optional) rather than reusing detailsSchema.safeExtend — Zod v4 won't let
+// safeExtend widen an already-required field to optional — but still wants the
+// same idCardNumber check.
+export function refineIdNumber(
+  values: { idCardType?: string; idCardNumber?: string },
+  context: z.core.$RefinementCtx,
+) {
   const message = idNumberError(values.idCardType, values.idCardNumber)
   if (message) context.addIssue({ code: 'custom', path: ['idCardNumber'], message })
-})
+}
 
 export type DetailsFormValues = z.infer<typeof detailsSchema>
 

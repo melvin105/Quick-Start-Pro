@@ -65,20 +65,19 @@ Health check: `GET http://localhost:5000/api/health` → `{ "status": "ok" }`
 
 ### 4. Environment variables
 
-**`backend/.env`**
+See `backend/.env.example` and `frontend/.env.example` for the full, documented list — copy each to `.env` (backend) / `.env` or `.env.local` (frontend) and fill in the values. At minimum, the backend needs `DATABASE_URL`, `JWT_SECRET` (32+ chars), and `PUBLIC_FLOW_SECRET`; the frontend needs `VITE_API_URL` pointing at the backend **including the `/api/v1` prefix** (e.g. `http://localhost:5000/api/v1` locally).
+
+---
+
+## Deployment (testing)
+
+**Frontend → Vercel.** Import the repo, set the project's **Root Directory to `frontend`** (Vercel doesn't auto-detect the subfolder in this monorepo layout). Build command and output directory are auto-detected from `package.json` (`npm run build` → `dist`); `frontend/vercel.json` handles the SPA rewrite so client-side routes don't 404 on refresh. Set one environment variable in the Vercel project settings:
 
 ```
-PORT=5000
-DATABASE_URL=        # Get from Supabase project → Settings → Database → Connection string
-JWT_SECRET=          # Any long random string
-JWT_EXPIRES_IN=7d
+VITE_API_URL=https://<your-backend-host>/api/v1
 ```
 
-**`frontend/.env`**
-
-```
-VITE_API_URL=http://localhost:5000
-```
+**Backend → not Vercel.** The API is a persistent Express server with an open Postgres pool — it needs a host built for long-running Node processes (Render, Railway, Fly.io all work and have free tiers), not Vercel's serverless model. Deploy `backend/` with build command `npm run build` and start command `npm start`, and set the env vars from `backend/.env.example` in that host's dashboard — most importantly `DATABASE_URL`, `JWT_SECRET`, `PUBLIC_FLOW_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and **`CORS_ORIGINS`** (comma-separated, set to your Vercel URL once you have it — without it the API reflects all origins, which is fine for testing but must be locked down before anything real goes through it).
 
 ---
 
