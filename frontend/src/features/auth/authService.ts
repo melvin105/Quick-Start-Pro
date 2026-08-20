@@ -19,8 +19,16 @@ export interface User {
 }
 
 export interface LoginResponse {
-  token: string
-  user:  User
+  token:        string  // short-lived access token
+  refreshToken: string  // long-lived token used to renew the access token
+  user:         User
+}
+
+// A renewed token pair, returned by POST /auth/refresh (no user — the caller
+// already has it). Rotation means the old refresh token is now invalid.
+export interface RefreshResponse {
+  token:        string
+  refreshToken: string
 }
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -28,6 +36,13 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   return data
 }
 
-export async function logout(): Promise<void> {
-  await api.post('/auth/logout')
+export async function refresh(refreshToken: string): Promise<RefreshResponse> {
+  const { data } = await api.post<RefreshResponse>('/auth/refresh', { refreshToken })
+  return data
+}
+
+export async function logout(refreshToken: string | null): Promise<void> {
+  // Send the refresh token so the server can revoke it too — otherwise a stolen
+  // refresh token would outlive the logout.
+  await api.post('/auth/logout', { refreshToken })
 }

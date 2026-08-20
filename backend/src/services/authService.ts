@@ -19,7 +19,67 @@ interface AuthUser {
 
 interface LoginResult {
   token: string;
+  refreshToken: string;
   user: AuthUser;
+}
+
+// A refreshed session — the frontend swaps its expired access token for a new
+// pair without the user re-entering their password. Same shape minus `user`,
+// which the frontend already holds.
+interface RefreshResult {
+  token: string;
+  refreshToken: string;
+}
+
+// Short-lived access token used on every API call, and a long-lived refresh
+// token used only to mint new access tokens. Splitting them limits the blast
+// radius of a stolen access token to ACCESS_TTL, while the user still stays
+// signed in for REFRESH_TTL via silent rotation.
+const ACCESS_TTL = (process.env.JWT_ACCESS_EXPIRES_IN ?? '15m') as SignOptions['expiresIn'];
+const REFRESH_TTL = (process.env.JWT_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'];
+
+// The identity we bake into a token. Kept minimal — the frontend gets the full
+// user object from /auth/login and holds it; tokens only carry what the API
+// needs to authorize a request.
+interface TokenIdentity {
+  id: string;
+  role: LoginRole;
+  staff_id: string | null;
+}
+
+interface RefreshPayload {
+  sub: string;
+  role: LoginRole;
+  staffId: string | null;
+  type: string;
+  jti: string;
+  exp: number;
+}
+
+// Mint a fresh access + refresh pair for a user. Each token carries its own
+// `jti` (so either can be revoked independently) and a `type` claim that
+// `authenticate` checks — a refresh token must never be accepted as an access
+// token on a protected route, and vice versa (token-confusion defence).
+function issueTokens(user: TokenIdentity): RefreshResult {
+  const secret = process.env.JWT_SECRET as string;
+  const base = { sub: user.id, role: user.role, staffId: user.staff_id };
+
+  const token = jwt.sign({ ...base, type: 'access', jti: randomUUID() }, secret, { expiresIn: ACCESS_TTL });
+  const refreshToken = jwt.sign({ ...base, type: 'refresh', jti: randomUUID() }, secret, { expiresIn: REFRESH_TTL });
+
+  return { token, refreshToken };
+}
+
+// Record a token's jti as revoked until it would have expired anyway, so the
+// revocation row can be cleaned up after `expires_at`. Shared by logout and
+// refresh-token rotation.
+async function revokeJti(jti: string, exp: number): Promise<void> {
+  await pool.query(
+    `insert into public.revoked_tokens (jti, expires_at)
+     values ($1, to_timestamp($2))
+     on conflict (jti) do nothing`,
+    [jti, exp],
+  );
 }
 
 export async function login(role: string, password: string): Promise<LoginResult> {
@@ -62,16 +122,11 @@ export async function login(role: string, password: string): Promise<LoginResult
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid role or password.');
   }
 
-  const jti = randomUUID();
-  const expiresIn = (process.env.JWT_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'];
-  const token = jwt.sign(
-    { sub: user.id, role: user.role, staffId: user.staff_id, jti },
-    process.env.JWT_SECRET as string,
-    { expiresIn },
-  );
+  const { token, refreshToken } = issueTokens(user);
 
   return {
     token,
+    refreshToken,
     user: {
       id: user.id,
       name: user.name,
@@ -82,13 +137,52 @@ export async function login(role: string, password: string): Promise<LoginResult
   };
 }
 
-export async function logout(jti: string, exp: number): Promise<void> {
-  await pool.query(
-    `insert into public.revoked_tokens (jti, expires_at)
-     values ($1, to_timestamp($2))
-     on conflict (jti) do nothing`,
-    [jti, exp],
+// Exchange a valid refresh token for a brand-new access + refresh pair, with
+// rotation: the presented refresh token is revoked, so each refresh token is
+// single-use. If a revoked (already-rotated) refresh token is replayed, it's
+// rejected here — the user is forced to sign in again. The generic error never
+// reveals whether the token was expired, malformed, revoked, or belonged to a
+// now-deactivated account.
+export async function refresh(refreshToken: string): Promise<RefreshResult> {
+  let payload: RefreshPayload;
+  try {
+    payload = jwt.verify(refreshToken, process.env.JWT_SECRET as string) as RefreshPayload;
+  } catch {
+    throw new ApiError(401, 'INVALID_REFRESH', 'Your session has expired. Please sign in again.');
+  }
+
+  if (payload.type !== 'refresh' || (await isTokenRevoked(payload.jti))) {
+    throw new ApiError(401, 'INVALID_REFRESH', 'Your session has expired. Please sign in again.');
+  }
+
+  // Re-read the account so a deactivated user (or a role change) can't keep
+  // refreshing a live session on the strength of an old token alone.
+  const { rows } = await pool.query(
+    `select id, role, staff_id from public.users where id = $1 and status = 'active'`,
+    [payload.sub],
   );
+  if (rows.length === 0) {
+    throw new ApiError(401, 'INVALID_REFRESH', 'Your session has expired. Please sign in again.');
+  }
+
+  // Rotate: burn the old refresh token before issuing the new pair.
+  await revokeJti(payload.jti, payload.exp);
+  return issueTokens(rows[0]);
+}
+
+// Sign out: revoke the current access token immediately, and — when the client
+// sends it — the refresh token too, so a stolen refresh token can't be used to
+// mint fresh sessions after the user logs out.
+export async function logout(accessJti: string, accessExp: number, refreshToken?: string): Promise<void> {
+  await revokeJti(accessJti, accessExp);
+
+  if (!refreshToken) return;
+  try {
+    const payload = jwt.verify(refreshToken, process.env.JWT_SECRET as string) as RefreshPayload;
+    if (payload.type === 'refresh') await revokeJti(payload.jti, payload.exp);
+  } catch {
+    // An invalid/expired refresh token has nothing to revoke — ignore it.
+  }
 }
 
 export async function isTokenRevoked(jti: string): Promise<boolean> {

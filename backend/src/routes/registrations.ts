@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import * as registrationController from '../controllers/registrationController';
 import { authenticate, requireRole } from '../middleware/auth';
+import { publicFlowLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
 // Public full self-registration — no auth. A prospective student scans the
 // QR code, fills in the whole form, and it lands in the pending queue.
 // Mirrors the public leads route (public POST registered before authenticate).
-router.post('/', registrationController.submit);
+// Rate-limited to curb spam submissions.
+router.post('/', publicFlowLimiter, registrationController.submit);
 
 router.use(authenticate);
 
