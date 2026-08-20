@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { X, Printer, Link2, Check } from 'lucide-react'
+import { X, Printer, MessageSquare, Check } from 'lucide-react'
 import StatusBadge from './StatusBadge'
-import { formatGHS, formatDateDisplay, paymentReceiptPath, shareReceipt } from './utils'
+import { formatGHS, formatDateDisplay, paymentReceiptPath, shareReceiptViaSms, DEFAULT_SCHOOL_NAME } from './utils'
 import type { PaymentRecord } from './types'
 
 interface PaymentDetailDrawerProps {
@@ -14,9 +14,14 @@ export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDr
   const [toast, setToast] = useState<string | null>(null)
 
   const handleShare = async () => {
-    const result = await shareReceipt(record.receiptId ?? record.id)
+    const result = await shareReceiptViaSms(
+      record.studentName,
+      record.amount,
+      DEFAULT_SCHOOL_NAME,
+      record.receiptId ?? record.id,
+    )
     if (result === 'copied') {
-      setToast('Link copied')
+      setToast('Link copied — SMS only works from a phone')
       setTimeout(() => setToast(null), 3000)
     }
   }
@@ -101,7 +106,7 @@ export default function PaymentDetailDrawer({ record, onClose }: PaymentDetailDr
             onClick={handleShare}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[13px] font-medium rounded-lg transition-colors"
           >
-            <Link2 size={15} /> Share Receipt
+            <MessageSquare size={15} /> Share via SMS
           </button>
         </div>
       </div>
