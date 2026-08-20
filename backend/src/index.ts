@@ -98,6 +98,13 @@ app.use((req, res, next) => {
 });
 
 app.get('/api/health', (req, res) => {
+  // Temporary: Render's own health-check probe was timing out against this
+  // exact route despite the process staying up and responsive otherwise —
+  // logging every hit tells us whether the probe is reaching the app at all
+  // (nothing logged => Render-side routing issue) or arriving and just not
+  // getting a reply (app-level issue, e.g. a hung earlier middleware). Remove
+  // once the health-check timeout is understood.
+  console.log(`[health] hit from ${req.ip} ua=${req.get('user-agent') ?? 'none'}`);
   res.json({ status: 'ok' });
 });
 
