@@ -50,7 +50,7 @@ const managerRoutes: RouteObject = {
         { path: 'reports/attendance', element: loadRoute(<LiveReportPage kind="attendance" />) },
         { path: 'reports/revenue', element: loadRoute(<LiveReportPage kind="revenue" />) },
         { path: 'reports/expenses', element: loadRoute(<LiveReportPage kind="expenses" />) },
-        { path: 'reports/schedule', element: loadRoute(<LiveReportPage kind="schedule" />) },
+        { path: 'reports/licences', element: loadRoute(<LiveReportPage kind="licences" />) },
         { path: 'staff', element: loadRoute(<StaffPage />) },
         { path: 'staff/:id', element: loadRoute(<StaffProfilePage />) },
         { path: 'audit-log', element: loadRoute(<AuditLogPage />) },

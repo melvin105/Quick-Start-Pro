@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import FilterDropdown from '../../../features/students/shared/FilterDropdown'
 import { computePeriodRange } from '../../../features/finances/period'
 import { getDriverReport } from '../../../features/finances/financeService'
@@ -9,21 +9,16 @@ import LoadingState from '../../../components/ui/LoadingState'
 import ErrorState from '../../../components/ui/ErrorState'
 import { useApiResource } from '../../../lib/useApiResource'
 import { ROUTES } from '../../../lib/constants'
+import useAuthStore from '../../../features/auth/authStore'
+import type { DriverInstructorRow } from '../../../features/finances/financeService'
+import { createReportFilename, exportReportCsv, exportReportPdf, type ReportColumn } from '../../../features/reports/reportExport'
 
-function csvEscape(value: string) {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
-}
-
-function downloadCsv(filename: string, header: string[], rows: string[][]) {
-  const csv = [header.join(','), ...rows.map((r) => r.map(csvEscape).join(','))].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
+const DRIVER_COLUMNS: ReportColumn<DriverInstructorRow>[] = [
+  { key: 'instructor', header: 'Instructor', value: (row) => row.instructorName },
+  { key: 'lessons', header: 'Lessons In Period', value: (row) => row.lessonsInPeriod },
+  { key: 'average', header: 'Avg Per Week', value: (row) => row.avgPerWeek },
+  { key: 'all_time', header: 'Total All Time', value: (row) => row.totalAllTime },
+]
 
 export default function DriverReportPage() {
   const defaultRange = computePeriodRange('this-month')
@@ -33,6 +28,9 @@ export default function DriverReportPage() {
   const [range, setRange] = useState(defaultRange)
   const [instructorFilter, setInstructorFilter] = useState('')
   const [breakdownInstructor, setBreakdownInstructor] = useState('')
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
+  const [exportError, setExportError] = useState('')
+  const user = useAuthStore((state) => state.user)
 
   const { data, loading, error, refetch } = useApiResource(
     () => getDriverReport(range.from, range.to),
@@ -45,6 +43,11 @@ export default function DriverReportPage() {
     : instructors
 
   const summaryTotal = summaryRows.reduce((sum, r) => sum + r.lessonsInPeriod, 0)
+  const summaryCards = [
+    { label: 'Instructors', value: summaryRows.length },
+    { label: 'Lessons In Period', value: summaryTotal },
+    { label: 'Average Per Instructor', value: summaryRows.length ? Math.round((summaryTotal / summaryRows.length) * 10) / 10 : 0 },
+  ]
 
   const selectedBreakdown = instructors.find((row) => row.instructorId === breakdownInstructor) ?? instructors[0]
   const breakdownRows = selectedBreakdown?.students ?? []
@@ -59,16 +62,28 @@ export default function DriverReportPage() {
     setInstructorFilter(instructorDraft)
   }
 
-  const handleExportCsv = () => {
-    downloadCsv(
-      'driver-report.csv',
-      ['Instructor', 'Lessons In Period', 'Avg Per Week', 'Total All Time'],
-      summaryRows.map((r) => [r.instructorName, String(r.lessonsInPeriod), String(r.avgPerWeek), String(r.totalAllTime)]),
-    )
-  }
-
-  const handleExportPdf = () => {
-    window.print()
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    if (summaryRows.length === 0 || exporting || loading) return
+    setExporting(format)
+    setExportError('')
+    const filename = createReportFilename('driver', range.from, range.to, format)
+    try {
+      if (format === 'csv') {
+        await exportReportCsv(DRIVER_COLUMNS, summaryRows, filename)
+      } else {
+        const instructorName = instructorFilter ? summaryRows[0]?.instructorName : undefined
+        await exportReportPdf({
+          title: 'Driver Report', from: range.from, to: range.to,
+          filterDescription: instructorName ? `Instructor: ${instructorName}` : 'All Instructors',
+          summaryCards, columns: DRIVER_COLUMNS, rows: summaryRows, filename,
+          generatedBy: user?.name || 'Manager',
+        })
+      }
+    } catch {
+      setExportError(`The ${format.toUpperCase()} file could not be generated. Please try again.`)
+    } finally {
+      setExporting(null)
+    }
   }
 
   return (
@@ -104,15 +119,23 @@ export default function DriverReportPage() {
 
       {loading && <LoadingState message="Loading driver report…" />}
       {error && <ErrorState error={error} onRetry={refetch} />}
+      {exportError && <p role="alert" className="text-[12.5px] text-danger">{exportError}</p>}
+
+      {!loading && !error && <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {summaryCards.map((card) => <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{card.label}</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">{card.value}</p>
+        </div>)}
+      </div>}
 
       {!loading && !error && <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-200">
-                {['Instructor', 'Lessons In Period', 'Avg Per Week', 'Total All Time'].map((col) => (
-                  <th key={col} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                    {col}
+                {DRIVER_COLUMNS.map((column) => (
+                  <th key={column.key} className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                    {column.header}
                   </th>
                 ))}
               </tr>
@@ -148,7 +171,7 @@ export default function DriverReportPage() {
             onChange={setBreakdownInstructor}
           />
         </div>
-        <p className="text-[12px] text-gray-500 -mt-1">Click any instructor to expand their breakdown.</p>
+        <p className="text-[12px] text-gray-500 -mt-1">Select an instructor to view the student breakdown.</p>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -181,20 +204,26 @@ export default function DriverReportPage() {
       </div>}
 
       {!loading && !error && <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <Download size={15} /> Export CSV
-        </button>
-        <button
-          type="button"
-          onClick={handleExportPdf}
-          className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <Download size={15} /> Export PDF
-        </button>
+        <span title={summaryRows.length === 0 ? 'Generate a report with at least one record before exporting.' : undefined}>
+          <button
+            type="button"
+            onClick={() => void handleExport('csv')}
+            disabled={summaryRows.length === 0 || exporting !== null || loading}
+            className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            {exporting === 'csv' ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Export CSV
+          </button>
+        </span>
+        <span title={summaryRows.length === 0 ? 'Generate a report with at least one record before exporting.' : undefined}>
+          <button
+            type="button"
+            onClick={() => void handleExport('pdf')}
+            disabled={summaryRows.length === 0 || exporting !== null || loading}
+            className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-brand-700 border border-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg hover:bg-brand-800 transition-colors"
+          >
+            {exporting === 'pdf' ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Export PDF
+          </button>
+        </span>
       </div>}
     </div>
   )

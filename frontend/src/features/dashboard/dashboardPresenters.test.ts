@@ -14,7 +14,7 @@ import {
   toWeekCounts,
   formatSubmittedDate,
 } from './dashboardPresenters'
-import type { MonthlyRevenue, RawActivityEntry, TodayAttendance, UpcomingLesson } from './dashboardService'
+import type { MonthlyRevenue, RawActivityEntry, TodayAttendance } from './dashboardService'
 
 describe('formatGHS', () => {
   it('formats with the GHS prefix and thousands separators', () => {
@@ -210,40 +210,30 @@ describe('deltaLabel', () => {
 })
 
 describe('toWeekCounts', () => {
-  // Sunday 2026-08-16, so the Monday-based week is 2026-08-10 … 2026-08-16.
-  const now = new Date('2026-08-16T10:00:00')
-
-  const lesson = (lesson_date: string): UpcomingLesson => ({
-    id: `l-${lesson_date}`,
-    lesson_date,
-    start_time: '09:00:00',
-    end_time: '10:00:00',
-    status: 'scheduled',
-    student_number: 'DP-2026-0001',
-    student_name: 'John Mensah',
-    instructor_name: 'Kofi Asante',
-    vehicle: 'GR-1234-24',
-  })
-
-  it('buckets lessons of the current week by weekday (Mon…Sun)', () => {
-    const counts = toWeekCounts(
-      [lesson('2026-08-10'), lesson('2026-08-10'), lesson('2026-08-14'), lesson('2026-08-16')],
-      now,
-    )
+  it('maps recurring assignment counts to weekdays (Mon…Sun)', () => {
+    const counts = toWeekCounts([
+      { day_of_week: 1, count: 2 },
+      { day_of_week: 5, count: 1 },
+      { day_of_week: 6, count: 3 },
+    ])
     expect(counts).toEqual([
       { day: 'MON', count: 2 },
       { day: 'TUE', count: 0 },
       { day: 'WED', count: 0 },
       { day: 'THU', count: 0 },
       { day: 'FRI', count: 1 },
-      { day: 'SAT', count: 0 },
-      { day: 'SUN', count: 1 },
+      { day: 'SAT', count: 3 },
+      { day: 'SUN', count: 0 },
     ])
   })
 
-  it('ignores lessons outside the current week', () => {
-    const counts = toWeekCounts([lesson('2026-08-09'), lesson('2026-08-17')], now)
-    expect(counts.every((d) => d.count === 0)).toBe(true)
+  it('coerces database counts and ignores invalid weekdays', () => {
+    const counts = toWeekCounts([
+      { day_of_week: 2, count: '4' as unknown as number },
+      { day_of_week: 8, count: 9 },
+    ])
+    expect(counts[1]).toEqual({ day: 'TUE', count: 4 })
+    expect(counts[6]).toEqual({ day: 'SUN', count: 0 })
   })
 })
 

@@ -1,17 +1,19 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, SquarePen } from 'lucide-react'
 import type { Student } from '../types'
 import StatusBadge from '../StatusBadge'
 import StudentAvatar from '../StudentAvatar'
-import { studentEditPath, formatGHS } from '../utils'
-import { ROUTES } from '../../../../lib/constants'
+import { studentEditPath, formatGHS, studentProfileReturnPath } from '../utils'
 
 export default function ProfileHeader({ student }: { student: Student }) {
+  const [searchParams] = useSearchParams()
+  const returnTo = studentProfileReturnPath(searchParams)
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[12px] text-gray-500">Dashboard / Students / {student.name}</p>
-        <Link to={ROUTES.STUDENTS} className="text-[13px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0">
+        <Link to={returnTo} className="text-[13px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0">
           <ArrowLeft size={14} /> Back to Students
         </Link>
       </div>

@@ -16,7 +16,11 @@ import { ROUTES } from '../../lib/constants'
 const REFRESH_INTERVAL_MS = 30000
 
 export default function AttendancePage() {
-  const { data, loading, error, refetch } = useApiResource(listAttendance)
+  const { data, loading, error, refetch } = useApiResource(
+    listAttendance,
+    [],
+    { cacheKey: 'attendance:today', staleTime: REFRESH_INTERVAL_MS },
+  )
 
   const [showQr, setShowQr] = useState(false)
   const [showManualMark, setShowManualMark] = useState(false)

@@ -44,7 +44,7 @@ export default function ManagerDashboard() {
   if (error)   return <ErrorState error={error} onRetry={refetch} />
   if (!data)   return null
 
-  const { stats, upcomingLessons, monthlyRevenue = [] } = data
+  const { stats, monthlyRevenue = [], weeklySchedule = [] } = data
 
   const revenue = stats.revenue_this_month ?? 0
   const expenses = stats.expenses_this_month ?? 0
@@ -60,7 +60,7 @@ export default function ManagerDashboard() {
     ? undefined
     : { text: deltaLabel(revDeltaPct), tone: revDeltaPct >= 0 ? ('positive' as const) : ('negative' as const) }
 
-  const weekCounts = toWeekCounts(upcomingLessons)
+  const weekCounts = toWeekCounts(weeklySchedule)
   const approvalItems = (approvals.data ?? []).map(toApprovalItem)
 
   return (

@@ -7,11 +7,12 @@ import { formatGHS, studentProfilePath } from '../shared/utils'
 
 interface ManagerStudentsTableProps {
   students: StudentListItem[]
+  returnTo?: string
 }
 
 const COLUMNS = ['Student ID', 'Name', 'Phone', 'Enrolment', 'Balance', 'Status', 'View']
 
-export default function ManagerStudentsTable({ students }: ManagerStudentsTableProps) {
+export default function ManagerStudentsTable({ students, returnTo }: ManagerStudentsTableProps) {
   const navigate = useNavigate()
 
   return (
@@ -31,7 +32,7 @@ export default function ManagerStudentsTable({ students }: ManagerStudentsTableP
             {students.map((student) => (
               <tr
                 key={student.id}
-                onClick={() => navigate(studentProfilePath(student.id))}
+                onClick={() => navigate(studentProfilePath(student.id, returnTo))}
                 className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 <td className="px-4 py-3 text-[13px] text-gray-500 whitespace-nowrap">{student.studentNumber}</td>
@@ -50,7 +51,7 @@ export default function ManagerStudentsTable({ students }: ManagerStudentsTableP
                 <td className="px-4 py-3">
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); navigate(studentProfilePath(student.id)) }}
+                    onClick={(e) => { e.stopPropagation(); navigate(studentProfilePath(student.id, returnTo)) }}
                     className="p-1.5 rounded-md text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
                     aria-label={`View ${student.name}`}
                   >

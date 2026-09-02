@@ -8,9 +8,8 @@ import type { Role } from '../../lib/constants'
 //   2. thin async functions over the shared `api` client, and
 //   3. a `catch` that rethrows via `toApiError` so callers only handle ApiError.
 //
-// Shapes below mirror GET /dashboard (backend dashboardService.getDashboard +
-// the underlying views v_dashboard_stats, v_upcoming_lessons,
-// v_today_attendance, v_monthly_revenue).
+// Shapes below mirror GET /dashboard (backend dashboardService.getDashboard
+// and the underlying dashboard, attendance, and revenue views).
 
 // One row of v_dashboard_stats, coerced to numbers by the backend. The two
 // finance figures are manager-only — the backend strips them for secretaries,
@@ -30,18 +29,6 @@ export interface DashboardStats {
   expenses_this_month?:          number
 }
 
-export interface UpcomingLesson {
-  id:              string
-  lesson_date:     string
-  start_time:      string | null
-  end_time:        string | null
-  status:          string
-  student_number:  string
-  student_name:    string
-  instructor_name: string | null
-  vehicle:         string | null
-}
-
 export interface TodayAttendance {
   student_id:    string
   student_name:  string
@@ -59,6 +46,11 @@ export interface MonthlyRevenue {
   total_revenue: number
 }
 
+export interface WeeklyScheduleCount {
+  day_of_week: number
+  count:       number
+}
+
 // One row of the secretary's Recent Activity feed — a payment they recorded,
 // an attendance mark they made, or a student they registered. Discriminated
 // by `kind`; fields outside a variant's relevance are simply absent.
@@ -70,10 +62,10 @@ export type RawActivityEntry =
 export interface Dashboard {
   role:             Role
   stats:            DashboardStats
-  upcomingLessons:  UpcomingLesson[]
   todaysAttendance: TodayAttendance[]
   // Present only for managers.
   monthlyRevenue?:  MonthlyRevenue[]
+  weeklySchedule?:  WeeklyScheduleCount[]
   // Present only for secretaries.
   recentActivity?:  RawActivityEntry[]
 }

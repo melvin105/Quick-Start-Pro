@@ -22,8 +22,37 @@ export function formatGHS(amount: number) {
   return `GHS ${amount.toLocaleString()}`
 }
 
-export function studentProfilePath(id: string) {
-  return ROUTES.STUDENT_PROFILE.replace(':id', id)
+export interface StudentListContext {
+  tab?: string
+  search?: string
+  enrolment?: string
+  status?: string
+  page?: number
+}
+
+export function studentListPath(context: StudentListContext = {}) {
+  const params = new URLSearchParams()
+  if (context.tab && context.tab !== 'active') params.set('tab', context.tab)
+  if (context.search) params.set('search', context.search)
+  if (context.enrolment) params.set('enrolment', context.enrolment)
+  if (context.status) params.set('status', context.status)
+  if (context.page && context.page > 1) params.set('page', String(context.page))
+  const query = params.toString()
+  return `${ROUTES.STUDENTS}${query ? `?${query}` : ''}`
+}
+
+export function studentProfilePath(id: string, returnTo?: string) {
+  const path = ROUTES.STUDENT_PROFILE.replace(':id', id)
+  if (!returnTo) return path
+  return `${path}?${new URLSearchParams({ from: returnTo })}`
+}
+
+export function studentProfileReturnPath(params: URLSearchParams) {
+  const fallback = ROUTES.STUDENTS
+  const requested = params.get('from')
+  return requested && (requested === fallback || requested.startsWith(`${fallback}?`))
+    ? requested
+    : fallback
 }
 
 export function studentEditPath(id: string) {

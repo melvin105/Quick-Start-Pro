@@ -12,9 +12,11 @@ export const revenue = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const dvla = asyncHandler(async (req: Request, res: Response) => {
-  const { status } = req.query;
+  const { status, from, to } = req.query;
   const rows = await reportService.getDvlaReport({
     status: typeof status === 'string' ? status : undefined,
+    from: typeof from === 'string' ? from : undefined,
+    to: typeof to === 'string' ? to : undefined,
   });
   res.json(rows);
 });

@@ -27,7 +27,6 @@ const sampleDashboard: Dashboard = {
     students_with_balance: 30,
     licences_in_progress: 8,
   },
-  upcomingLessons: [],
   todaysAttendance: [],
 }
 

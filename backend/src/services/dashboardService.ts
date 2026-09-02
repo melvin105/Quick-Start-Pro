@@ -7,16 +7,15 @@ type Role = 'manager' | 'secretary';
 // monthly revenue/expense totals — so these keys are stripped for secretaries.
 const MANAGER_ONLY_STATS = ['revenue_this_month', 'expenses_this_month'] as const;
 
-const UPCOMING_LESSONS_LIMIT = 10;
 const MONTHLY_REVENUE_MONTHS = 12;
 const RECENT_ACTIVITY_LIMIT = 4;
 
 interface DashboardPayload {
   role: Role;
   stats: Record<string, number>;
-  upcomingLessons: unknown[];
   todaysAttendance: unknown[];
   monthlyRevenue?: unknown[];
+  weeklySchedule?: unknown[];
   recentActivity?: unknown[];
 }
 
@@ -74,9 +73,8 @@ async function getRecentActivity(userId: string) {
     .slice(0, RECENT_ACTIVITY_LIMIT);
 }
 
-// Single round-trip for the dashboard: the v_dashboard_stats card figures plus
-// today's schedule (v_upcoming_lessons), today's attendance (v_today_attendance)
-// and — for managers — the monthly revenue series (v_monthly_revenue).
+// Single round-trip for dashboard card figures, today's attendance, and the
+// role-specific manager or secretary data.
 export async function getDashboard(role: Role, userId: string): Promise<DashboardPayload> {
   // Every block below is independent. Starting them together is especially
   // important when the API and Supabase are in different regions: serial
@@ -91,12 +89,26 @@ export async function getDashboard(role: Role, userId: string): Promise<Dashboar
       ).then(({ rows }) => rows)
     : getRecentActivity(userId);
 
+  // Count the recurring assignments displayed by the Scheduling screen. The
+  // former lesson_schedule source omitted recurring slots and produced zeros.
+  const weeklySchedulePromise = role === 'manager'
+    ? pool.query(
+        `select sl.day_of_week, count(sa.id)::int as count
+         from public.schedule_slots sl
+         left join public.slot_assignments sa
+           on sa.slot_id = sl.id and sa.is_active
+         where sl.is_active
+         group by sl.day_of_week
+         order by sl.day_of_week`,
+      ).then(({ rows }) => rows)
+    : Promise.resolve([]);
+
   const [
     { rows: statRows },
     { rows: supplementalRows },
-    { rows: upcomingLessons },
     { rows: todaysAttendance },
     roleData,
+    weeklySchedule,
   ] = await Promise.all([
     pool.query(`select * from public.v_dashboard_stats`),
     pool.query(
@@ -111,13 +123,10 @@ export async function getDashboard(role: Role, userId: string): Promise<Dashboar
          (select count(*)::int from public.licence_tracking where not licence_issued) as licences_in_progress`,
     ),
     pool.query(
-      `select * from public.v_upcoming_lessons limit $1`,
-      [UPCOMING_LESSONS_LIMIT],
-    ),
-    pool.query(
       `select * from public.v_today_attendance order by start_time nulls last, student_name`,
     ),
     roleDataPromise,
+    weeklySchedulePromise,
   ]);
 
   // v_dashboard_stats returns a single row of counts/sums; pg hands bigint and
@@ -138,10 +147,11 @@ export async function getDashboard(role: Role, userId: string): Promise<Dashboar
   stats.students_with_balance = Number(supplemental.students_with_balance ?? 0);
   stats.licences_in_progress = Number(supplemental.licences_in_progress ?? 0);
 
-  const payload: DashboardPayload = { role, stats, upcomingLessons, todaysAttendance };
+  const payload: DashboardPayload = { role, stats, todaysAttendance };
 
   if (role === 'manager') {
     payload.monthlyRevenue = roleData;
+    payload.weeklySchedule = weeklySchedule;
   } else {
     payload.recentActivity = roleData;
   }

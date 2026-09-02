@@ -1,5 +1,5 @@
 import { format, formatDistanceToNowStrict } from 'date-fns'
-import type { MonthlyRevenue, RawActivityEntry, TodayAttendance, UpcomingLesson } from './dashboardService'
+import type { MonthlyRevenue, RawActivityEntry, TodayAttendance, WeeklyScheduleCount } from './dashboardService'
 import type { ActivityItem } from './manager/ActivityFeed'
 import type { ScheduleItem } from './secretary/TodaysSchedule'
 
@@ -136,30 +136,15 @@ export interface DayCount {
   count: number
 }
 
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Monday-based index (Mon = 0 … Sun = 6) for a 'YYYY-MM-DD' string.
-function weekdayIndex(dateKey: string): number {
-  const [y, m, d] = dateKey.split('-').map(Number)
-  return (new Date(y, m - 1, d).getDay() + 6) % 7
-}
-
-// Lesson counts per weekday for the Monday–Sunday week containing `now`.
-// NOTE: v_upcoming_lessons is today-forward and capped (limit 10), so days
-// earlier in the week — and busy weeks beyond the cap — can under-count. This
-// is a known limitation until a dedicated weekly-counts endpoint exists.
-export function toWeekCounts(lessons: UpcomingLesson[], now: Date = new Date()): DayCount[] {
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
-  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6)
-  const startKey = localDateKey(monday)
-  const endKey = localDateKey(sunday)
-
+// Active recurring schedule assignments per weekday. The backend groups the
+// same schedule_slots/slot_assignments shown on the Scheduling page. Sunday is
+// retained as zero because the slot board currently operates Monday–Saturday.
+export function toWeekCounts(rows: WeeklyScheduleCount[]): DayCount[] {
   const counts = [0, 0, 0, 0, 0, 0, 0]
-  for (const lesson of lessons) {
-    const key = lesson.lesson_date.slice(0, 10)
-    if (key >= startKey && key <= endKey) counts[weekdayIndex(key)]++
+  for (const row of rows) {
+    if (row.day_of_week >= 1 && row.day_of_week <= 7) {
+      counts[row.day_of_week - 1] = Number(row.count)
+    }
   }
   return WEEK_DAYS.map((day, i) => ({ day, count: counts[i] }))
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { QrCode, Plus, Search, Filter, IdCard } from 'lucide-react'
 import StudentsTable from '../../features/students/secretary/StudentsTable'
 import StudentCardList from '../../features/students/shared/StudentCardList'
@@ -18,6 +18,7 @@ import { toPendingItem, type PendingItem } from '../../features/registrations/re
 import { useApiResource } from '../../lib/useApiResource'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { ROUTES } from '../../lib/constants'
+import { studentListPath } from '../../features/students/shared/utils'
 
 type TabKey = 'active' | 'pending' | 'archived'
 const PAGE_SIZE = 20
@@ -38,12 +39,19 @@ const STATUS_OPTIONS = [
 
 export default function StudentsPage() {
   const navigate = useNavigate()
+  const [routeParams] = useSearchParams()
 
-  const [tab, setTab] = useState<TabKey>('active')
-  const [search, setSearch] = useState('')
-  const [enrolmentFilter, setEnrolmentFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [page, setPage] = useState(1)
+  const [tab, setTab] = useState<TabKey>(() => {
+    const value = routeParams.get('tab')
+    return value === 'pending' || value === 'archived' ? value : 'active'
+  })
+  const [search, setSearch] = useState(() => routeParams.get('search') ?? '')
+  const [enrolmentFilter, setEnrolmentFilter] = useState(() => routeParams.get('enrolment') ?? '')
+  const [statusFilter, setStatusFilter] = useState(() => routeParams.get('status') ?? '')
+  const [page, setPage] = useState(() => {
+    const value = Number(routeParams.get('page'))
+    return Number.isInteger(value) && value > 0 ? value : 1
+  })
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
   const [approveTarget, setApproveTarget] = useState<PendingItem | null>(null)
@@ -73,6 +81,7 @@ export default function StudentsPage() {
   )
 
   const students = (data?.students ?? []).map(toStudentListItem)
+  const returnTo = studentListPath({ tab, search, enrolment: enrolmentFilter, status: statusFilter, page })
 
   // Pending self-registration queue (live). Its own resource so approving or
   // rejecting one refetches just the queue, not the whole roster.
@@ -207,8 +216,8 @@ export default function StudentsPage() {
             <ErrorState error={error} onRetry={refetch} />
           ) : (
             <>
-              <StudentsTable students={students} />
-              <StudentCardList students={students} />
+              <StudentsTable students={students} returnTo={returnTo} />
+              <StudentCardList students={students} returnTo={returnTo} />
               <Pagination
                 page={data?.page ?? page}
                 pageSize={data?.limit ?? PAGE_SIZE}
