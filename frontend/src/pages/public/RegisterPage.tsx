@@ -36,18 +36,6 @@ export default function RegisterPage() {
     }
   })
 
-  if (!token) {
-    return (
-      <RegisterShell>
-        <div className="bg-white rounded-2xl shadow-card p-8 flex flex-col items-center text-center gap-4 max-w-md mx-auto">
-          <AlertTriangle size={36} className="text-warning" />
-          <h1 className="text-[17px] font-semibold text-gray-900">Registration link required</h1>
-          <p className="text-[13px] text-gray-500">Please scan the QR code provided by the driving school.</p>
-        </div>
-      </RegisterShell>
-    )
-  }
-
   if (submitted) {
     return (
       <RegisterShell>

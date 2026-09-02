@@ -31,7 +31,7 @@ export default function FilterDropdown({ label, value, options, onChange }: Filt
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <ul className="absolute left-0 sm:right-0 sm:left-auto z-20 mt-1 min-w-[180px] w-full sm:w-auto bg-white border border-gray-200 rounded-lg shadow-card overflow-hidden">
+          <ul className="absolute left-0 z-20 mt-1 min-w-[180px] w-full sm:w-auto bg-white border border-gray-200 rounded-lg shadow-card overflow-hidden">
             {options.map((opt) => (
               <li key={opt.value || 'all'}>
                 <button

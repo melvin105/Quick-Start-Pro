@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import DatePicker from '../../components/ui/DatePicker'
 import { formatGHS, todayIso } from './utils'
 import { paymentMethodValue } from './paymentMappers'
@@ -11,10 +11,21 @@ interface RecordPaymentModalProps {
   onClose: () => void
   onRecorded: (record: { receiptId: string; receiptNo: string }) => void | Promise<void>
   students: ApiStudentListRow[]
+  studentsLoading?: boolean
+  studentsError?: string
+  onRetryStudents?: () => Promise<void>
   initialStudentId?: string
 }
 
-export default function RecordPaymentModal({ onClose, onRecorded, students, initialStudentId }: RecordPaymentModalProps) {
+export default function RecordPaymentModal({
+  onClose,
+  onRecorded,
+  students,
+  studentsLoading = false,
+  studentsError,
+  onRetryStudents,
+  initialStudentId,
+}: RecordPaymentModalProps) {
   const [query, setQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId ?? null)
   const [amount, setAmount] = useState('')
@@ -100,6 +111,21 @@ export default function RecordPaymentModal({ onClose, onRecorded, students, init
                   placeholder="Search student name..."
                   className="w-full pl-8 pr-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
                 />
+                {studentsLoading && (
+                  <p className="flex items-center gap-1.5 mt-2 text-[12px] text-gray-500">
+                    <Loader2 size={13} className="animate-spin text-brand-600" /> Loading studentsâ€¦
+                  </p>
+                )}
+                {studentsError && !studentsLoading && (
+                  <div className="flex items-center justify-between gap-2 mt-2 text-[12px] text-danger">
+                    <span>{studentsError}</span>
+                    {onRetryStudents && (
+                      <button type="button" className="font-medium text-brand-600" onClick={() => void onRetryStudents()}>
+                        Try again
+                      </button>
+                    )}
+                  </div>
+                )}
                 {results.length > 0 && (
                   <div className="mt-1 border border-gray-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                     {results.map((s) => (
@@ -152,6 +178,7 @@ export default function RecordPaymentModal({ onClose, onRecorded, students, init
                   min={0}
                   value={amount}
                   onChange={(e) => { setAmount(e.target.value); setError('') }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder="GHS 0"
                   className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
                     error ? 'border-danger focus:ring-danger/20' : 'border-gray-200 focus:ring-brand-600/20 focus:border-brand-600'
@@ -201,10 +228,6 @@ export default function RecordPaymentModal({ onClose, onRecorded, students, init
                 <div className="flex justify-between text-[13px]">
                   <span className="text-gray-600">New Balance</span>
                   <span className="font-semibold text-gray-900">{formatGHS(remainingAfter)}</span>
-                </div>
-                <div className="flex justify-between text-[13px] mt-1">
-                  <span className="text-gray-600">Receipt No.</span>
-                  <span className="font-semibold text-gray-900">Generated after saving</span>
                 </div>
               </div>
             </>

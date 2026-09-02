@@ -16,14 +16,18 @@ import type { Role } from '../../lib/constants'
 // finance figures are manager-only — the backend strips them for secretaries,
 // so they are optional here.
 export interface DashboardStats {
-  total_students:       number
-  active_students:      number
-  outstanding_balances: number
-  lessons_completed:    number
-  licences_issued:      number
-  upcoming_lessons:     number
-  revenue_this_month?:  number
-  expenses_this_month?: number
+  total_students:                number
+  active_students:               number
+  outstanding_balances:          number
+  lessons_completed:             number
+  licences_issued:               number
+  upcoming_lessons:              number
+  payments_recorded_today:       number
+  payments_recorded_today_total: number
+  students_with_balance:         number
+  licences_in_progress:          number
+  revenue_this_month?:           number
+  expenses_this_month?:          number
 }
 
 export interface UpcomingLesson {
@@ -55,6 +59,14 @@ export interface MonthlyRevenue {
   total_revenue: number
 }
 
+// One row of the secretary's Recent Activity feed — a payment they recorded,
+// an attendance mark they made, or a student they registered. Discriminated
+// by `kind`; fields outside a variant's relevance are simply absent.
+export type RawActivityEntry =
+  | { kind: 'payment';    created_at: string; amount: number; student_name: string }
+  | { kind: 'attendance'; created_at: string; status: string; check_in_time: string | null; student_name: string }
+  | { kind: 'student';    created_at: string; student_name: string }
+
 export interface Dashboard {
   role:             Role
   stats:            DashboardStats
@@ -62,6 +74,8 @@ export interface Dashboard {
   todaysAttendance: TodayAttendance[]
   // Present only for managers.
   monthlyRevenue?:  MonthlyRevenue[]
+  // Present only for secretaries.
+  recentActivity?:  RawActivityEntry[]
 }
 
 // GET /dashboard — the whole dashboard in one round-trip. The backend tailors

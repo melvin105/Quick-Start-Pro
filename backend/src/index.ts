@@ -87,6 +87,18 @@ app.use(express.json({ limit: '10mb' }));
 const SLOW_MS = 2_000;
 app.use((req, res, next) => {
   const start = Date.now();
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (!res.headersSent) {
+      const totalMs = Date.now() - start;
+      const authMs = res.locals.authDurationMs as number | undefined;
+      const metrics = [authMs === undefined ? null : `auth;dur=${authMs}`, `app;dur=${totalMs}`]
+        .filter(Boolean)
+        .join(', ');
+      res.setHeader('Server-Timing', metrics);
+    }
+    return originalJson(body);
+  }) as Response['json'];
   res.on('finish', () => {
     const ms = Date.now() - start;
     if (ms >= SLOW_MS) console.warn(`[slow] ${res.statusCode} ${req.method} ${req.originalUrl} ${ms}ms`);

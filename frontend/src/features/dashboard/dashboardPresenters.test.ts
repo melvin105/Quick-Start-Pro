@@ -4,8 +4,8 @@ import {
   formatCount,
   formatLessonTime,
   initialsFrom,
-  isToday,
   toTodaysSchedule,
+  toActivityFeed,
   formatMonthLabel,
   toRevenueSeries,
   netProfit,
@@ -14,7 +14,7 @@ import {
   toWeekCounts,
   formatSubmittedDate,
 } from './dashboardPresenters'
-import type { MonthlyRevenue, UpcomingLesson } from './dashboardService'
+import type { MonthlyRevenue, RawActivityEntry, TodayAttendance, UpcomingLesson } from './dashboardService'
 
 describe('formatGHS', () => {
   it('formats with the GHS prefix and thousands separators', () => {
@@ -68,63 +68,60 @@ describe('initialsFrom', () => {
   })
 })
 
-describe('isToday', () => {
-  const now = new Date('2026-08-16T10:00:00')
-
-  it('matches a same-day date-only string', () => {
-    expect(isToday('2026-08-16', now)).toBe(true)
-  })
-
-  it('matches a same-day full timestamp', () => {
-    expect(isToday('2026-08-16T14:00:00Z', now)).toBe(true)
-  })
-
-  it('rejects a different day', () => {
-    expect(isToday('2026-08-17', now)).toBe(false)
-  })
-})
-
 describe('toTodaysSchedule', () => {
-  const now = new Date('2026-08-16T08:00:00')
-
-  const lesson = (over: Partial<UpcomingLesson>): UpcomingLesson => ({
-    id: 'l1',
-    lesson_date: '2026-08-16',
+  const row = (over: Partial<TodayAttendance>): TodayAttendance => ({
+    student_id: 's1',
+    student_name: 'John Mensah',
     start_time: '09:00:00',
     end_time: '10:00:00',
-    status: 'scheduled',
-    student_number: 'DP-2026-0001',
-    student_name: 'John Mensah',
-    instructor_name: 'Kofi Asante',
-    vehicle: 'GR-1234-24',
+    check_in_time: null,
+    method: null,
+    status: null,
+    is_walk_in: false,
     ...over,
   })
 
-  it('keeps only today and maps to ScheduleItem shape', () => {
-    const items = toTodaysSchedule(
-      [lesson({}), lesson({ id: 'l2', lesson_date: '2026-08-17', student_name: 'Ama Boateng' })],
-      now,
-    )
+  it('maps attendance rows to ScheduleItem shape', () => {
+    const items = toTodaysSchedule([row({})])
     expect(items).toEqual([
-      {
-        time: '9:00',
-        initials: 'JM',
-        name: 'John Mensah',
-        detail: 'with Kofi Asante',
-        status: 'confirmed',
-      },
+      { time: '9:00', initials: 'JM', name: 'John Mensah', status: 'upcoming' },
     ])
   })
 
-  it('marks non-scheduled lessons as pending and handles a missing instructor', () => {
-    const [item] = toTodaysSchedule([lesson({ status: 'rescheduled', instructor_name: null })], now)
-    expect(item.status).toBe('pending')
-    expect(item.detail).toBe('Lesson')
+  it('marks a row as completed once checked in', () => {
+    const [item] = toTodaysSchedule([row({ check_in_time: '2026-08-16T09:02:00Z' })])
+    expect(item.status).toBe('completed')
   })
 
-  it('shows a dash when a lesson has no start time', () => {
-    const [item] = toTodaysSchedule([lesson({ start_time: null })], now)
+  it('shows a dash when a row has no start time (e.g. a walk-in)', () => {
+    const [item] = toTodaysSchedule([row({ start_time: null })])
     expect(item.time).toBe('—')
+  })
+
+  it('takes only the first three, trusting the caller already sorted them', () => {
+    const rows = [row({ student_id: '1' }), row({ student_id: '2' }), row({ student_id: '3' }), row({ student_id: '4' })]
+    expect(toTodaysSchedule(rows)).toHaveLength(3)
+  })
+})
+
+describe('toActivityFeed', () => {
+  const now = new Date('2026-08-16T10:00:00')
+
+  it('names the student and amount in a payment entry', () => {
+    const entry: RawActivityEntry = { kind: 'payment', created_at: now.toISOString(), amount: 500, student_name: 'John Mensah' }
+    expect(toActivityFeed([entry])[0]).toMatchObject({ icon: 'payment', text: 'GHS 500 payment recorded for John Mensah' })
+  })
+
+  it('names the student in a registration entry', () => {
+    const entry: RawActivityEntry = { kind: 'student', created_at: now.toISOString(), student_name: 'Ama Boateng' }
+    expect(toActivityFeed([entry])[0]).toMatchObject({ icon: 'student', text: 'Ama Boateng registered' })
+  })
+
+  it('names the student and distinguishes a completed lesson from an absence', () => {
+    const completed: RawActivityEntry = { kind: 'attendance', created_at: now.toISOString(), status: 'present', check_in_time: now.toISOString(), student_name: 'Kwesi Owusu' }
+    const absent: RawActivityEntry = { kind: 'attendance', created_at: now.toISOString(), status: 'absent', check_in_time: null, student_name: 'Kwesi Owusu' }
+    expect(toActivityFeed([completed])[0].text).toBe("Kwesi Owusu completed today's lesson")
+    expect(toActivityFeed([absent])[0].text).toBe('Kwesi Owusu marked absent')
   })
 })
 

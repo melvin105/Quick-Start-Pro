@@ -10,6 +10,7 @@ import CompleteRegistrationModal from '../../features/registrations/CompleteRegi
 import RejectRegistrationModal from '../../features/registrations/RejectRegistrationModal'
 import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
+import Pagination from '../../components/ui/Pagination'
 import { listStudents, type ApiStudentStatus } from '../../features/students/shared/studentService'
 import { toStudentListItem, enrolmentEnum } from '../../features/students/shared/studentMappers'
 import { getPendingRegistrations } from '../../features/registrations/registrationService'
@@ -19,6 +20,7 @@ import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { ROUTES } from '../../lib/constants'
 
 type TabKey = 'active' | 'pending' | 'archived'
+const PAGE_SIZE = 20
 
 const ENROLMENT_OPTIONS = [
   { value: '', label: 'Enrolment' },
@@ -41,6 +43,7 @@ export default function StudentsPage() {
   const [search, setSearch] = useState('')
   const [enrolmentFilter, setEnrolmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
   const [approveTarget, setApproveTarget] = useState<PendingItem | null>(null)
@@ -58,15 +61,18 @@ export default function StudentsPage() {
       search:        debouncedSearch.trim() || undefined,
       status:        statusParam,
       enrolmentType: enrolmentParam,
-      limit:         100,
+      outstandingOnly: statusFilter === 'outstanding' || undefined,
+      page,
+      limit:         PAGE_SIZE,
     }),
-    [debouncedSearch, statusParam, enrolmentParam],
+    [debouncedSearch, statusParam, enrolmentParam, statusFilter, page],
+    {
+      cacheKey: `students:${debouncedSearch.trim()}:${statusParam ?? ''}:${enrolmentParam ?? ''}:${statusFilter === 'outstanding'}:${page}`,
+      staleTime: 30_000,
+    },
   )
 
-  const allItems = (data?.students ?? []).map(toStudentListItem)
-  const students = statusFilter === 'outstanding'
-    ? allItems.filter((s) => s.status === 'outstanding')
-    : allItems
+  const students = (data?.students ?? []).map(toStudentListItem)
 
   // Pending self-registration queue (live). Its own resource so approving or
   // rejecting one refetches just the queue, not the whole roster.
@@ -75,7 +81,15 @@ export default function StudentsPage() {
     loading: pendingLoading,
     error: pendingError,
     refetch: refetchPending,
-  } = useApiResource(getPendingRegistrations)
+  } = useApiResource(
+    getPendingRegistrations,
+    [],
+    {
+      enabled: tab === 'pending',
+      cacheKey: 'registrations:pending',
+      staleTime: 30_000,
+    },
+  )
   const pendingItems = (registrations ?? []).map(toPendingItem)
 
   const tabs: { key: TabKey; label: string; count?: number; tone?: 'default' | 'warning' }[] = [
@@ -163,7 +177,7 @@ export default function StudentsPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 placeholder="Search students..."
                 className="w-full pl-9 pr-3 py-2 text-[13.5px] bg-white border border-gray-200 rounded-lg placeholder:text-gray-500
                   focus:outline-none focus:border-brand-600/40 focus:ring-2 focus:ring-brand-600/10 transition-colors"
@@ -172,8 +186,18 @@ export default function StudentsPage() {
             <div
               className={`${mobileFiltersOpen ? 'flex flex-col items-stretch' : 'hidden'} gap-2 sm:flex sm:flex-row sm:items-center`}
             >
-              <FilterDropdown label="Enrolment" value={enrolmentFilter} options={ENROLMENT_OPTIONS} onChange={setEnrolmentFilter} />
-              <FilterDropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
+              <FilterDropdown
+                label="Enrolment"
+                value={enrolmentFilter}
+                options={ENROLMENT_OPTIONS}
+                onChange={(value) => { setEnrolmentFilter(value); setPage(1) }}
+              />
+              <FilterDropdown
+                label="Status"
+                value={statusFilter}
+                options={STATUS_OPTIONS}
+                onChange={(value) => { setStatusFilter(value); setPage(1) }}
+              />
             </div>
           </div>
 
@@ -185,10 +209,12 @@ export default function StudentsPage() {
             <>
               <StudentsTable students={students} />
               <StudentCardList students={students} />
-              <p className="text-[12.5px] text-gray-500">
-                Showing {students.length} of {data?.total ?? students.length} student
-                {(data?.total ?? students.length) === 1 ? '' : 's'}
-              </p>
+              <Pagination
+                page={data?.page ?? page}
+                pageSize={data?.limit ?? PAGE_SIZE}
+                total={data?.total ?? 0}
+                onPageChange={setPage}
+              />
             </>
           )}
         </>

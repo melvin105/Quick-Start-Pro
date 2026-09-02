@@ -21,7 +21,11 @@ export interface NotificationFeed {
 // loads once when its host mounts (the topbar lives for the whole session) and
 // refetches after a mark, keeping the unread badge in step.
 export function useNotificationFeed(): NotificationFeed {
-  const { data, loading, error, refetch } = useApiResource(() => listNotifications())
+  const { data, loading, error, refetch } = useApiResource(
+    listNotifications,
+    [],
+    { cacheKey: 'notifications', staleTime: 30_000 },
+  )
 
   const items = (data?.notifications ?? []).map((n) => toNotificationView(n))
   const unreadCount = data?.unreadCount ?? 0

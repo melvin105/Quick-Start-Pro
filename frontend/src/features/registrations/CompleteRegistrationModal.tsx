@@ -48,7 +48,11 @@ export default function CompleteRegistrationModal({
   // Active packages — the only desk decision at completion. The enrolment type
   // (Driving Only / Licence Only / Driving + Licence) isn't picked separately;
   // it's derived from the chosen package's name, same as the register wizard.
-  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(() => listPackages(true))
+  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(
+    () => listPackages(true),
+    [],
+    { cacheKey: 'packages:active', staleTime: 5 * 60_000 },
+  )
   const packages = (packageRows ?? []).map(toPackageOption)
   // When packages exist, one must be picked to complete. If the catalogue is
   // empty or failed to load, completion is still allowed (fallback: derives the

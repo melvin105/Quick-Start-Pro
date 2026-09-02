@@ -52,6 +52,7 @@ export interface ListStudentsQuery {
   search?: string;
   status?: string;
   enrolmentType?: string;
+  outstandingOnly?: boolean;
   page?: number;
   limit?: number;
 }
@@ -176,7 +177,7 @@ export async function createStudent(input: CreateStudentInput, actingUser: Actin
 }
 
 export async function listStudents(query: ListStudentsQuery) {
-  const { search, status, enrolmentType } = query;
+  const { search, status, enrolmentType, outstandingOnly } = query;
   if (status) assertStatus(status);
   if (enrolmentType) assertEnrolmentType(enrolmentType);
 
@@ -202,17 +203,22 @@ export async function listStudents(query: ListStudentsQuery) {
       `(s.first_name || ' ' || s.last_name ilike $${p} or s.phone ilike $${p} or s.student_number ilike $${p})`,
     );
   }
+  if (outstandingOnly) {
+    conditions.push(`coalesce(vb.balance, 0) > 0`);
+  }
 
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
+  const countFrom = outstandingOnly
+    ? `from public.students s left join public.v_student_balances vb on vb.id = s.id`
+    : `from public.students s`;
 
-  const { rows: countRows } = await pool.query(
-    `select count(*)::int as total from public.students s ${where}`,
-    params,
-  );
-  const total = countRows[0].total;
-
-  params.push(limit, offset);
-  const { rows } = await pool.query(
+  const listParams = [...params, limit, offset];
+  const [countResult, listResult] = await Promise.all([
+    pool.query(
+      `select count(*)::int as total ${countFrom} ${where}`,
+      params,
+    ),
+    pool.query(
     `select
        s.id, s.student_number, s.first_name, s.last_name, s.gender, s.phone,
        s.email, s.status, s.enrolment_type, s.registration_date, s.photo_url,
@@ -232,11 +238,17 @@ export async function listStudents(query: ListStudentsQuery) {
      ) pkg on true
      ${where}
      order by s.created_at desc
-     limit $${params.length - 1} offset $${params.length}`,
-    params,
-  );
+     limit $${listParams.length - 1} offset $${listParams.length}`,
+      listParams,
+    ),
+  ]);
 
-  return { students: normalizeNumericRows(rows, STUDENT_BALANCE_FIELDS), total, page, limit };
+  return {
+    students: normalizeNumericRows(listResult.rows, STUDENT_BALANCE_FIELDS),
+    total: countResult.rows[0].total,
+    page,
+    limit,
+  };
 }
 
 export async function getStudentById(id: string) {

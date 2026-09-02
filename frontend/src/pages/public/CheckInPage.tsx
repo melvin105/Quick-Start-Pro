@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { CalendarX, CheckCircle2, UserX } from 'lucide-react'
 import CheckInShell from '../../features/attendance/checkin/CheckInShell'
 import InfoScreen from '../../features/attendance/checkin/InfoScreen'
@@ -36,8 +35,6 @@ function timeLabel(value: string | null | undefined): string {
 }
 
 export default function CheckInPage() {
-  const [searchParams] = useSearchParams()
-  const token = searchParams.get('token') ?? ''
   const [screen, setScreen] = useState<Screen>({ name: 'phone' })
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<ApiError | null>(null)
@@ -47,7 +44,7 @@ export default function CheckInPage() {
     setSubmitting(true)
     setActionError(null)
     try {
-      const result = await lookupCheckin(phone, token)
+      const result = await lookupCheckin(phone)
       if (result.status === 'not_found') {
         setScreen({ name: 'not-found' })
       } else if (result.status === 'already_checked_in') {
@@ -68,7 +65,7 @@ export default function CheckInPage() {
     setSubmitting(true)
     setActionError(null)
     try {
-      const result = await submitSelfCheckin(phone, token, instructor?.id)
+      const result = await submitSelfCheckin(phone, instructor?.id)
       setScreen({
         name: 'confirmed',
         studentName: result.studentName,
@@ -80,19 +77,6 @@ export default function CheckInPage() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  if (!token) {
-    return (
-      <CheckInShell>
-        <InfoScreen
-          icon={UserX}
-          tone="warning"
-          heading="Check-in code required"
-          description="Please scan today's QR code at the driving school."
-        />
-      </CheckInShell>
-    )
   }
 
   return (

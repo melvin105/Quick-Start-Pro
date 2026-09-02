@@ -1,5 +1,5 @@
 import StatCard from '../../../components/ui/StatCard'
-import LoadingState from '../../../components/ui/LoadingState'
+import PageDataSkeleton from '../../../components/ui/PageDataSkeleton'
 import ErrorState from '../../../components/ui/ErrorState'
 import MonthlyRevenueChart from './MonthlyRevenueChart'
 import PendingApprovals, { type ApprovalItem } from './PendingApprovals'
@@ -29,10 +29,18 @@ function toApprovalItem(reg: Registration): ApprovalItem {
 }
 
 export default function ManagerDashboard() {
-  const { data, loading, error, refetch } = useApiResource(getDashboard)
-  const approvals = useApiResource(getPendingRegistrations)
+  const { data, loading, error, refetch } = useApiResource(
+    getDashboard,
+    [],
+    { cacheKey: 'dashboard', staleTime: 30_000 },
+  )
+  const approvals = useApiResource(
+    getPendingRegistrations,
+    [],
+    { cacheKey: 'registrations:pending', staleTime: 30_000 },
+  )
 
-  if (loading) return <LoadingState message="Loading dashboard…" />
+  if (loading) return <PageDataSkeleton statCards={8} panels={2} />
   if (error)   return <ErrorState error={error} onRetry={refetch} />
   if (!data)   return null
 

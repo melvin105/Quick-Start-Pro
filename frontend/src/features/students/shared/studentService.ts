@@ -34,6 +34,7 @@ export interface ListStudentsParams {
   search?:        string
   status?:        ApiStudentStatus
   enrolmentType?: ApiEnrolmentType
+  outstandingOnly?: boolean
   page?:          number
   limit?:         number
 }

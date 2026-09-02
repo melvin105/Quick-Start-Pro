@@ -30,7 +30,11 @@ export default function RegisterStudentPage() {
   // break the real student_packages foreign key.
   const {
     data: packageRows, loading: packagesLoading, error: packagesError, refetch: refetchPackages,
-  } = useApiResource(() => listPackages(true))
+  } = useApiResource(
+    () => listPackages(true),
+    [],
+    { cacheKey: 'packages:active', staleTime: 5 * 60_000 },
+  )
   const packages = (packageRows ?? []).map(toPackageOption)
 
   const [phase, setPhase] = useState<Phase>('details')

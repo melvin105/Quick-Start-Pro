@@ -1,10 +1,10 @@
 import type { IdCardType } from './types'
 
-export const ID_CARD_TYPES: IdCardType[] = ['Ghana Card', 'Voter ID', 'Passport', "Driver's Licence", 'Other']
+export const ID_CARD_TYPES: IdCardType[] = ['Ghana Card', 'Voter ID', 'Passport', "Driver's Licence"]
 
 export const RELATIONSHIP_OPTIONS = [
   'Mother', 'Father', 'Spouse', 'Sister', 'Brother', 'Daughter', 'Son',
-  'Guardian', 'Relative', 'Friend', 'Employer', 'Other',
+  'Guardian', 'Relative', 'Friend', 'Employer',
 ].map((value) => ({ value, label: value }))
 
 export function formatPhoneInput(value: string): string {
@@ -48,6 +48,5 @@ export function idNumberError(type: string | undefined, value: string | undefine
   if (type === 'Voter ID' && !/^\d{10}$/.test(number)) return 'Voter ID must contain exactly 10 digits'
   if (type === 'Passport' && !/^[A-Z0-9]{8,9}$/.test(number)) return 'Passport number must be 8–9 letters or digits'
   if (type === "Driver's Licence" && !/^[A-Z0-9-]{5,20}$/.test(number)) return 'Enter a valid driver’s licence number'
-  if (type === 'Other' && number.length < 3) return 'Enter a valid identity number'
   return null
 }
