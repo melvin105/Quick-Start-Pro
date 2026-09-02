@@ -80,11 +80,9 @@ app.use(
 // (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
 app.use(express.json({ limit: '10mb' }));
 
-// ─── Diagnostics (temporary) ────────────────────────────────────────────────
-// Added to hunt down intermittent "can't reach the API" outages. Logs any
-// request that takes longer than SLOW_MS (so we can see hangs vs. quick fails),
-// plus requests the client aborts. Remove this block once the cause is found.
-const SLOW_MS = 2_000;
+// ─── Response timing ────────────────────────────────────────────────────────
+// Lightweight response instrumentation. This distinguishes time spent in auth
+// from total application processing time without emitting per-request logs.
 app.use((req, res, next) => {
   const start = Date.now();
   const originalJson = res.json.bind(res);
@@ -99,13 +97,6 @@ app.use((req, res, next) => {
     }
     return originalJson(body);
   }) as Response['json'];
-  res.on('finish', () => {
-    const ms = Date.now() - start;
-    if (ms >= SLOW_MS) console.warn(`[slow] ${res.statusCode} ${req.method} ${req.originalUrl} ${ms}ms`);
-  });
-  res.on('close', () => {
-    if (!res.writableEnded) console.warn(`[aborted] ${req.method} ${req.originalUrl} after ${Date.now() - start}ms`);
-  });
   next();
 });
 
@@ -183,21 +174,7 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  const startedAt = Date.now();
   app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
   });
-
-  // ─── Heartbeat (temporary) ────────────────────────────────────────────────
-  // Prints every 30s so an outage is self-diagnosing: if these lines keep coming
-  // while the page says "can't reach", the backend is alive and the problem is
-  // the network/address, not the server. If they stop and later a fresh "Server
-  // running…" appears, the process crashed and restarted. `waiting` climbing
-  // means requests are queued for a DB connection (pooler exhausted). Remove
-  // once the cause is found.
-  const heartbeat = setInterval(() => {
-    const up = Math.round((Date.now() - startedAt) / 1000);
-    console.log(`[hb] up=${up}s pool total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`);
-  }, 30_000);
-  heartbeat.unref();
 }

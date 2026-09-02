@@ -77,11 +77,9 @@ exports.app.use((0, cors_1.default)({
 // blows past express.json()'s 100kb default and would throw PayloadTooLargeError
 // (surfacing as a generic 500). 10mb comfortably fits a phone-camera photo.
 exports.app.use(express_1.default.json({ limit: '10mb' }));
-// ─── Diagnostics (temporary) ────────────────────────────────────────────────
-// Added to hunt down intermittent "can't reach the API" outages. Logs any
-// request that takes longer than SLOW_MS (so we can see hangs vs. quick fails),
-// plus requests the client aborts. Remove this block once the cause is found.
-const SLOW_MS = 2000;
+// ─── Response timing ────────────────────────────────────────────────────────
+// Lightweight response instrumentation. This distinguishes time spent in auth
+// from total application processing time without emitting per-request logs.
 exports.app.use((req, res, next) => {
     const start = Date.now();
     const originalJson = res.json.bind(res);
@@ -95,15 +93,6 @@ exports.app.use((req, res, next) => {
             res.setHeader('Server-Timing', metrics);
         }
         return originalJson(body);
-    });
-    res.on('finish', () => {
-        const ms = Date.now() - start;
-        if (ms >= SLOW_MS)
-            console.warn(`[slow] ${res.statusCode} ${req.method} ${req.originalUrl} ${ms}ms`);
-    });
-    res.on('close', () => {
-        if (!res.writableEnded)
-            console.warn(`[aborted] ${req.method} ${req.originalUrl} after ${Date.now() - start}ms`);
     });
     next();
 });
@@ -175,21 +164,8 @@ if (require.main === module) {
         console.error(err.message);
         process.exit(1);
     }
-    const startedAt = Date.now();
     exports.app.listen(process.env.PORT || 5000, () => {
         console.log(`Server running on port ${process.env.PORT || 5000}`);
     });
-    // ─── Heartbeat (temporary) ────────────────────────────────────────────────
-    // Prints every 30s so an outage is self-diagnosing: if these lines keep coming
-    // while the page says "can't reach", the backend is alive and the problem is
-    // the network/address, not the server. If they stop and later a fresh "Server
-    // running…" appears, the process crashed and restarted. `waiting` climbing
-    // means requests are queued for a DB connection (pooler exhausted). Remove
-    // once the cause is found.
-    const heartbeat = setInterval(() => {
-        const up = Math.round((Date.now() - startedAt) / 1000);
-        console.log(`[hb] up=${up}s pool total=${db_1.pool.totalCount} idle=${db_1.pool.idleCount} waiting=${db_1.pool.waitingCount}`);
-    }, 30000);
-    heartbeat.unref();
 }
 //# sourceMappingURL=index.js.map
