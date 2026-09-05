@@ -6,6 +6,7 @@ import LessonsTabContent from '../shared/profile/LessonsTabContent'
 import StudentAttendanceTabContent from './StudentAttendanceTabContent'
 import StudentLicenceTabContent from './StudentLicenceTabContent'
 import StudentActivityTabContent from './StudentActivityTabContent'
+import StudentWeeklyScheduleCard from '../shared/profile/StudentWeeklyScheduleCard'
 
 export type ManagerProfileTabKey = 'overview' | 'payments' | 'lessons' | 'attendance' | 'licence' | 'activity'
 
@@ -48,6 +49,9 @@ export default function ManagerProfileTabs({ student, tab, onTabChange }: Manage
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PersonalDetailsCard student={student} />
           <ProgrammeNextOfKinCard student={student} />
+          <div className="lg:col-span-2">
+            <StudentWeeklyScheduleCard studentId={student.id} />
+          </div>
         </div>
       )}
 
