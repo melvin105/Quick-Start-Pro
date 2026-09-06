@@ -52,6 +52,13 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
     [activeDay, activeSlots],
   )
 
+  const hasAvailableCopyDay = (source: ApiScheduleSlot) => activeSlots.some(
+    (slot) => slot.startHour === source.startHour
+      && slot.id !== source.id
+      && !isAssigned(slot, studentId)
+      && slot.assignments.length < slot.capacity,
+  )
+
   const handleToggle = async (slot: ApiScheduleSlot) => {
     const assigned = isAssigned(slot, studentId)
     const full = slot.assignments.length >= slot.capacity
@@ -209,15 +216,17 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
                   <Check size={12} />
                   {formatSlotLabel(slot.day as Day, slot.startHour, true)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => openCopyDialog(slot)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 border-l border-brand-200 hover:bg-brand-100 transition-colors"
-                  aria-label={`Apply ${formatSlotLabel(slot.day as Day, slot.startHour)} to other days`}
-                >
-                  <Copy size={11} />
-                  Apply to days
-                </button>
+                {hasAvailableCopyDay(slot) && (
+                  <button
+                    type="button"
+                    onClick={() => openCopyDialog(slot)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border-l border-brand-200 hover:bg-brand-100 transition-colors"
+                    aria-label={`Apply ${formatSlotLabel(slot.day as Day, slot.startHour)} to other days`}
+                  >
+                    <Copy size={11} />
+                    Apply to days
+                  </button>
+                )}
               </span>
             ))}
           </div>
