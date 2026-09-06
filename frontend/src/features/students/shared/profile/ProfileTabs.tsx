@@ -3,6 +3,7 @@ import PersonalDetailsCard from './PersonalDetailsCard'
 import ProgrammeNextOfKinCard from './ProgrammeNextOfKinCard'
 import PaymentsTabContent from './PaymentsTabContent'
 import LessonsTabContent from './LessonsTabContent'
+import StudentWeeklyScheduleCard from './StudentWeeklyScheduleCard'
 
 export type ProfileTabKey = 'overview' | 'payments' | 'lessons'
 
@@ -42,6 +43,9 @@ export default function ProfileTabs({ student, tab, onTabChange }: ProfileTabsPr
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PersonalDetailsCard student={student} />
           <ProgrammeNextOfKinCard student={student} />
+          <div className="lg:col-span-2">
+            <StudentWeeklyScheduleCard studentId={student.id} />
+          </div>
         </div>
       )}
 
