@@ -16,6 +16,11 @@ router.post(
   requireRole('manager', 'secretary'),
   schedulingController.applyToDays,
 );
+router.post(
+  '/slots/:slotId/remove-days',
+  requireRole('manager', 'secretary'),
+  schedulingController.removeFromDays,
+);
 router.delete(
   '/slots/:slotId/assignments/:studentId',
   requireRole('manager', 'secretary'),

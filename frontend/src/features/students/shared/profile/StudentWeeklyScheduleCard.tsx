@@ -6,7 +6,7 @@ import {
   assignStudent,
   applySlotToDays,
   listSlots,
-  unassignStudent,
+  removeSlotFromDays,
   type ApiScheduleSlot,
 } from '../../../scheduling/shared/schedulingService'
 import type { Day } from '../../../scheduling/shared/types'
@@ -35,6 +35,9 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
   const [copySource, setCopySource] = useState<ApiScheduleSlot | null>(null)
   const [copyDays, setCopyDays] = useState<Set<number>>(new Set())
   const [copying, setCopying] = useState(false)
+  const [removeSource, setRemoveSource] = useState<ApiScheduleSlot | null>(null)
+  const [removeDays, setRemoveDays] = useState<Set<number>>(new Set())
+  const [removing, setRemoving] = useState(false)
 
   const activeSlots = useMemo(
     () => (data?.slots ?? []).filter((slot) => slot.isActive && slot.day !== null),
@@ -54,24 +57,59 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
     const full = slot.assignments.length >= slot.capacity
     if ((!assigned && full) || busySlotId) return
 
+    if (assigned) {
+      const assignedDays = activeSlots
+        .filter((candidate) => candidate.startHour === slot.startHour && isAssigned(candidate, studentId))
+        .map((candidate) => candidate.dayOfWeek)
+      setRemoveSource(slot)
+      setRemoveDays(new Set(assignedDays))
+      setActionError(null)
+      setSuccessMessage(null)
+      return
+    }
+
     setBusySlotId(slot.id)
     setActionError(null)
     setSuccessMessage(null)
 
     try {
-      if (assigned) {
-        await unassignStudent(slot.id, studentId)
-        setSuccessMessage(`Removed ${formatSlotLabel(slot.day as Day, slot.startHour)}.`)
-      } else {
-        await assignStudent(slot.id, studentId)
-        setSuccessMessage(`Assigned ${formatSlotLabel(slot.day as Day, slot.startHour)}.`)
-      }
+      await assignStudent(slot.id, studentId)
+      setSuccessMessage(`Assigned ${formatSlotLabel(slot.day as Day, slot.startHour)}.`)
       await refetch()
     } catch (err) {
       setActionError((err as ApiError)?.message ?? 'The schedule could not be updated. Please try again.')
       await refetch()
     } finally {
       setBusySlotId(null)
+    }
+  }
+
+  const toggleRemoveDay = (day: number) => {
+    if (day === removeSource?.dayOfWeek) return
+    setRemoveDays((current) => {
+      const next = new Set(current)
+      if (next.has(day)) next.delete(day)
+      else next.add(day)
+      return next
+    })
+  }
+
+  const handleRemoveFromDays = async () => {
+    if (!removeSource || removing || !removeDays.has(removeSource.dayOfWeek)) return
+    setRemoving(true)
+    setActionError(null)
+    try {
+      const result = await removeSlotFromDays(removeSource.id, studentId, [...removeDays])
+      const total = result.removedDays.length
+      setSuccessMessage(`Removed ${formatRangeShort(result.startHour)} from ${total} ${total === 1 ? 'day' : 'days'}.`)
+      setRemoveSource(null)
+      setRemoveDays(new Set())
+      await refetch()
+    } catch (err) {
+      setActionError((err as ApiError)?.message ?? 'The selected times could not be removed. Please try again.')
+      await refetch()
+    } finally {
+      setRemoving(false)
     }
   }
 
@@ -352,6 +390,97 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
               >
                 {copying && <Loader2 size={14} className="animate-spin" />}
                 Apply to {copyDays.size} {copyDays.size === 1 ? 'day' : 'days'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {removeSource && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-gray-900/50"
+            onClick={() => !removing && setRemoveSource(null)}
+            aria-label="Close remove-from-days dialog"
+          />
+          <div className="relative bg-white rounded-2xl shadow-modal max-w-md w-full p-5 flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold text-gray-900">Remove time from days</h3>
+                <p className="text-[12.5px] text-gray-500 mt-1">
+                  Remove {formatRangeShort(removeSource.startHour)} from {DAY_FULL[removeSource.day as Day]} and any other selected days.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={removing}
+                onClick={() => setRemoveSource(null)}
+                className="text-gray-400 hover:text-gray-700 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {DAYS.map((day) => {
+                const slot = activeSlots.find(
+                  (candidate) => candidate.day === day && candidate.startHour === removeSource.startHour,
+                )
+                const assigned = slot ? isAssigned(slot, studentId) : false
+                const sourceDay = slot?.dayOfWeek === removeSource.dayOfWeek
+                const selected = slot ? removeDays.has(slot.dayOfWeek) : false
+                return (
+                  <label
+                    key={day}
+                    className={`rounded-xl border px-3 py-2.5 text-[12.5px] ${
+                      !assigned
+                        ? 'border-gray-200 bg-gray-50 text-gray-400'
+                        : selected
+                          ? 'border-danger bg-danger/5 text-danger'
+                          : 'border-gray-200 text-gray-700 cursor-pointer hover:border-danger/40'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        disabled={!assigned || sourceDay || removing}
+                        checked={selected}
+                        onChange={() => slot && toggleRemoveDay(slot.dayOfWeek)}
+                        className="accent-red-600"
+                      />
+                      <span className="font-medium">{DAY_FULL[day]}</span>
+                    </span>
+                    <span className="block text-[10.5px] mt-1 ml-5">
+                      {sourceDay ? 'Selected day' : assigned ? 'Same time assigned' : 'Not assigned'}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+
+            <p className="text-[11.5px] text-gray-500">
+              Other assigned days are selected automatically. Deselect any day you want to keep.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={removing}
+                onClick={() => setRemoveSource(null)}
+                className="px-4 py-2 text-[13px] font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={removing || removeDays.size === 0}
+                onClick={() => void handleRemoveFromDays()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-danger rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {removing && <Loader2 size={14} className="animate-spin" />}
+                Remove from {removeDays.size} {removeDays.size === 1 ? 'day' : 'days'}
               </button>
             </div>
           </div>
