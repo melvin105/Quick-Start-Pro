@@ -9,11 +9,12 @@ interface Props<T extends FieldValues> {
   placeholder?: string
   disabled?: boolean
   inputMode?: 'text' | 'numeric' | 'tel'
+  autoComplete?: string
   formatter: (value: string) => string
 }
 
 export default function ControlledFormField<T extends FieldValues>({
-  control, name, label, required, error, placeholder, disabled, inputMode = 'text', formatter,
+  control, name, label, required, error, placeholder, disabled, inputMode = 'text', autoComplete, formatter,
 }: Props<T>) {
   return (
     <div>
@@ -32,7 +33,7 @@ export default function ControlledFormField<T extends FieldValues>({
             onChange={(event) => field.onChange(formatter(event.target.value))}
             disabled={disabled}
             inputMode={inputMode}
-            autoComplete={inputMode === 'tel' ? 'tel' : undefined}
+            autoComplete={autoComplete ?? (inputMode === 'tel' ? 'tel' : undefined)}
             placeholder={placeholder}
             className={`w-full px-3 py-2.5 border rounded-lg text-sm text-gray-900 placeholder:text-gray-500 transition-colors disabled:opacity-60 disabled:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-600/20 ${error ? 'border-danger focus:border-danger' : 'border-gray-200 focus:border-brand-600'}`}
           />

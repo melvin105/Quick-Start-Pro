@@ -19,11 +19,12 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
-  const { search, status, enrolmentType, page, limit } = req.query;
+  const { search, status, enrolmentType, outstandingOnly, page, limit } = req.query;
   const result = await studentService.listStudents({
     search: typeof search === 'string' ? search : undefined,
     status: typeof status === 'string' ? status : undefined,
     enrolmentType: typeof enrolmentType === 'string' ? enrolmentType : undefined,
+    outstandingOnly: outstandingOnly === 'true',
     page: page ? Number(page) : undefined,
     limit: limit ? Number(limit) : undefined,
   });

@@ -25,10 +25,10 @@ describe('listStudents', () => {
   it('reads GET /students, forwarding the filter params', async () => {
     mockedGet.mockResolvedValue({ data: emptyResult })
 
-    const result = await listStudents({ search: 'john', status: 'active', limit: 100 })
+    const result = await listStudents({ search: 'john', outstandingOnly: true, page: 2, limit: 20 })
 
     expect(mockedGet).toHaveBeenCalledWith('/students', {
-      params: { search: 'john', status: 'active', limit: 100 },
+      params: { search: 'john', outstandingOnly: true, page: 2, limit: 20 },
     })
     expect(result).toEqual(emptyResult)
   })

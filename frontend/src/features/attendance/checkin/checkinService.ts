@@ -37,24 +37,9 @@ export interface CheckinResult {
   alreadyCheckedIn:  boolean
 }
 
-export interface DailyCheckinToken {
-  token:     string
-  date:      string
-  expiresAt: string
-}
-
-export async function createDailyCheckinToken(): Promise<DailyCheckinToken> {
+export async function lookupCheckin(phone: string): Promise<CheckinLookupResult> {
   try {
-    const { data } = await api.post<DailyCheckinToken>('/checkin/token')
-    return data
-  } catch (err) {
-    throw toApiError(err)
-  }
-}
-
-export async function lookupCheckin(phone: string, token: string): Promise<CheckinLookupResult> {
-  try {
-    const { data } = await api.post<CheckinLookupResult>('/checkin/lookup', { phone, token })
+    const { data } = await api.post<CheckinLookupResult>('/checkin/lookup', { phone })
     return data
   } catch (err) {
     throw toApiError(err)
@@ -72,13 +57,11 @@ export async function listPublicInstructors(): Promise<PublicInstructor[]> {
 
 export async function submitSelfCheckin(
   phone: string,
-  token: string,
   instructorId?: string,
 ): Promise<CheckinResult> {
   try {
     const { data } = await api.post<CheckinResult>('/checkin', {
       phone,
-      token,
       ...(instructorId ? { instructorId } : {}),
     })
     return data

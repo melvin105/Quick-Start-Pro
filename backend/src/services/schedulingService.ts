@@ -90,10 +90,10 @@ async function fetchActiveAssignments(): Promise<AssignmentRow[]> {
 }
 
 export async function listSlots() {
-  const { rows: slotRows } = await pool.query<SlotRow>(
-    `${SELECT_SLOT} order by sl.day_of_week, sl.start_time`,
-  );
-  const assignments = await fetchActiveAssignments();
+  const [{ rows: slotRows }, assignments] = await Promise.all([
+    pool.query<SlotRow>(`${SELECT_SLOT} order by sl.day_of_week, sl.start_time`),
+    fetchActiveAssignments(),
+  ]);
   return { slots: slotRows.map((slot) => shapeSlot(slot, assignments)) };
 }
 

@@ -13,6 +13,7 @@ interface JwtPayload {
 }
 
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
+  const startedAt = Date.now();
   try {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
@@ -42,8 +43,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       jti: payload.jti,
       exp: payload.exp,
     };
+    res.locals.authDurationMs = Date.now() - startedAt;
     next();
   } catch (err) {
+    res.locals.authDurationMs = Date.now() - startedAt;
     if (err instanceof ApiError) return next(err);
     next(new ApiError(401, 'UNAUTHENTICATED', 'Invalid or expired token.'));
   }

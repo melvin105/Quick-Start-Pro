@@ -81,8 +81,16 @@ export const pool = new Pool({
   // Cap concurrent server connections — we go through Supabase's Supavisor
   // pooler, which multiplexes, so a small pool per instance is plenty.
   max: 10,
-  // Return idle clients to the pooler after 30s instead of holding them open.
+  // Keep one connection ready so the first request after a quiet period does
+  // not pay for a fresh DNS/TCP/TLS/database handshake. Supavisor still
+  // multiplexes this lightweight client connection server-side.
+  min: 1,
+  // Retire surplus idle clients after 30s while preserving the warm minimum.
   idleTimeoutMillis: 30_000,
+  // An idle database socket must not keep short-lived scripts and test runners
+  // alive after their actual work is complete. The production HTTP listener
+  // keeps the application process running, so its warm minimum is unaffected.
+  allowExitOnIdle: true,
   // Fail fast if a connection can't be acquired (pooler saturated / network
   // stall) rather than hanging forever; the frontend's own request timeout is
   // 10s, so anything longer is already a lost request server-side.

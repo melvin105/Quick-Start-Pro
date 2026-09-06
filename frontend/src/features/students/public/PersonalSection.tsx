@@ -90,7 +90,7 @@ export default function PersonalSection({ register, control, errors, watch, setV
             )}
           />
         </div>
-        <ControlledFormField control={control} name="idCardNumber" label="Identity Number" error={errors.idCardNumber?.message} inputMode={cardType === 'Ghana Card' || cardType === 'Voter ID' ? 'numeric' : 'text'} placeholder={idNumberPlaceholder(cardType)} formatter={(value) => formatIdNumber(cardType, value)} />
+        <ControlledFormField control={control} name="idCardNumber" label="Identity Number" error={errors.idCardNumber?.message} inputMode={cardType === 'Ghana Card' || cardType === 'Voter ID' ? 'numeric' : 'text'} autoComplete="off" placeholder={idNumberPlaceholder(cardType)} formatter={(value) => formatIdNumber(cardType, value)} />
       </div>
     </div>
   )

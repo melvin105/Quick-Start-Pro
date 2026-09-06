@@ -28,9 +28,9 @@ describe('payments service', () => {
     }
     mockedGet.mockResolvedValue({ data: response })
 
-    await expect(listPayments({ method: 'momo', dateFrom: '2026-08-01', limit: 100 })).resolves.toEqual(response)
+    await expect(listPayments({ method: 'momo', dateFrom: '2026-08-01', dateTo: '2026-08-01', status: 'partial', page: 2, limit: 20 })).resolves.toEqual(response)
     expect(mockedGet).toHaveBeenCalledWith('/payments', {
-      params: { method: 'momo', dateFrom: '2026-08-01', limit: 100 },
+      params: { method: 'momo', dateFrom: '2026-08-01', dateTo: '2026-08-01', status: 'partial', page: 2, limit: 20 },
     })
   })
 

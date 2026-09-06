@@ -5,6 +5,6 @@ import * as dashboardService from '../services/dashboardService';
 export const get = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user as NonNullable<Request['user']>;
   const role = user.role as 'manager' | 'secretary';
-  const data = await dashboardService.getDashboard(role);
+  const data = await dashboardService.getDashboard(role, user.id);
   res.json(data);
 });

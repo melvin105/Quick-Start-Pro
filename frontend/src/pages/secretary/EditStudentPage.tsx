@@ -146,7 +146,7 @@ function EditStudentForm({ id, profile }: { id: string; profile: ApiStudentProfi
           </div>
         )}
         <p className="text-[12px] text-gray-500 mt-3">
-          Sets the student's fees and enrolment type. Next-of-kin and notes aren't editable here.
+          The selected package determines the fee and enrolment type. Next-of-kin details and notes are read-only here.
         </p>
       </div>
 

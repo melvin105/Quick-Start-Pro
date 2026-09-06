@@ -8,11 +8,14 @@ interface QrCodeDisplayProps {
   size?: number
   caption?: string
   showControls?: boolean
+  // Tighter padding and no school name/logo row, for contexts like a small
+  // modal where the full-size presentation (e.g. RegisterQrPage) is too much.
+  compact?: boolean
 }
 
 const NAVY = '#1B3A6B'
 
-export default function QrCodeDisplay({ value, size = 240, caption, showControls = false }: QrCodeDisplayProps) {
+export default function QrCodeDisplay({ value, size = 240, caption, showControls = false, compact = false }: QrCodeDisplayProps) {
   const [fullscreen, setFullscreen] = useState(false)
 
   if (fullscreen) {
@@ -35,12 +38,14 @@ export default function QrCodeDisplay({ value, size = 240, caption, showControls
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div className="print-area flex flex-col items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl py-8 px-6 w-full">
-        <div className="flex items-center gap-1.5 mb-1">
-          <img src={logo} alt="" className="w-5 h-5" />
-          <span className="text-[12px] font-semibold text-gray-700">Quick Start Driving School</span>
-        </div>
-        <div className="bg-white p-3 rounded-lg border border-gray-200">
+      <div className={`print-area flex flex-col items-center bg-gray-50 border border-gray-200 rounded-xl w-full ${compact ? 'gap-1.5 py-3 px-3' : 'gap-2 py-8 px-6'}`}>
+        {!compact && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <img src={logo} alt="" className="w-5 h-5" />
+            <span className="text-[12px] font-semibold text-gray-700">Quick Start Driving School</span>
+          </div>
+        )}
+        <div className={compact ? 'bg-white p-1.5 rounded-lg border border-gray-200' : 'bg-white p-3 rounded-lg border border-gray-200'}>
           <QRCode value={value} size={size} bgColor="#FFFFFF" fgColor={NAVY} />
         </div>
         {caption && <p className="text-[12px] text-gray-500 mt-1 text-center break-all">{caption}</p>}

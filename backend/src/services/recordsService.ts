@@ -11,28 +11,31 @@ export async function getDailyRecords(date: string) {
     throw new ApiError(400, 'INVALID_INPUT', 'date must be in YYYY-MM-DD format.');
   }
 
-  const { rows: ledgerRows } = await pool.query(
-    `select entry_id, entry_type, entry_date, entry_time, description, category,
-            source_category, income, expense
-     from public.v_daily_ledger
-     where entry_date = $1
-     order by entry_time`,
-    [date],
-  );
+  const [ledgerResult, closureResult] = await Promise.all([
+    pool.query(
+      `select entry_id, entry_type, entry_date, entry_time, description, category,
+              source_category, income, expense
+       from public.v_daily_ledger
+       where entry_date = $1
+       order by entry_time`,
+      [date],
+    ),
+    pool.query(
+      `select dc.*,
+              nullif(trim(coalesce(ss.first_name, '') || ' ' || coalesce(ss.last_name, '')), '') as submitted_by_name,
+              nullif(trim(coalesce(rs.first_name, '') || ' ' || coalesce(rs.last_name, '')), '') as reviewed_by_name
+       from public.daily_closures dc
+       left join public.users su on su.id = dc.submitted_by
+       left join public.staff ss on ss.id = su.staff_id
+       left join public.users ru on ru.id = dc.approved_by
+       left join public.staff rs on rs.id = ru.staff_id
+       where dc.closure_date = $1`,
+      [date],
+    ),
+  ]);
+  const ledgerRows = ledgerResult.rows;
   const ledger = normalizeNumericRows(ledgerRows, LEDGER_NUMERIC_FIELDS);
-
-  const { rows: closureRows } = await pool.query(
-    `select dc.*,
-            nullif(trim(coalesce(ss.first_name, '') || ' ' || coalesce(ss.last_name, '')), '') as submitted_by_name,
-            nullif(trim(coalesce(rs.first_name, '') || ' ' || coalesce(rs.last_name, '')), '') as reviewed_by_name
-     from public.daily_closures dc
-     left join public.users su on su.id = dc.submitted_by
-     left join public.staff ss on ss.id = su.staff_id
-     left join public.users ru on ru.id = dc.approved_by
-     left join public.staff rs on rs.id = ru.staff_id
-     where dc.closure_date = $1`,
-    [date],
-  );
+  const closureRows = closureResult.rows;
 
   let closure = closureRows[0];
   if (!closure) {

@@ -38,6 +38,21 @@ interface RefreshResult {
 const ACCESS_TTL = (process.env.JWT_ACCESS_EXPIRES_IN ?? '15m') as SignOptions['expiresIn'];
 const REFRESH_TTL = (process.env.JWT_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'];
 
+// Protected pages commonly start several API reads together. Without a small
+// cache, every one performs the same remote revoked-token lookup before its
+// actual work. Five seconds is long enough to collapse a navigation burst but
+// keeps cross-instance logout/revocation propagation tightly bounded.
+const REVOCATION_CACHE_TTL_MS = 5_000;
+const revocationCache = new Map<string, { revoked: boolean; expiresAt: number }>();
+const revocationChecks = new Map<string, Promise<boolean>>();
+
+function cacheRevocation(jti: string, revoked: boolean) {
+  revocationCache.set(jti, {
+    revoked,
+    expiresAt: Date.now() + REVOCATION_CACHE_TTL_MS,
+  });
+}
+
 // The identity we bake into a token. Kept minimal — the frontend gets the full
 // user object from /auth/login and holds it; tokens only carry what the API
 // needs to authorize a request.
@@ -63,9 +78,17 @@ interface RefreshPayload {
 function issueTokens(user: TokenIdentity): RefreshResult {
   const secret = process.env.JWT_SECRET as string;
   const base = { sub: user.id, role: user.role, staffId: user.staff_id };
+  const accessJti = randomUUID();
+  const refreshJti = randomUUID();
 
-  const token = jwt.sign({ ...base, type: 'access', jti: randomUUID() }, secret, { expiresIn: ACCESS_TTL });
-  const refreshToken = jwt.sign({ ...base, type: 'refresh', jti: randomUUID() }, secret, { expiresIn: REFRESH_TTL });
+  const token = jwt.sign({ ...base, type: 'access', jti: accessJti }, secret, { expiresIn: ACCESS_TTL });
+  const refreshToken = jwt.sign({ ...base, type: 'refresh', jti: refreshJti }, secret, { expiresIn: REFRESH_TTL });
+
+  // These identifiers were minted in this process and cannot already be in
+  // the revocation table. This removes the extra DB round trip immediately
+  // after login/refresh while preserving the normal lookup after the TTL.
+  cacheRevocation(accessJti, false);
+  cacheRevocation(refreshJti, false);
 
   return { token, refreshToken };
 }
@@ -74,6 +97,7 @@ function issueTokens(user: TokenIdentity): RefreshResult {
 // revocation row can be cleaned up after `expires_at`. Shared by logout and
 // refresh-token rotation.
 async function revokeJti(jti: string, exp: number): Promise<void> {
+  revocationCache.delete(jti);
   await pool.query(
     `insert into public.revoked_tokens (jti, expires_at)
      values ($1, to_timestamp($2))
@@ -186,6 +210,22 @@ export async function logout(accessJti: string, accessExp: number, refreshToken?
 }
 
 export async function isTokenRevoked(jti: string): Promise<boolean> {
-  const { rows } = await pool.query(`select 1 from public.revoked_tokens where jti = $1`, [jti]);
-  return rows.length > 0;
+  const cached = revocationCache.get(jti);
+  if (cached && cached.expiresAt > Date.now()) return cached.revoked;
+  if (cached) revocationCache.delete(jti);
+
+  const existingCheck = revocationChecks.get(jti);
+  if (existingCheck) return existingCheck;
+
+  const check = pool
+    .query(`select 1 from public.revoked_tokens where jti = $1`, [jti])
+    .then(({ rows }) => {
+      const revoked = rows.length > 0;
+      cacheRevocation(jti, revoked);
+      return revoked;
+    })
+    .finally(() => revocationChecks.delete(jti));
+
+  revocationChecks.set(jti, check);
+  return check;
 }

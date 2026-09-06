@@ -87,7 +87,10 @@ export async function submitRegistration(input: SubmitRegistrationInput) {
   const firstName = requireString(input?.firstName, 'firstName');
   const lastName = requireString(input?.lastName, 'lastName');
   const phone = normalizeGhanaPhone(requireString(input?.phone, 'phone'));
-  assertRegistrationToken(input?.sessionToken, phone);
+  // The walk-in poster QR is a static, tokenless link (no phone bound in
+  // advance, so there's nothing to check); a personalized link minted from
+  // RegisterQrPage still carries a phone-bound token, verified when present.
+  if (input?.sessionToken) assertRegistrationToken(input.sessionToken, phone);
   const dob = requireString(input?.dob, 'dob');
   if (!DATE_RE.test(dob)) {
     throw new ApiError(400, 'INVALID_INPUT', 'dob must be in YYYY-MM-DD format.');

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
 import { useApiResource } from '../../lib/useApiResource'
 import { listLicences } from '../../features/students/shared/studentService'
 import { toLicenceListItem } from '../../features/students/shared/licenceMappers'
@@ -10,6 +10,7 @@ import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
 import { formatDateShort, studentProfilePath, studentLicencePath } from '../../features/students/shared/utils'
 import type { EnrolmentType } from '../../features/students/shared/types'
+import { ROUTES } from '../../lib/constants'
 
 const STAGE_OPTIONS = [
   { value: '', label: 'Stage' },
@@ -101,7 +102,15 @@ export default function StudentsLicencesPage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <p className="text-[12px] text-gray-500">Dashboard / Students / Licences</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] text-gray-500">Dashboard / Students / Licences</p>
+          <Link
+            to={ROUTES.STUDENTS}
+            className="text-[13px] text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0"
+          >
+            <ArrowLeft size={14} /> Back to Students
+          </Link>
+        </div>
         <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Students — Licences</h1>
       </div>
 

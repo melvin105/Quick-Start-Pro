@@ -1,4 +1,4 @@
-import { Users, ClipboardCheck, Wallet, BarChart3, CalendarClock, Car } from 'lucide-react'
+import { Users, ClipboardCheck, Wallet, BarChart3, BadgeCheck, Car } from 'lucide-react'
 import ReportCard from '../../features/reports/ReportCard'
 import { ROUTES } from '../../lib/constants'
 
@@ -7,7 +7,7 @@ const REPORTS = [
   { icon: ClipboardCheck, iconClass: 'bg-success-bg text-success',   title: 'Attendance Reports', description: 'Lesson attendance by student & instructor', to: '/manager/reports/attendance' },
   { icon: Wallet,         iconClass: 'bg-warning-bg text-warning',   title: 'Revenue Reports',    description: 'Income by period, package & method',        to: '/manager/reports/revenue' },
   { icon: BarChart3,      iconClass: 'bg-danger-bg text-danger',     title: 'Expense Reports',    description: 'Spending by category & vendor',              to: '/manager/reports/expenses' },
-  { icon: CalendarClock,  iconClass: 'bg-brand-50 text-brand-600',   title: 'Schedule Reports',   description: 'Lesson volume & instructor utilisation',     to: '/manager/reports/schedule' },
+  { icon: BadgeCheck,     iconClass: 'bg-brand-50 text-brand-600',   title: 'Licence Status',     description: 'Learner and full licence progress',            to: '/manager/reports/licences' },
   { icon: Car,            iconClass: 'bg-gray-100 text-gray-700',    title: 'Driver Report',      description: 'Lessons per instructor by date range',       to: ROUTES.REPORTS_DRIVER },
 ]
 

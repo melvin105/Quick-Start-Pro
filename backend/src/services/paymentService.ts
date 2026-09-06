@@ -176,38 +176,53 @@ export async function listPayments(query: ListPaymentsQuery) {
     left join public.users u on u.id = p.recorded_by
     left join public.staff sf on sf.id = u.staff_id
   `;
+  // Counting does not need the package, receipt, user and balance joins used
+  // to shape every display row. Add only the joins required by active filters
+  // so pagination totals stay cheap as payment history grows.
+  const countFrom = `
+    from public.payments p
+    ${search ? `join public.students st on st.id = p.student_id
+                left join public.receipts r on r.payment_id = p.id` : ''}
+    ${status ? `left join public.v_student_balances vb on vb.id = p.student_id` : ''}
+  `;
 
-  const { rows: countRows } = await pool.query(`select count(*)::int as total ${baseFrom} ${where}`, params);
-  const total = countRows[0].total;
+  const listParams = [...params, limit, offset];
+  const [countResult, statsResult, listResult] = await Promise.all([
+    pool.query(`select count(*)::int as total ${countFrom} ${where}`, params),
+    pool.query(
+      `select
+         coalesce((select sum(amount) from public.payments where payment_date = current_date), 0) as today_income,
+         coalesce((select sum(amount) from public.payments
+                   where payment_date >= date_trunc('month', current_date)::date
+                     and payment_date < (date_trunc('month', current_date) + interval '1 month')::date), 0) as month_income,
+         coalesce((select sum(balance) from public.v_student_balances where balance > 0), 0) as outstanding,
+         (select count(*)::int from public.v_student_balances where balance > 0) as students_with_balance`,
+    ),
+    pool.query(
+      `select
+         p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
+         st.id as student_id, st.student_number, st.first_name || ' ' || st.last_name as student_name,
+         r.id as receipt_id, r.receipt_no, pkg.package_name,
+         coalesce(vb.total_fees, 0) as package_fee,
+         coalesce(vb.total_paid, 0) as total_paid,
+         coalesce(vb.balance, 0) as balance,
+         nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
+         case when coalesce(vb.balance, 0) <= 0 then 'paid' else 'partial' end as status
+       ${baseFrom}
+       ${where}
+       order by p.payment_date desc, p.created_at desc
+       limit $${listParams.length - 1} offset $${listParams.length}`,
+      listParams,
+    ),
+  ]);
 
-  const { rows: statsRows } = await pool.query(
-    `select
-       coalesce((select sum(amount) from public.payments where payment_date = current_date), 0) as today_income,
-       coalesce((select sum(amount) from public.payments where date_trunc('month', payment_date) = date_trunc('month', current_date)), 0) as month_income,
-       coalesce((select sum(balance) from public.v_student_balances where balance > 0), 0) as outstanding,
-       (select count(*)::int from public.v_student_balances where balance > 0) as students_with_balance`,
-  );
-  const stats = normalizeNumericFields(statsRows[0], PAYMENT_STATS_FIELDS);
-
-  params.push(limit, offset);
-  const { rows } = await pool.query(
-    `select
-       p.id, p.amount, p.method, p.payment_date, p.notes, p.created_at,
-       st.id as student_id, st.student_number, st.first_name || ' ' || st.last_name as student_name,
-       r.id as receipt_id, r.receipt_no, pkg.package_name,
-       coalesce(vb.total_fees, 0) as package_fee,
-       coalesce(vb.total_paid, 0) as total_paid,
-       coalesce(vb.balance, 0) as balance,
-       nullif(trim(coalesce(sf.first_name, '') || ' ' || coalesce(sf.last_name, '')), '') as recorded_by_name,
-       case when coalesce(vb.balance, 0) <= 0 then 'paid' else 'partial' end as status
-     ${baseFrom}
-     ${where}
-     order by p.payment_date desc, p.created_at desc
-     limit $${params.length - 1} offset $${params.length}`,
-    params,
-  );
-
-  return { payments: normalizeNumericRows(rows, PAYMENT_LIST_FIELDS), stats, total, page, limit };
+  return {
+    payments: normalizeNumericRows(listResult.rows, PAYMENT_LIST_FIELDS),
+    stats: normalizeNumericFields(statsResult.rows[0], PAYMENT_STATS_FIELDS),
+    total: countResult.rows[0].total,
+    page,
+    limit,
+  };
 }
 
 export async function getStudentPaymentHistory(studentId: string) {

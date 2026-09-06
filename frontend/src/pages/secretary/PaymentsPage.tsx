@@ -8,14 +8,18 @@ import Dropdown from '../../features/payments/Dropdown'
 import RecordPaymentModal from '../../features/payments/RecordPaymentModal'
 import PaymentDetailDrawer from '../../features/payments/PaymentDetailDrawer'
 import DatePicker from '../../components/ui/DatePicker'
-import LoadingState from '../../components/ui/LoadingState'
+import PageDataSkeleton from '../../components/ui/PageDataSkeleton'
 import ErrorState from '../../components/ui/ErrorState'
+import Pagination from '../../components/ui/Pagination'
 import { useApiResource } from '../../lib/useApiResource'
 import { listPayments } from '../../features/payments/paymentService'
-import { toPaymentRecord } from '../../features/payments/paymentMappers'
+import { paymentMethodValue, toPaymentRecord } from '../../features/payments/paymentMappers'
 import { listStudents } from '../../features/students/shared/studentService'
 import { todayIso } from '../../features/payments/utils'
-import type { PaymentRecord } from '../../features/payments/types'
+import type { PaymentMethod, PaymentRecord } from '../../features/payments/types'
+import type { ApiPaymentStatus } from '../../features/payments/paymentService'
+
+const PAGE_SIZE = 20
 
 const METHOD_OPTIONS = [
   { value: '', label: 'Payment Method' },
@@ -30,17 +34,6 @@ const STATUS_OPTIONS = [
 ]
 
 export default function PaymentsPage() {
-  const { data, loading, error, refetch } = useApiResource(async () => {
-    const [payments, students] = await Promise.all([
-      listPayments({ limit: 100 }),
-      listStudents({ limit: 100 }),
-    ])
-    return { payments, students }
-  })
-
-  const records = useMemo(() => data?.payments.payments.map(toPaymentRecord) ?? [], [data])
-  const students = useMemo(() => data?.students.students ?? [], [data])
-
   // Arriving from a student profile's "+ Record Payment" link pre-fills and
   // opens the modal directly, instead of landing here with no context and
   // making the secretary search for the student a second time.
@@ -54,6 +47,35 @@ export default function PaymentsPage() {
   const [dateFilter, setDateFilter] = useState('')
   const [methodFilter, setMethodFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+
+  const { data, loading, error, refetch } = useApiResource(
+    () => listPayments({
+      dateFrom: dateFilter || undefined,
+      dateTo: dateFilter || undefined,
+      method: methodFilter ? paymentMethodValue(methodFilter as PaymentMethod) : undefined,
+      status: (statusFilter || undefined) as ApiPaymentStatus | undefined,
+      page,
+      limit: PAGE_SIZE,
+    }),
+    [dateFilter, methodFilter, statusFilter, page],
+    {
+      cacheKey: `payments:${dateFilter}:${methodFilter}:${statusFilter}:${page}`,
+      staleTime: 30_000,
+    },
+  )
+  const studentResource = useApiResource(
+    () => listStudents({ limit: 100 }),
+    [],
+    {
+      enabled: showRecordModal,
+      cacheKey: 'students:::',
+      staleTime: 30_000,
+    },
+  )
+
+  const records = useMemo(() => data?.payments.map(toPaymentRecord) ?? [], [data])
+  const students = useMemo(() => studentResource.data?.students ?? [], [studentResource.data])
 
   const hasActiveFilters = dateFilter !== '' || methodFilter !== '' || statusFilter !== ''
 
@@ -61,19 +83,11 @@ export default function PaymentsPage() {
     setDateFilter('')
     setMethodFilter('')
     setStatusFilter('')
+    setPage(1)
   }
 
-  const filtered = useMemo(() => records
-    .filter((r) => {
-      if (dateFilter && r.date !== dateFilter) return false
-      if (methodFilter && r.method !== methodFilter) return false
-      if (statusFilter && r.status !== statusFilter) return false
-      return true
-    })
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)), [records, dateFilter, methodFilter, statusFilter])
-
   const stats = useMemo(() => {
-    const apiStats = data?.payments.stats
+    const apiStats = data?.stats
     return {
       todayIncome:         apiStats?.today_income ?? 0,
       monthIncome:         apiStats?.month_income ?? 0,
@@ -88,13 +102,13 @@ export default function PaymentsPage() {
   }
 
   const handleRecorded = async (record: { receiptNo: string }) => {
-    await refetch()
+    await Promise.all([refetch(), studentResource.refetch()])
     closeRecordModal()
     setToast(`Payment recorded — receipt ${record.receiptNo}`)
     setTimeout(() => setToast(null), 3000)
   }
 
-  if (loading) return <LoadingState message="Loading payments…" />
+  if (loading) return <PageDataSkeleton title="Payments" panels={1} />
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
   return (
@@ -117,9 +131,19 @@ export default function PaymentsPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-gray-500 font-medium">Filter:</span>
-        <DatePicker value={dateFilter} onChange={setDateFilter} maxDate={todayIso()} />
-        <Dropdown label="Payment Method" value={methodFilter} options={METHOD_OPTIONS} onChange={setMethodFilter} />
-        <Dropdown label="Status" value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} />
+        <DatePicker value={dateFilter} onChange={(value) => { setDateFilter(value); setPage(1) }} maxDate={todayIso()} />
+        <Dropdown
+          label="Payment Method"
+          value={methodFilter}
+          options={METHOD_OPTIONS}
+          onChange={(value) => { setMethodFilter(value); setPage(1) }}
+        />
+        <Dropdown
+          label="Status"
+          value={statusFilter}
+          options={STATUS_OPTIONS}
+          onChange={(value) => { setStatusFilter(value); setPage(1) }}
+        />
         {hasActiveFilters && (
           <button
             type="button"
@@ -131,8 +155,14 @@ export default function PaymentsPage() {
         )}
       </div>
 
-      <PaymentsTable records={filtered} onView={setDetailRecord} />
-      <PaymentsCardList records={filtered} onView={setDetailRecord} />
+      <PaymentsTable records={records} onView={setDetailRecord} />
+      <PaymentsCardList records={records} onView={setDetailRecord} />
+      <Pagination
+        page={data?.page ?? page}
+        pageSize={data?.limit ?? PAGE_SIZE}
+        total={data?.total ?? 0}
+        onPageChange={setPage}
+      />
 
       {/* Mobile: pinned bottom Record Payment button */}
       <button
@@ -148,6 +178,9 @@ export default function PaymentsPage() {
           onClose={closeRecordModal}
           onRecorded={handleRecorded}
           students={students}
+          studentsLoading={studentResource.loading}
+          studentsError={studentResource.error?.message}
+          onRetryStudents={studentResource.refetch}
           initialStudentId={initialStudentId}
         />
       )}

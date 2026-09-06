@@ -53,7 +53,7 @@ export default function RecordsDateNav({ date, onChange, submittedBy, submittedA
             onClick={() => onChange(todayIso())}
             className="px-3 py-1.5 text-[12.5px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors"
           >
-            Today
+            Return to current date
           </button>
         )}
       </div>

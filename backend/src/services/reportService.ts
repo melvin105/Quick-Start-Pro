@@ -1,7 +1,6 @@
 import { pool } from '../db';
 import { ApiError } from '../utils/ApiError';
 
-const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -12,6 +11,8 @@ export interface RevenueReportQuery {
 
 export interface DvlaReportQuery {
   status?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface FinancesQuery {
@@ -25,12 +26,6 @@ export interface DriverReportQuery {
   instructorId?: string;
 }
 
-function assertMonth(value: string, field: string): void {
-  if (!MONTH_RE.test(value)) {
-    throw new ApiError(400, 'INVALID_INPUT', `${field} must be in YYYY-MM format.`);
-  }
-}
-
 function assertDate(value: string, field: string): void {
   if (!DATE_RE.test(value)) {
     throw new ApiError(400, 'INVALID_INPUT', `${field} must be in YYYY-MM-DD format.`);
@@ -39,23 +34,30 @@ function assertDate(value: string, field: string): void {
 
 export async function getRevenueReport(query: RevenueReportQuery) {
   const { from, to } = query;
-  if (from) assertMonth(from, 'from');
-  if (to) assertMonth(to, 'to');
+  if (from) assertDate(from, 'from');
+  if (to) assertDate(to, 'to');
+  if (from && to && from > to) throw new ApiError(400, 'INVALID_INPUT', 'from must not be after to.');
 
   const conditions: string[] = [];
   const params: unknown[] = [];
   if (from) {
     params.push(from);
-    conditions.push(`month >= $${params.length}`);
+    conditions.push(`payment_date >= $${params.length}`);
   }
   if (to) {
     params.push(to);
-    conditions.push(`month <= $${params.length}`);
+    conditions.push(`payment_date <= $${params.length}`);
   }
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
 
   const { rows } = await pool.query(
-    `select month, payment_count, total_revenue from public.v_monthly_revenue ${where} order by month desc`,
+    `select to_char(date_trunc('month', payment_date), 'YYYY-MM') as month,
+            count(*)::int as payment_count,
+            coalesce(sum(amount), 0) as total_revenue
+       from public.payments
+       ${where}
+      group by date_trunc('month', payment_date)
+      order by date_trunc('month', payment_date) desc`,
     params,
   );
   return rows;
@@ -66,20 +68,41 @@ export async function getRevenueReport(query: RevenueReportQuery) {
 // the full v_licence_pipeline record set for now so the frontend has
 // everything available; narrow/relabel columns once that's confirmed.
 export async function getDvlaReport(query: DvlaReportQuery) {
-  const { status } = query;
-  if (status && !['issued', 'awaiting'].includes(status)) {
-    throw new ApiError(400, 'INVALID_INPUT', 'status must be one of: issued, awaiting.');
+  const { status, from, to } = query;
+  if (status && !['issued', 'awaiting', 'learner_pending'].includes(status)) {
+    throw new ApiError(400, 'INVALID_INPUT', 'status must be one of: issued, awaiting, learner_pending.');
+  }
+  if (from) assertDate(from, 'from');
+  if (to) assertDate(to, 'to');
+  if (from && to && from > to) throw new ApiError(400, 'INVALID_INPUT', 'from must not be after to.');
+
+  let statusCondition = 'true';
+  if (status === 'issued') {
+    statusCondition = 'coalesce(lp.licence_issued, false)';
+  } else if (status === 'awaiting') {
+    statusCondition = 'coalesce(lp.learner_licence_issued, false) and not coalesce(lp.licence_issued, false)';
+  } else if (status === 'learner_pending') {
+    statusCondition = 'not coalesce(lp.learner_licence_issued, false)';
   }
 
-  let condition = '(coalesce(licence_issued, false) or coalesce(learner_licence_issued, false))';
-  if (status === 'issued') {
-    condition = 'coalesce(licence_issued, false)';
-  } else if (status === 'awaiting') {
-    condition = 'coalesce(learner_licence_issued, false) and not coalesce(licence_issued, false)';
+  const conditions = [statusCondition];
+  const params: string[] = [];
+  if (from) {
+    params.push(from);
+    conditions.push(`s.registration_date >= $${params.length}`);
+  }
+  if (to) {
+    params.push(to);
+    conditions.push(`s.registration_date <= $${params.length}`);
   }
 
   const { rows } = await pool.query(
-    `select * from public.v_licence_pipeline where ${condition} order by student_number`,
+    `select lp.*
+       from public.v_licence_pipeline lp
+       join public.students s on s.id = lp.id
+      where ${conditions.join(' and ')}
+      order by lp.student_number`,
+    params,
   );
   return rows;
 }

@@ -6,9 +6,10 @@ import { formatGHS, studentProfilePath } from './utils'
 
 interface StudentCardListProps {
   students: StudentListItem[]
+  returnTo?: string
 }
 
-export default function StudentCardList({ students }: StudentCardListProps) {
+export default function StudentCardList({ students, returnTo }: StudentCardListProps) {
   const navigate = useNavigate()
 
   return (
@@ -17,7 +18,7 @@ export default function StudentCardList({ students }: StudentCardListProps) {
         <button
           key={student.id}
           type="button"
-          onClick={() => navigate(studentProfilePath(student.id))}
+          onClick={() => navigate(studentProfilePath(student.id, returnTo))}
           className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-4 text-left w-full hover:border-gray-300 transition-colors"
         >
           <StudentAvatar name={student.name} photo={student.photo} className="w-10 h-10 text-[12px]" />

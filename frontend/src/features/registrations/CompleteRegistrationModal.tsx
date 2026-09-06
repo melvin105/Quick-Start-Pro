@@ -48,7 +48,11 @@ export default function CompleteRegistrationModal({
   // Active packages — the only desk decision at completion. The enrolment type
   // (Driving Only / Licence Only / Driving + Licence) isn't picked separately;
   // it's derived from the chosen package's name, same as the register wizard.
-  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(() => listPackages(true))
+  const { data: packageRows, loading: packagesLoading, error: packagesError } = useApiResource(
+    () => listPackages(true),
+    [],
+    { cacheKey: 'packages:active', staleTime: 5 * 60_000 },
+  )
   const packages = (packageRows ?? []).map(toPackageOption)
   // When packages exist, one must be picked to complete. If the catalogue is
   // empty or failed to load, completion is still allowed (fallback: derives the
@@ -113,8 +117,7 @@ export default function CompleteRegistrationModal({
             <div>
               <h2 className="text-[16px] font-semibold text-gray-900">Registration completed</h2>
               <p className="text-[13px] text-gray-600 mt-1">
-                {registration.name} is now enrolled as{' '}
-                <span className="font-semibold text-gray-900">{studentNumber}</span> and appears under Active students.
+                Student record <span className="font-semibold text-gray-900">{studentNumber}</span> was created successfully.
               </p>
             </div>
             <button
@@ -219,7 +222,7 @@ export default function CompleteRegistrationModal({
                   </div>
                 )}
                 <p className="mt-1.5 text-[11.5px] text-gray-500">
-                  Sets the student's fees and enrolment. You can also change it later from their profile.
+                  The selected package determines the enrolment type and fee. It can be updated from the student profile.
                 </p>
               </div>
 

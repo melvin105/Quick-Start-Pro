@@ -8,34 +8,25 @@ import type { Role } from '../../lib/constants'
 //   2. thin async functions over the shared `api` client, and
 //   3. a `catch` that rethrows via `toApiError` so callers only handle ApiError.
 //
-// Shapes below mirror GET /dashboard (backend dashboardService.getDashboard +
-// the underlying views v_dashboard_stats, v_upcoming_lessons,
-// v_today_attendance, v_monthly_revenue).
+// Shapes below mirror GET /dashboard (backend dashboardService.getDashboard
+// and the underlying dashboard, attendance, and revenue views).
 
 // One row of v_dashboard_stats, coerced to numbers by the backend. The two
 // finance figures are manager-only — the backend strips them for secretaries,
 // so they are optional here.
 export interface DashboardStats {
-  total_students:       number
-  active_students:      number
-  outstanding_balances: number
-  lessons_completed:    number
-  licences_issued:      number
-  upcoming_lessons:     number
-  revenue_this_month?:  number
-  expenses_this_month?: number
-}
-
-export interface UpcomingLesson {
-  id:              string
-  lesson_date:     string
-  start_time:      string | null
-  end_time:        string | null
-  status:          string
-  student_number:  string
-  student_name:    string
-  instructor_name: string | null
-  vehicle:         string | null
+  total_students:                number
+  active_students:               number
+  outstanding_balances:          number
+  lessons_completed:             number
+  licences_issued:               number
+  upcoming_lessons:              number
+  payments_recorded_today:       number
+  payments_recorded_today_total: number
+  students_with_balance:         number
+  licences_in_progress:          number
+  revenue_this_month?:           number
+  expenses_this_month?:          number
 }
 
 export interface TodayAttendance {
@@ -55,13 +46,28 @@ export interface MonthlyRevenue {
   total_revenue: number
 }
 
+export interface WeeklyScheduleCount {
+  day_of_week: number
+  count:       number
+}
+
+// One row of the secretary's Recent Activity feed — a payment they recorded,
+// an attendance mark they made, or a student they registered. Discriminated
+// by `kind`; fields outside a variant's relevance are simply absent.
+export type RawActivityEntry =
+  | { kind: 'payment';    created_at: string; amount: number; student_name: string }
+  | { kind: 'attendance'; created_at: string; status: string; check_in_time: string | null; student_name: string }
+  | { kind: 'student';    created_at: string; student_name: string }
+
 export interface Dashboard {
   role:             Role
   stats:            DashboardStats
-  upcomingLessons:  UpcomingLesson[]
   todaysAttendance: TodayAttendance[]
   // Present only for managers.
   monthlyRevenue?:  MonthlyRevenue[]
+  weeklySchedule?:  WeeklyScheduleCount[]
+  // Present only for secretaries.
+  recentActivity?:  RawActivityEntry[]
 }
 
 // GET /dashboard — the whole dashboard in one round-trip. The backend tailors

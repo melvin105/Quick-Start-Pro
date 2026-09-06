@@ -14,7 +14,11 @@ import { ROUTES } from '../../lib/constants'
 const REFRESH_INTERVAL_MS = 30000
 
 export default function AttendancePage() {
-  const { data, loading, error, refetch } = useApiResource(listAttendance)
+  const { data, loading, error, refetch } = useApiResource(
+    listAttendance,
+    [],
+    { cacheKey: 'attendance:today', staleTime: REFRESH_INTERVAL_MS },
+  )
 
   // Auto-refresh so the manager sees marks/check-ins the secretary makes without
   // a manual reload — the backend recomputes the roster on each call.

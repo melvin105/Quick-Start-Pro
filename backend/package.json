@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test": "tsx --test src/tests/auth.contract.test.ts src/tests/publicToken.test.ts src/tests/passwordPolicy.test.ts src/tests/loginLockout.test.ts src/tests/dbSsl.test.ts src/tests/validation.test.ts",
     "smoke": "tsx src/tests/smoke.runtime.ts",
-    "set-manager-password": "tsx src/tools/setManagerPassword.ts"
+    "set-manager-password": "tsx src/tools/setManagerPassword.ts",
+    "set-secretary-password": "tsx src/tools/setSecretaryPassword.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,6 +1,5 @@
 import { pool } from '../db';
 import { ApiError } from '../utils/ApiError';
-import { assertCheckinToken, createCheckinToken } from './publicTokenService';
 
 // Public, unauthenticated self check-in used by the QR kiosk flow.
 //
@@ -13,12 +12,10 @@ import { assertCheckinToken, createCheckinToken } from './publicTokenService';
 
 export interface LookupInput {
   phone: string;
-  token: string;
 }
 
 export interface SelfCheckInInput {
   phone: string;
-  token: string;
   instructorId?: string;
 }
 
@@ -111,7 +108,6 @@ async function findTodaysAttendance(studentId: string) {
  * Returns a discriminated result the kiosk uses to decide what to show.
  */
 export async function lookupByPhone(input: LookupInput) {
-  assertCheckinToken(input?.token);
   const phone = normalizePhone(input?.phone);
 
   const student = await findActiveStudent(phone);
@@ -143,7 +139,6 @@ export async function lookupByPhone(input: LookupInput) {
  * (alreadyCheckedIn = true) instead of overwriting the original time.
  */
 export async function selfCheckIn(input: SelfCheckInInput) {
-  assertCheckinToken(input?.token);
   const phone = normalizePhone(input?.phone);
 
   const student = await findActiveStudent(phone);
@@ -229,8 +224,4 @@ export async function listActiveInstructors() {
   return {
     instructors: rows.map((r) => ({ id: r.id, name: `${r.first_name} ${r.last_name}` })),
   };
-}
-
-export function issueDailyCheckinToken() {
-  return createCheckinToken();
 }

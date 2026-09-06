@@ -12,6 +12,14 @@ describe('registration input formats', () => {
     expect(idNumberError('Ghana Card', 'GHA-123456789-0')).toBeNull()
   })
 
+  it('keeps accepting digits while the Ghana Card prefix is displayed', () => {
+    let displayed = ''
+    for (const digit of '1234567890') {
+      displayed = formatIdNumber('Ghana Card', displayed + digit)
+    }
+    expect(displayed).toBe('GHA-123456789-0')
+  })
+
   it('restricts voter, passport and licence characters by type', () => {
     expect(formatIdNumber('Voter ID', '12a34567890')).toBe('1234567890')
     expect(formatIdNumber('Passport', 'g-1234567')).toBe('G1234567')

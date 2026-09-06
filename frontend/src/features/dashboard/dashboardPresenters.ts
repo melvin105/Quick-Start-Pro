@@ -1,5 +1,6 @@
-import { format } from 'date-fns'
-import type { MonthlyRevenue, UpcomingLesson } from './dashboardService'
+import { format, formatDistanceToNowStrict } from 'date-fns'
+import type { MonthlyRevenue, RawActivityEntry, TodayAttendance, WeeklyScheduleCount } from './dashboardService'
+import type { ActivityItem } from './manager/ActivityFeed'
 import type { ScheduleItem } from './secretary/TodaysSchedule'
 
 // Pure view-mapping helpers for the dashboard: they turn the backend payload
@@ -35,33 +36,49 @@ export function initialsFrom(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-// The dashboard's "Today's Schedule" only shows today; v_upcoming_lessons spans
-// today forward, so filter by date. Dates from the API are ISO ('YYYY-MM-DD' or
-// a full timestamp), so a prefix compare against today's local date is enough.
-export function isToday(lessonDate: string, now: Date = new Date()): boolean {
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate(),
-  ).padStart(2, '0')}`
-  return lessonDate.slice(0, 10) === today
+const TODAYS_SCHEDULE_LIMIT = 3
+
+// Map today's attendance roster into the ScheduleItem[] the TodaysSchedule
+// card renders — same source as the Attendance page (v_today_attendance via
+// dashboardService.todaysAttendance), so the two always agree, unlike the old
+// version of this function which read v_upcoming_lessons: a separate,
+// one-off-dated-lesson table that a recurring weekly slot never appears in.
+// Already sorted by start_time server-side; just take the first few.
+export function toTodaysSchedule(attendance: TodayAttendance[]): ScheduleItem[] {
+  return attendance.slice(0, TODAYS_SCHEDULE_LIMIT).map((row) => ({
+    time:     formatLessonTime(row.start_time) || '—',
+    initials: initialsFrom(row.student_name),
+    name:     row.student_name,
+    status:   row.check_in_time ? 'completed' : 'upcoming',
+  }))
 }
 
-// A scheduled lesson reads as "confirmed"; anything else (rescheduled/tentative)
-// as "pending". The ScheduleItem badge only has these two states.
-function toScheduleStatus(status: string): ScheduleItem['status'] {
-  return status === 'scheduled' ? 'confirmed' : 'pending'
+// One line of activity text per entry kind, naming the student and (for a
+// payment) the amount so consecutive entries of the same kind read as
+// distinct events rather than repeats of the same generic line. "Recorded",
+// not "received" — the secretary is entering a payment into the system, not
+// the one physically receiving the money.
+function activityText(entry: RawActivityEntry): string {
+  switch (entry.kind) {
+    case 'payment':
+      return `${formatGHS(entry.amount)} payment recorded for ${entry.student_name}`
+    case 'student':
+      return `${entry.student_name} registered`
+    case 'attendance':
+      return entry.check_in_time
+        ? `${entry.student_name} completed today's lesson`
+        : `${entry.student_name} marked absent`
+  }
 }
 
-// Map today's lessons into the ScheduleItem[] the TodaysSchedule card renders.
-export function toTodaysSchedule(lessons: UpcomingLesson[], now: Date = new Date()): ScheduleItem[] {
-  return lessons
-    .filter((lesson) => isToday(lesson.lesson_date, now))
-    .map((lesson) => ({
-      time:     formatLessonTime(lesson.start_time) || '—',
-      initials: initialsFrom(lesson.student_name),
-      name:     lesson.student_name,
-      detail:   lesson.instructor_name ? `with ${lesson.instructor_name}` : 'Lesson',
-      status:   toScheduleStatus(lesson.status),
-    }))
+// Map the secretary's recent payments/attendance marks/registrations into the
+// ActivityItem[] the (shared, manager-authored) ActivityFeed card renders.
+export function toActivityFeed(entries: RawActivityEntry[]): ActivityItem[] {
+  return entries.map((entry) => ({
+    icon: entry.kind,
+    text: activityText(entry),
+    time: formatDistanceToNowStrict(new Date(entry.created_at), { addSuffix: true }),
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -119,30 +136,15 @@ export interface DayCount {
   count: number
 }
 
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Monday-based index (Mon = 0 … Sun = 6) for a 'YYYY-MM-DD' string.
-function weekdayIndex(dateKey: string): number {
-  const [y, m, d] = dateKey.split('-').map(Number)
-  return (new Date(y, m - 1, d).getDay() + 6) % 7
-}
-
-// Lesson counts per weekday for the Monday–Sunday week containing `now`.
-// NOTE: v_upcoming_lessons is today-forward and capped (limit 10), so days
-// earlier in the week — and busy weeks beyond the cap — can under-count. This
-// is a known limitation until a dedicated weekly-counts endpoint exists.
-export function toWeekCounts(lessons: UpcomingLesson[], now: Date = new Date()): DayCount[] {
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
-  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6)
-  const startKey = localDateKey(monday)
-  const endKey = localDateKey(sunday)
-
+// Active recurring schedule assignments per weekday. The backend groups the
+// same schedule_slots/slot_assignments shown on the Scheduling page. Sunday is
+// retained as zero because the slot board currently operates Monday–Saturday.
+export function toWeekCounts(rows: WeeklyScheduleCount[]): DayCount[] {
   const counts = [0, 0, 0, 0, 0, 0, 0]
-  for (const lesson of lessons) {
-    const key = lesson.lesson_date.slice(0, 10)
-    if (key >= startKey && key <= endKey) counts[weekdayIndex(key)]++
+  for (const row of rows) {
+    if (row.day_of_week >= 1 && row.day_of_week <= 7) {
+      counts[row.day_of_week - 1] = Number(row.count)
+    }
   }
   return WEEK_DAYS.map((day, i) => ({ day, count: counts[i] }))
 }
