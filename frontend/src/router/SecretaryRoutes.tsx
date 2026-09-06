@@ -15,6 +15,7 @@ const StudentProfilePage = lazy(() => import('../pages/secretary/StudentProfileP
 const EditStudentPage = lazy(() => import('../pages/secretary/EditStudentPage'))
 const LicenceProgressPage = lazy(() => import('../pages/secretary/LicenceProgressPage'))
 const SchedulingPage = lazy(() => import('../pages/secretary/SchedulingPage'))
+const UnscheduledStudentsPage = lazy(() => import('../features/scheduling/shared/UnscheduledStudentsPage'))
 const AttendancePage = lazy(() => import('../pages/secretary/AttendancePage'))
 const AttendanceHistoryPage = lazy(() => import('../pages/secretary/AttendanceHistoryPage'))
 const PaymentsPage = lazy(() => import('../pages/secretary/PaymentsPage'))
@@ -46,6 +47,7 @@ const secretaryRoutes: RouteObject = {
         { path: 'students/:id/edit', element: loadRoute(<EditStudentPage />) },
         { path: 'students/:id/licence', element: loadRoute(<LicenceProgressPage />) },
         { path: 'schedule', element: loadRoute(<SchedulingPage />) },
+        { path: 'schedule/unscheduled', element: loadRoute(<UnscheduledStudentsPage />) },
         { path: 'attendance', element: loadRoute(<AttendancePage />) },
         { path: 'attendance/history', element: loadRoute(<AttendanceHistoryPage />) },
         { path: 'payments', element: loadRoute(<PaymentsPage />) },

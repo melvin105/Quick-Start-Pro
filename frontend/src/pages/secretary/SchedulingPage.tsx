@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Users } from 'lucide-react'
 import { useApiResource } from '../../lib/useApiResource'
 import { listSlots, assignStudent, unassignStudent } from '../../features/scheduling/shared/schedulingService'
 import { toScheduleGrid } from '../../features/scheduling/shared/schedulingMappers'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
 import { getTodayColumn, getTodayLabel, slotKey } from '../../features/scheduling/shared/utils'
 import ScheduleGrid from '../../features/scheduling/shared/ScheduleGrid'
-import UnscheduledStudentsPanel from '../../features/scheduling/shared/UnscheduledStudentsPanel'
 import DayScheduleList from '../../features/scheduling/secretary/DayScheduleList'
 import AssignPopover from '../../features/scheduling/secretary/AssignPopover'
 import AssignModal from '../../features/scheduling/secretary/AssignModal'
@@ -19,6 +19,7 @@ import LoadingState from '../../components/ui/LoadingState'
 import ErrorState from '../../components/ui/ErrorState'
 import type { ApiError } from '../../lib/apiError'
 import type { Day } from '../../features/scheduling/shared/types'
+import { ROUTES } from '../../lib/constants'
 
 interface AssignTarget {
   day: Day
@@ -166,23 +167,30 @@ export default function SchedulingPage() {
           <p className="text-[12px] text-gray-500">Dashboard / Scheduling</p>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Weekly Schedule</h1>
         </div>
-        <span className="text-[12.5px] font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-full">
-          Today: {todayLabel}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to={ROUTES.UNSCHEDULED_STUDENTS}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-medium text-brand-600 bg-white border border-brand-200 rounded-lg hover:bg-brand-50"
+          >
+            <Users size={14} />
+            Unscheduled Students ({data?.unscheduledStudents?.length ?? 0})
+          </Link>
+          <span className="text-[12.5px] font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-full">
+            Today: {todayLabel}
+          </span>
+        </div>
       </div>
 
       {/* Desktop / tablet grid — fills remaining height, scrolls internally with a sticky day header */}
-      <div className="hidden md:grid grid-cols-[minmax(0,1fr)_300px] gap-4 flex-1 min-h-0">
+      <div className="hidden md:block flex-1 min-h-0">
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <ScheduleGrid grid={grid} todayColumn={todayColumn} onCellClick={handleGridCellClick} />
         </DndContext>
-        <UnscheduledStudentsPanel students={data?.unscheduledStudents ?? []} />
       </div>
 
       {/* Mobile day list */}
-      <div className="md:hidden flex flex-col gap-4">
+      <div className="md:hidden">
         <DayScheduleList grid={grid} todayColumn={todayColumn} onSlotTap={(day, hour) => setDetailTarget({ day, hour })} />
-        <UnscheduledStudentsPanel students={data?.unscheduledStudents ?? []} />
       </div>
 
       {/* Assign overlay: desktop anchored popover / tablet centred modal */}
