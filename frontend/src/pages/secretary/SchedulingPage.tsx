@@ -173,7 +173,7 @@ export default function SchedulingPage() {
             className="inline-flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-medium text-brand-600 bg-white border border-brand-200 rounded-lg hover:bg-brand-50"
           >
             <Users size={14} />
-            Unscheduled Students ({data?.unscheduledStudents?.length ?? 0})
+            Unscheduled Driving Students ({data?.unscheduledStudents?.length ?? 0})
           </Link>
           <span className="text-[12.5px] font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-full">
             Today: {todayLabel}
