@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search, X, Users } from 'lucide-react'
 import { useAssignableStudents } from '../shared/useAssignableStudents'
+import { findStudentIdsAssignedOnDay, type ScheduleGridData } from '../shared/schedulingMappers'
 import { formatSlotLabel } from '../shared/utils'
 import type { CellAssignment } from '../shared/schedulingMappers'
 import type { Day } from '../shared/types'
@@ -9,28 +10,28 @@ interface MobileSlotSheetProps {
   day: Day
   hour: number
   assignments: CellAssignment[]
+  grid: ScheduleGridData
   capacity: number
   onAssign: (studentId: string) => void
   onRemove: (studentId: string) => void
   onClose: () => void
 }
 
-export default function MobileSlotSheet({ day, hour, assignments, capacity, onAssign, onRemove, onClose }: MobileSlotSheetProps) {
+export default function MobileSlotSheet({ day, hour, assignments, grid, capacity, onAssign, onRemove, onClose }: MobileSlotSheetProps) {
   const { students, loading, error } = useAssignableStudents()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const assignedIds = assignments.map((a) => a.studentId)
+  const assignedOnDay = useMemo(() => findStudentIdsAssignedOnDay(grid, day), [day, grid])
   const full = assignments.length >= capacity
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     return students
-      .filter((s) => !assignedIds.includes(s.id))
+      .filter((s) => !assignedOnDay.has(s.id))
       .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.studentNumber.toLowerCase().includes(q))
       .slice(0, 6)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students, query, assignments])
+  }, [students, query, assignedOnDay])
 
   return (
     <div className="fixed inset-0 z-50">

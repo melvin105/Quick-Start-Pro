@@ -7,7 +7,7 @@ vi.mock('../../../lib/api', () => ({
 
 import api from '../../../lib/api'
 import { ApiError } from '../../../lib/apiError'
-import { removeSlotFromDays } from './schedulingService'
+import { moveStudent, removeSlotFromDays } from './schedulingService'
 
 const mockedPost = vi.mocked(api.post)
 
@@ -39,5 +39,23 @@ describe('removeSlotFromDays', () => {
     mockedPost.mockRejectedValue(axiosError)
 
     await expect(removeSlotFromDays('slot-1', 'student-1', [1])).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('moveStudent', () => {
+  beforeEach(() => {
+    mockedPost.mockReset()
+  })
+
+  it('posts source and destination slots as one atomic move', async () => {
+    const response = { studentId: 'student-1', fromSlotId: 'slot-1', toSlotId: 'slot-2' }
+    mockedPost.mockResolvedValue({ data: response })
+
+    await expect(moveStudent('slot-1', 'slot-2', 'student-1')).resolves.toEqual(response)
+    expect(mockedPost).toHaveBeenCalledWith('/scheduling/assignments/move', {
+      studentId: 'student-1',
+      fromSlotId: 'slot-1',
+      toSlotId: 'slot-2',
+    })
   })
 })

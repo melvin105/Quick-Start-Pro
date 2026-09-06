@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { AlertCircle, Users } from 'lucide-react'
 import { useApiResource } from '../../lib/useApiResource'
-import { listSlots, assignStudent, unassignStudent } from '../../features/scheduling/shared/schedulingService'
+import { listSlots, assignStudent, moveStudent, unassignStudent } from '../../features/scheduling/shared/schedulingService'
 import { toScheduleGrid } from '../../features/scheduling/shared/schedulingMappers'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
 import { getTodayColumn, getTodayLabel, slotKey } from '../../features/scheduling/shared/utils'
@@ -89,16 +89,14 @@ export default function SchedulingPage() {
     }
   }
 
-  // Move = assign to the destination first (that's where capacity is enforced),
-  // and only remove from the origin once it succeeds — so a rejected move (e.g.
-  // the target filled up in a race) never drops the student from both slots.
+  // The backend moves both assignments in one transaction. That preserves a
+  // same-day reschedule without ever leaving two active slots on that weekday.
   const doMove = async (fromDay: Day, fromHour: number, toDay: Day, toHour: number, studentId: string) => {
     const fromCell = grid[slotKey(fromDay, fromHour)]
     const toCell = grid[slotKey(toDay, toHour)]
     if (!fromCell || !toCell) return
     try {
-      await assignStudent(toCell.slotId, studentId)
-      await unassignStudent(fromCell.slotId, studentId)
+      await moveStudent(fromCell.slotId, toCell.slotId, studentId)
       await refetch()
     } catch (err) {
       showActionError(err)
@@ -253,6 +251,7 @@ export default function SchedulingPage() {
         <MobileSlotSheet
           day={detailTarget.day}
           hour={detailTarget.hour}
+          grid={grid}
           capacity={detailCapacity}
           assignments={detailAssignments}
           onAssign={handleMobileAssign}
