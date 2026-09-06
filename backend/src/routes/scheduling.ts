@@ -11,6 +11,7 @@ router.use(authenticate);
 // secretary read + write). Slots themselves are pre-seeded and not edited here.
 router.get('/slots', requireRole('manager', 'secretary'), schedulingController.list);
 router.post('/slots/:slotId/assignments', requireRole('manager', 'secretary'), schedulingController.assign);
+router.post('/assignments/move', requireRole('manager', 'secretary'), schedulingController.move);
 router.post(
   '/slots/:slotId/apply-days',
   requireRole('manager', 'secretary'),

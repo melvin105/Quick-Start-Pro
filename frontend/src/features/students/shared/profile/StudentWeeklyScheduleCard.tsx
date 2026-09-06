@@ -52,10 +52,14 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
     [activeDay, activeSlots],
   )
 
+  const isAssignedOnDay = (dayOfWeek: number) => selectedSlots.some(
+    (slot) => slot.dayOfWeek === dayOfWeek,
+  )
+
   const hasAvailableCopyDay = (source: ApiScheduleSlot) => activeSlots.some(
     (slot) => slot.startHour === source.startHour
       && slot.id !== source.id
-      && !isAssigned(slot, studentId)
+      && !isAssignedOnDay(slot.dayOfWeek)
       && slot.assignments.length < slot.capacity,
   )
 
@@ -123,7 +127,7 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
   const openCopyDialog = (source: ApiScheduleSlot) => {
     const availableDays = activeSlots
       .filter((slot) => slot.startHour === source.startHour && slot.id !== source.id)
-      .filter((slot) => !isAssigned(slot, studentId) && slot.assignments.length < slot.capacity)
+      .filter((slot) => !isAssignedOnDay(slot.dayOfWeek) && slot.assignments.length < slot.capacity)
       .map((slot) => slot.dayOfWeek)
     setCopySource(source)
     setCopyDays(new Set(availableDays))
@@ -265,9 +269,10 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           {visibleSlots.map((slot) => {
             const assigned = isAssigned(slot, studentId)
+            const assignedAtAnotherTime = !assigned && isAssignedOnDay(slot.dayOfWeek)
             const full = slot.assignments.length >= slot.capacity
             const busy = busySlotId === slot.id
-            const disabled = Boolean(busySlotId) || (!assigned && full)
+            const disabled = Boolean(busySlotId) || (!assigned && (full || assignedAtAnotherTime))
 
             return (
               <button
@@ -280,7 +285,7 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
                 className={`min-h-16 rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed ${
                   assigned
                     ? 'border-brand-600 bg-brand-50 text-brand-700'
-                    : full
+                    : full || assignedAtAnotherTime
                       ? 'border-gray-200 bg-gray-50 text-gray-400 opacity-70'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:bg-brand-50/40'
                 }`}
@@ -294,7 +299,11 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
                   ) : null}
                 </span>
                 <span className="block text-[10.5px] mt-1 opacity-75">
-                  {full && !assigned ? 'Full' : `${slot.assignments.length}/${slot.capacity} booked`}
+                  {assignedAtAnotherTime
+                    ? 'Already scheduled today'
+                    : full && !assigned
+                      ? 'Full'
+                      : `${slot.assignments.length}/${slot.capacity} booked`}
                 </span>
               </button>
             )
@@ -347,8 +356,9 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
                   (candidate) => candidate.day === day && candidate.startHour === copySource.startHour,
                 )
                 const assigned = slot ? isAssigned(slot, studentId) : false
+                const assignedAtAnotherTime = slot ? !assigned && isAssignedOnDay(slot.dayOfWeek) : false
                 const full = slot ? slot.assignments.length >= slot.capacity : true
-                const unavailable = !slot || assigned || full
+                const unavailable = !slot || assigned || assignedAtAnotherTime || full
                 return (
                   <label
                     key={day}
@@ -371,7 +381,13 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
                       <span className="font-medium">{DAY_FULL[day]}</span>
                     </span>
                     <span className="block text-[10.5px] mt-1 ml-5">
-                      {assigned ? 'Already assigned' : full ? 'Full' : `${slot?.assignments.length ?? 0}/${slot?.capacity ?? 0} booked`}
+                      {assigned
+                        ? 'Already assigned'
+                        : assignedAtAnotherTime
+                          ? 'Already scheduled today'
+                          : full
+                            ? 'Full'
+                            : `${slot?.assignments.length ?? 0}/${slot?.capacity ?? 0} booked`}
                     </span>
                   </label>
                 )

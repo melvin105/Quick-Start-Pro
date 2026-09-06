@@ -17,6 +17,12 @@ export interface AssignStudentInput {
   studentId: string;
 }
 
+export interface MoveStudentInput {
+  studentId: string;
+  fromSlotId: string;
+  toSlotId: string;
+}
+
 export interface ApplySlotToDaysInput {
   studentId: string;
   days: number[];
@@ -89,6 +95,38 @@ async function assertStudentCanBeScheduled(client: PoolClient, studentId: string
   }
   if (student.enrolment_type === 'licence_only') {
     throw new ApiError(409, 'STUDENT_NOT_ELIGIBLE', 'Licence-only students cannot be assigned driving lesson schedules.');
+  }
+}
+
+async function lockScheduleKeys(client: PoolClient, keys: string[]) {
+  for (const key of [...new Set(keys)].sort()) {
+    await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [key]);
+  }
+}
+
+async function assertNoOtherAssignmentOnDay(
+  client: PoolClient,
+  studentId: string,
+  dayOfWeek: number,
+  excludedSlotIds: string[] = [],
+) {
+  const { rows } = await client.query(
+    `select sl.start_time
+     from public.slot_assignments sa
+     join public.schedule_slots sl on sl.id = sa.slot_id
+     where sa.student_id = $1
+       and sa.is_active
+       and sl.day_of_week = $2
+       and sa.slot_id <> all($3::uuid[])
+     limit 1`,
+    [studentId, dayOfWeek, excludedSlotIds],
+  );
+  if (rows[0]) {
+    throw new ApiError(
+      409,
+      'ALREADY_SCHEDULED_THIS_DAY',
+      `Student already has a schedule on ${DAY_ABBR[dayOfWeek]}. Remove or move it before assigning another time.`,
+    );
   }
 }
 
@@ -205,14 +243,8 @@ export async function assignStudent(slotId: string, input: AssignStudentInput, a
   return withUserContext(actingUserId, async (client) => {
     await assertStudentCanBeScheduled(client, studentId);
 
-    // Serialize concurrent assignments to the same slot so the capacity check
-    // below can't be bypassed by two requests racing before either commits.
-    // A plain row lock won't do — the assignment row we'd insert doesn't exist
-    // yet, so there's nothing to lock. Keyed on the slot id.
-    await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [`slot:${slotId}`]);
-
     const { rows: slotRows } = await client.query(
-      `select id, capacity, is_active from public.schedule_slots where id = $1`,
+      `select id, day_of_week, capacity, is_active from public.schedule_slots where id = $1`,
       [slotId],
     );
     if (!slotRows[0]) {
@@ -222,6 +254,14 @@ export async function assignStudent(slotId: string, input: AssignStudentInput, a
       throw new ApiError(409, 'SLOT_INACTIVE', 'This slot is not active and cannot take assignments.');
     }
 
+    // Serialize both slot capacity and the student's weekday. The weekday lock
+    // prevents two requests assigning the same student to different hours on
+    // the same day before either transaction can see the other.
+    await lockScheduleKeys(client, [
+      `slot:${slotId}`,
+      `student-day:${studentId}:${slotRows[0].day_of_week}`,
+    ]);
+
     // Is the student already actively assigned to this slot?
     const { rows: existing } = await client.query(
       `select id, is_active from public.slot_assignments where slot_id = $1 and student_id = $2`,
@@ -230,6 +270,8 @@ export async function assignStudent(slotId: string, input: AssignStudentInput, a
     if (existing[0]?.is_active) {
       throw new ApiError(409, 'ALREADY_ASSIGNED', 'Student is already assigned to this slot.');
     }
+
+    await assertNoOtherAssignmentOnDay(client, studentId, slotRows[0].day_of_week, [slotId]);
 
     const { rows: countRows } = await client.query(
       `select count(*)::int as active_count
@@ -318,11 +360,12 @@ export async function applySlotToDays(
       throw new ApiError(404, 'NOT_FOUND', 'A matching time slot was not found for every selected day.');
     }
 
-    // Always acquire locks in id order to avoid deadlocks when two batch
-    // requests overlap. Single-slot assignments use the same lock namespace.
-    for (const slot of destinationRows) {
-      await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [`slot:${slot.id}`]);
-    }
+    // Use the same sorted lock namespace as single-slot assignments so batch
+    // copies cannot race another assignment for a destination weekday.
+    await lockScheduleKeys(client, destinationRows.flatMap((slot) => [
+      `slot:${slot.id}`,
+      `student-day:${studentId}:${slot.day_of_week}`,
+    ]));
 
     const assignedDays: number[] = [];
     const alreadyAssignedDays: number[] = [];
@@ -346,6 +389,8 @@ export async function applySlotToDays(
         alreadyAssignedDays.push(slot.day_of_week);
         continue;
       }
+
+      await assertNoOtherAssignmentOnDay(client, studentId, slot.day_of_week, [slot.id]);
 
       const { rows: countRows } = await client.query(
         `select count(*)::int as active_count
@@ -379,6 +424,103 @@ export async function applySlotToDays(
       assignedDays: assignedDays.sort((a, b) => a - b),
       alreadyAssignedDays: alreadyAssignedDays.sort((a, b) => a - b),
       startHour: startHourOf(source.start_time),
+    };
+  });
+}
+
+// Move an assignment atomically. This is especially important for a same-day
+// reschedule: the source must be deactivated before the destination is
+// activated so the one-slot-per-day database trigger accepts the change, while
+// the transaction still rolls everything back if the destination is invalid.
+export async function moveStudent(input: MoveStudentInput, actingUserId: string) {
+  const { studentId, fromSlotId, toSlotId } = input;
+  if (!studentId || !fromSlotId || !toSlotId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'studentId, fromSlotId and toSlotId are required.');
+  }
+  if (fromSlotId === toSlotId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'The source and destination slots must be different.');
+  }
+
+  return withUserContext(actingUserId, async (client) => {
+    await assertStudentCanBeScheduled(client, studentId);
+
+    const { rows } = await client.query<SlotRow>(
+      `${SELECT_SLOT} where sl.id = any($1::uuid[]) order by sl.id`,
+      [[fromSlotId, toSlotId]],
+    );
+    const source = rows.find((slot) => slot.id === fromSlotId);
+    const destination = rows.find((slot) => slot.id === toSlotId);
+    if (!source || !destination) {
+      throw new ApiError(404, 'NOT_FOUND', 'The source or destination schedule slot was not found.');
+    }
+    if (!destination.is_active) {
+      throw new ApiError(409, 'SLOT_INACTIVE', 'The destination slot is not active.');
+    }
+
+    await lockScheduleKeys(client, [
+      `slot:${source.id}`,
+      `slot:${destination.id}`,
+      `student-day:${studentId}:${source.day_of_week}`,
+      `student-day:${studentId}:${destination.day_of_week}`,
+    ]);
+
+    const { rows: sourceAssignments } = await client.query(
+      `select id from public.slot_assignments
+       where slot_id = $1 and student_id = $2 and is_active`,
+      [source.id, studentId],
+    );
+    if (!sourceAssignments[0]) {
+      throw new ApiError(404, 'NOT_FOUND', 'The student is not assigned to the source slot.');
+    }
+
+    const { rows: destinationAssignments } = await client.query(
+      `select id, is_active from public.slot_assignments where slot_id = $1 and student_id = $2`,
+      [destination.id, studentId],
+    );
+    if (destinationAssignments[0]?.is_active) {
+      throw new ApiError(409, 'ALREADY_ASSIGNED', 'Student is already assigned to the destination slot.');
+    }
+
+    await assertNoOtherAssignmentOnDay(
+      client,
+      studentId,
+      destination.day_of_week,
+      [source.id, destination.id],
+    );
+
+    const { rows: countRows } = await client.query(
+      `select count(*)::int as active_count
+       from public.slot_assignments where slot_id = $1 and is_active`,
+      [destination.id],
+    );
+    if (countRows[0].active_count >= destination.capacity) {
+      throw new ApiError(409, 'SLOT_FULL', 'The destination slot has reached its capacity.');
+    }
+
+    await client.query(
+      `update public.slot_assignments set is_active = false
+       where id = $1`,
+      [sourceAssignments[0].id],
+    );
+
+    if (destinationAssignments[0]) {
+      await client.query(
+        `update public.slot_assignments
+         set is_active = true, assigned_date = current_date
+         where id = $1`,
+        [destinationAssignments[0].id],
+      );
+    } else {
+      await client.query(
+        `insert into public.slot_assignments (slot_id, student_id) values ($1, $2)`,
+        [destination.id, studentId],
+      );
+    }
+
+    return {
+      studentId,
+      fromSlotId: source.id,
+      toSlotId: destination.id,
     };
   });
 }
