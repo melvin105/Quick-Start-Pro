@@ -51,6 +51,11 @@ export interface ApplySlotToDaysResult {
   startHour:           number
 }
 
+export interface RemoveSlotFromDaysResult {
+  removedDays: number[]
+  startHour:   number
+}
+
 // GET /scheduling/slots — the full Mon–Sat weekly grid (pre-seeded slots), each
 // with its active assignments. Both roles may read.
 export async function listSlots(): Promise<ListSlotsResult> {
@@ -90,6 +95,24 @@ export async function applySlotToDays(
   try {
     const { data } = await api.post<ApplySlotToDaysResult>(
       `/scheduling/slots/${slotId}/apply-days`,
+      { studentId, days },
+    )
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+// POST /scheduling/slots/:slotId/remove-days — removes the same recurring time
+// from selected weekdays in one transaction.
+export async function removeSlotFromDays(
+  slotId: string,
+  studentId: string,
+  days: number[],
+): Promise<RemoveSlotFromDaysResult> {
+  try {
+    const { data } = await api.post<RemoveSlotFromDaysResult>(
+      `/scheduling/slots/${slotId}/remove-days`,
       { studentId, days },
     )
     return data

@@ -28,6 +28,16 @@ export interface ApplySlotToDaysResult {
   startHour: number;
 }
 
+export interface RemoveSlotFromDaysInput {
+  studentId: string;
+  days: number[];
+}
+
+export interface RemoveSlotFromDaysResult {
+  removedDays: number[];
+  startHour: number;
+}
+
 // A slot row plus the students currently assigned to it. `startHour` and
 // `day` are derived conveniences so the frontend grid (keyed `${DAY}-${hour}`)
 // can be rebuilt without parsing the time string itself.
@@ -370,6 +380,73 @@ export async function applySlotToDays(
       alreadyAssignedDays: alreadyAssignedDays.sort((a, b) => a - b),
       startHour: startHourOf(source.start_time),
     };
+  });
+}
+
+// Remove the same recurring time from one or more selected weekdays in one
+// transaction. This mirrors applySlotToDays so a multi-day edit is atomic.
+export async function removeSlotFromDays(
+  sourceSlotId: string,
+  input: RemoveSlotFromDaysInput,
+  actingUserId: string,
+): Promise<RemoveSlotFromDaysResult> {
+  const { studentId } = input;
+  if (!studentId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'studentId is required.');
+  }
+  if (!Array.isArray(input.days) || input.days.length === 0) {
+    throw new ApiError(400, 'INVALID_INPUT', 'Select at least one day to remove.');
+  }
+
+  const days = [...new Set(input.days)];
+  if (days.some((day) => !Number.isInteger(day) || day < 1 || day > 6)) {
+    throw new ApiError(400, 'INVALID_INPUT', 'days must contain Monday–Saturday values only.');
+  }
+
+  return withUserContext(actingUserId, async (client) => {
+    const { rows: sourceRows } = await client.query<SlotRow>(
+      `${SELECT_SLOT} where sl.id = $1`,
+      [sourceSlotId],
+    );
+    const source = sourceRows[0];
+    if (!source) {
+      throw new ApiError(404, 'NOT_FOUND', 'Source schedule slot not found.');
+    }
+    if (!days.includes(source.day_of_week)) {
+      throw new ApiError(400, 'INVALID_INPUT', 'The selected days must include the source day.');
+    }
+
+    const { rows: matchingSlots } = await client.query<SlotRow>(
+      `${SELECT_SLOT}
+       where sl.start_time = $1 and sl.day_of_week = any($2::int[])
+       order by sl.id`,
+      [source.start_time, days],
+    );
+
+    for (const slot of matchingSlots) {
+      await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [`slot:${slot.id}`]);
+    }
+
+    const slotDay = new Map(matchingSlots.map((slot) => [slot.id, slot.day_of_week]));
+    const { rows: removedRows } = await client.query<{ slot_id: string }>(
+      `update public.slot_assignments
+       set is_active = false
+       where student_id = $1
+         and slot_id = any($2::uuid[])
+         and is_active
+       returning slot_id`,
+      [studentId, matchingSlots.map((slot) => slot.id)],
+    );
+    const removedDays = removedRows
+      .map((row) => slotDay.get(row.slot_id))
+      .filter((day): day is number => day !== undefined)
+      .sort((a, b) => a - b);
+
+    if (!removedDays.includes(source.day_of_week)) {
+      throw new ApiError(404, 'NOT_FOUND', 'No active assignment found for this student in the source slot.');
+    }
+
+    return { removedDays, startHour: startHourOf(source.start_time) };
   });
 }
 

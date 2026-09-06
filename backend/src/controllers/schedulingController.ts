@@ -31,6 +31,15 @@ export const applyToDays = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(result);
 });
 
+export const removeFromDays = asyncHandler(async (req: Request, res: Response) => {
+  const result = await schedulingService.removeSlotFromDays(
+    param(req, 'slotId'),
+    req.body ?? {},
+    actingUserId(req),
+  );
+  res.json(result);
+});
+
 export const unassign = asyncHandler(async (req: Request, res: Response) => {
   const slot = await schedulingService.unassignStudent(
     param(req, 'slotId'),
