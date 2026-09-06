@@ -39,11 +39,23 @@ export function formatSlotLabel(day: Day, hour: number, short = false) {
   return `${dayLabel} · ${formatRangeClock(hour)}`
 }
 
-// Sunday has no column in this Mon-Sat board; fall back to the seeded demo day.
-export function getTodayColumn(): Day {
-  const jsDay = new Date().getDay()
-  const map: Record<number, Day> = { 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT' }
-  return map[jsDay] ?? 'WED'
+const BUSINESS_TIME_ZONE = 'Africa/Accra'
+const DAY_FROM_NAME: Partial<Record<string, Day>> = {
+  Monday: 'MON', Tuesday: 'TUE', Wednesday: 'WED', Thursday: 'THU', Friday: 'FRI', Saturday: 'SAT',
+}
+
+// Scheduling follows the school's local calendar in Accra, regardless of the
+// device's time zone. Sunday has no grid column, so return null instead of
+// highlighting an unrelated weekday.
+export function getTodayLabel(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(date)
+}
+
+export function getTodayColumn(date = new Date()): Day | null {
+  return DAY_FROM_NAME[getTodayLabel(date)] ?? null
 }
 
 export interface SlotRef {

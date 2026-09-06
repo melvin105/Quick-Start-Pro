@@ -6,7 +6,7 @@ import type { Day } from './types'
 
 interface ScheduleGridProps {
   grid: ScheduleGridData
-  todayColumn: Day
+  todayColumn: Day | null
   onCellClick: (day: Day, hour: number, el: HTMLElement) => void
 }
 

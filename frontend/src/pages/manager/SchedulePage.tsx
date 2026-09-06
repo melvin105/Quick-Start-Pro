@@ -3,7 +3,7 @@ import { useApiResource } from '../../lib/useApiResource'
 import { listSlots } from '../../features/scheduling/shared/schedulingService'
 import { toScheduleGrid } from '../../features/scheduling/shared/schedulingMappers'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
-import { DAY_FULL, getTodayColumn, slotKey } from '../../features/scheduling/shared/utils'
+import { getTodayColumn, getTodayLabel, slotKey } from '../../features/scheduling/shared/utils'
 import ManagerScheduleGrid from '../../features/scheduling/manager/ManagerScheduleGrid'
 import ManagerDayScheduleList from '../../features/scheduling/manager/ManagerDayScheduleList'
 import ManagerSlotDetailDrawer from '../../features/scheduling/manager/ManagerSlotDetailDrawer'
@@ -21,6 +21,7 @@ export default function SchedulePage() {
   const { data, loading, error, refetch } = useApiResource(listSlots)
   const breakpoint = useBreakpoint()
   const todayColumn = getTodayColumn()
+  const todayLabel = getTodayLabel()
 
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
 
@@ -40,7 +41,7 @@ export default function SchedulePage() {
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Weekly Schedule</h1>
         </div>
         <span className="text-[12.5px] font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-full">
-          Today: {DAY_FULL[todayColumn]}
+          Today: {todayLabel}
         </span>
       </div>
 
