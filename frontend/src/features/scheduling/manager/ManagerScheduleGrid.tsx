@@ -5,7 +5,7 @@ import type { Day } from '../shared/types'
 
 interface ManagerScheduleGridProps {
   grid: ScheduleGridData
-  todayColumn: Day
+  todayColumn: Day | null
   onCellClick: (day: Day, hour: number) => void
 }
 

@@ -5,7 +5,7 @@ import { useApiResource } from '../../lib/useApiResource'
 import { listSlots, assignStudent, unassignStudent } from '../../features/scheduling/shared/schedulingService'
 import { toScheduleGrid } from '../../features/scheduling/shared/schedulingMappers'
 import { useBreakpoint } from '../../features/scheduling/shared/useBreakpoint'
-import { DAY_FULL, getTodayColumn, slotKey } from '../../features/scheduling/shared/utils'
+import { getTodayColumn, getTodayLabel, slotKey } from '../../features/scheduling/shared/utils'
 import ScheduleGrid from '../../features/scheduling/shared/ScheduleGrid'
 import DayScheduleList from '../../features/scheduling/secretary/DayScheduleList'
 import AssignPopover from '../../features/scheduling/secretary/AssignPopover'
@@ -43,6 +43,7 @@ export default function SchedulingPage() {
   const { data, loading, error, refetch } = useApiResource(listSlots)
   const breakpoint = useBreakpoint()
   const todayColumn = getTodayColumn()
+  const todayLabel = getTodayLabel()
 
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null)
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
@@ -165,7 +166,7 @@ export default function SchedulingPage() {
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Weekly Schedule</h1>
         </div>
         <span className="text-[12.5px] font-medium text-brand-600 bg-brand-50 px-3 py-1.5 rounded-full">
-          Today: {DAY_FULL[todayColumn]}
+          Today: {todayLabel}
         </span>
       </div>
 

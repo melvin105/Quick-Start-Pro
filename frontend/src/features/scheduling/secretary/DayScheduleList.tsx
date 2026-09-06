@@ -6,7 +6,7 @@ import type { Day } from '../shared/types'
 
 interface DayScheduleListProps {
   grid: ScheduleGridData
-  todayColumn: Day
+  todayColumn: Day | null
   onSlotTap: (day: Day, hour: number) => void
 }
 
