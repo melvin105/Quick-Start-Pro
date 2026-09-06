@@ -54,6 +54,14 @@ interface AssignmentRow {
   assigned_date: string;
 }
 
+interface UnscheduledStudentRow {
+  id: string;
+  student_number: string;
+  student_name: string;
+  package_name: string | null;
+  lessons_left: number | null;
+}
+
 function startHourOf(startTime: string): number {
   // start_time comes back as "HH:MM:SS"
   return Number(startTime.slice(0, 2));
@@ -100,12 +108,53 @@ async function fetchActiveAssignments(): Promise<AssignmentRow[]> {
   return rows as AssignmentRow[];
 }
 
+// Active driving students with no recurring weekly slot. Licence-only students
+// are intentionally excluded because they do not take driving lessons.
+async function fetchUnscheduledStudents() {
+  const { rows } = await pool.query<UnscheduledStudentRow>(
+    `select
+       st.id, st.student_number,
+       st.first_name || ' ' || st.last_name as student_name,
+       pkg.package_name, lr.lessons_left
+     from public.students st
+     left join public.v_lessons_remaining lr on lr.student_id = st.id
+     left join lateral (
+       select dp.package_name
+       from public.student_packages sp
+       join public.driving_packages dp on dp.id = sp.package_id
+       where sp.student_id = st.id
+       order by sp.assigned_date desc, sp.created_at desc
+       limit 1
+     ) pkg on true
+     where st.status = 'active'
+       and st.enrolment_type in ('driving_only', 'driving_and_licence')
+       and not exists (
+         select 1
+         from public.slot_assignments sa
+         where sa.student_id = st.id and sa.is_active
+       )
+     order by st.first_name, st.last_name`,
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    studentNumber: row.student_number,
+    studentName: row.student_name,
+    packageName: row.package_name,
+    lessonsRemaining: Number(row.lessons_left ?? 0),
+  }));
+}
+
 export async function listSlots() {
-  const [{ rows: slotRows }, assignments] = await Promise.all([
+  const [{ rows: slotRows }, assignments, unscheduledStudents] = await Promise.all([
     pool.query<SlotRow>(`${SELECT_SLOT} order by sl.day_of_week, sl.start_time`),
     fetchActiveAssignments(),
+    fetchUnscheduledStudents(),
   ]);
-  return { slots: slotRows.map((slot) => shapeSlot(slot, assignments)) };
+  return {
+    slots: slotRows.map((slot) => shapeSlot(slot, assignments)),
+    unscheduledStudents,
+  };
 }
 
 async function fetchSlotWithAssignments(slotId: string) {

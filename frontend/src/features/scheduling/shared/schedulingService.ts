@@ -30,8 +30,19 @@ export interface ApiScheduleSlot {
   assignments: ApiSlotAssignment[]
 }
 
+export interface ApiUnscheduledStudent {
+  id:               string
+  studentNumber:    string
+  studentName:      string
+  packageName:      string | null
+  lessonsRemaining: number
+}
+
 export interface ListSlotsResult {
-  slots: ApiScheduleSlot[]
+  slots:                ApiScheduleSlot[]
+  // Optional during a rolling frontend/backend deployment; older API versions
+  // return only slots and the UI safely treats that as an empty list.
+  unscheduledStudents?: ApiUnscheduledStudent[]
 }
 
 export interface ApplySlotToDaysResult {
