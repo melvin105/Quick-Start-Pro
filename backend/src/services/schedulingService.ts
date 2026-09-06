@@ -16,6 +16,17 @@ export interface AssignStudentInput {
   studentId: string;
 }
 
+export interface ApplySlotToDaysInput {
+  studentId: string;
+  days: number[];
+}
+
+export interface ApplySlotToDaysResult {
+  assignedDays: number[];
+  alreadyAssignedDays: number[];
+  startHour: number;
+}
+
 // A slot row plus the students currently assigned to it. `startHour` and
 // `day` are derived conveniences so the frontend grid (keyed `${DAY}-${hour}`)
 // can be rebuilt without parsing the time string itself.
@@ -170,6 +181,127 @@ export async function assignStudent(slotId: string, input: AssignStudentInput, a
     }
 
     return fetchSlotWithAssignments(slotId);
+  });
+}
+
+// Copy one of a student's recurring time slots to the same hour on other days.
+// The complete operation runs in one transaction: every requested destination
+// is checked before any assignment is written, so a full/inactive slot cannot
+// leave the student with a partially copied schedule.
+export async function applySlotToDays(
+  sourceSlotId: string,
+  input: ApplySlotToDaysInput,
+  actingUserId: string,
+): Promise<ApplySlotToDaysResult> {
+  const { studentId } = input;
+  if (!studentId) {
+    throw new ApiError(400, 'INVALID_INPUT', 'studentId is required.');
+  }
+  if (!Array.isArray(input.days) || input.days.length === 0) {
+    throw new ApiError(400, 'INVALID_INPUT', 'Select at least one destination day.');
+  }
+
+  const days = [...new Set(input.days)];
+  if (days.some((day) => !Number.isInteger(day) || day < 1 || day > 6)) {
+    throw new ApiError(400, 'INVALID_INPUT', 'days must contain Monday–Saturday values only.');
+  }
+
+  return withUserContext(actingUserId, async (client) => {
+    const { rows: sourceRows } = await client.query<SlotRow>(
+      `${SELECT_SLOT} where sl.id = $1`,
+      [sourceSlotId],
+    );
+    const source = sourceRows[0];
+    if (!source) {
+      throw new ApiError(404, 'NOT_FOUND', 'Source schedule slot not found.');
+    }
+
+    const { rows: sourceAssignments } = await client.query(
+      `select id from public.slot_assignments
+       where slot_id = $1 and student_id = $2 and is_active`,
+      [sourceSlotId, studentId],
+    );
+    if (!sourceAssignments[0]) {
+      throw new ApiError(409, 'SOURCE_NOT_ASSIGNED', 'Assign the source slot before applying it to other days.');
+    }
+
+    const destinationDays = days.filter((day) => day !== source.day_of_week);
+    if (destinationDays.length === 0) {
+      throw new ApiError(400, 'INVALID_INPUT', 'Select at least one other day.');
+    }
+
+    const { rows: destinationRows } = await client.query<SlotRow>(
+      `${SELECT_SLOT}
+       where sl.start_time = $1 and sl.day_of_week = any($2::int[])
+       order by sl.id`,
+      [source.start_time, destinationDays],
+    );
+    if (destinationRows.length !== destinationDays.length) {
+      throw new ApiError(404, 'NOT_FOUND', 'A matching time slot was not found for every selected day.');
+    }
+
+    // Always acquire locks in id order to avoid deadlocks when two batch
+    // requests overlap. Single-slot assignments use the same lock namespace.
+    for (const slot of destinationRows) {
+      await client.query(`select pg_advisory_xact_lock(hashtextextended($1, 0))`, [`slot:${slot.id}`]);
+    }
+
+    const assignedDays: number[] = [];
+    const alreadyAssignedDays: number[] = [];
+
+    // Validate every destination before writing any of them.
+    const destinations: Array<{
+      slot: SlotRow;
+      existing: { id: string; is_active: boolean } | undefined;
+    }> = [];
+    for (const slot of destinationRows) {
+      if (!slot.is_active) {
+        throw new ApiError(409, 'SLOT_INACTIVE', `${DAY_ABBR[slot.day_of_week]} at this time is inactive.`);
+      }
+
+      const { rows: existingRows } = await client.query(
+        `select id, is_active from public.slot_assignments where slot_id = $1 and student_id = $2`,
+        [slot.id, studentId],
+      );
+      const existing = existingRows[0] as { id: string; is_active: boolean } | undefined;
+      if (existing?.is_active) {
+        alreadyAssignedDays.push(slot.day_of_week);
+        continue;
+      }
+
+      const { rows: countRows } = await client.query(
+        `select count(*)::int as active_count
+         from public.slot_assignments where slot_id = $1 and is_active`,
+        [slot.id],
+      );
+      if (countRows[0].active_count >= slot.capacity) {
+        throw new ApiError(409, 'SLOT_FULL', `${DAY_ABBR[slot.day_of_week]} at this time is already full.`);
+      }
+      destinations.push({ slot, existing });
+    }
+
+    for (const { slot, existing } of destinations) {
+      if (existing) {
+        await client.query(
+          `update public.slot_assignments
+           set is_active = true, assigned_date = current_date
+           where id = $1`,
+          [existing.id],
+        );
+      } else {
+        await client.query(
+          `insert into public.slot_assignments (slot_id, student_id) values ($1, $2)`,
+          [slot.id, studentId],
+        );
+      }
+      assignedDays.push(slot.day_of_week);
+    }
+
+    return {
+      assignedDays: assignedDays.sort((a, b) => a - b),
+      alreadyAssignedDays: alreadyAssignedDays.sort((a, b) => a - b),
+      startHour: startHourOf(source.start_time),
+    };
   });
 }
 
