@@ -68,6 +68,7 @@ export const ROUTES = {
   get STUDENT_EDIT()    { return `${currentBase()}/students/:id/edit` },
   get STUDENT_LICENCE() { return `${currentBase()}/students/:id/licence` },
   get SCHEDULING() { return `${currentBase()}/schedule` },
+  get UNSCHEDULED_STUDENTS() { return `${currentBase()}/schedule/unscheduled` },
   get ATTENDANCE() { return `${currentBase()}/attendance` },
   get ATTENDANCE_HISTORY() { return `${currentBase()}/attendance/history` },
   get PAYMENTS()   { return `${currentBase()}/payments` },

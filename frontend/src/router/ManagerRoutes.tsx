@@ -10,6 +10,7 @@ const DashboardPage = lazy(() => import('../pages/manager/DashboardPage'))
 const StudentsPage = lazy(() => import('../pages/manager/StudentsPage'))
 const StudentProfilePage = lazy(() => import('../pages/manager/StudentProfilePage'))
 const SchedulePage = lazy(() => import('../pages/manager/SchedulePage'))
+const UnscheduledStudentsPage = lazy(() => import('../features/scheduling/shared/UnscheduledStudentsPage'))
 const AttendancePage = lazy(() => import('../pages/manager/AttendancePage'))
 const AttendanceHistoryPage = lazy(() => import('../pages/manager/AttendanceHistoryPage'))
 const RecordsPage = lazy(() => import('../pages/manager/RecordsPage'))
@@ -40,6 +41,7 @@ const managerRoutes: RouteObject = {
         { path: 'students', element: loadRoute(<StudentsPage />) },
         { path: 'students/:id', element: loadRoute(<StudentProfilePage />) },
         { path: 'schedule', element: loadRoute(<SchedulePage />) },
+        { path: 'schedule/unscheduled', element: loadRoute(<UnscheduledStudentsPage />) },
         { path: 'attendance', element: loadRoute(<AttendancePage />) },
         { path: 'attendance/history', element: loadRoute(<AttendanceHistoryPage />) },
         { path: 'records', element: loadRoute(<RecordsPage />) },

@@ -6,9 +6,10 @@ import type { ApiUnscheduledStudent } from './schedulingService'
 
 interface UnscheduledStudentsPanelProps {
   students: ApiUnscheduledStudent[]
+  standalone?: boolean
 }
 
-export default function UnscheduledStudentsPanel({ students }: UnscheduledStudentsPanelProps) {
+export default function UnscheduledStudentsPanel({ students, standalone = false }: UnscheduledStudentsPanelProps) {
   const [query, setQuery] = useState('')
   const filteredStudents = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -21,7 +22,9 @@ export default function UnscheduledStudentsPanel({ students }: UnscheduledStuden
   }, [query, students])
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl min-h-0 flex flex-col overflow-hidden">
+    <section className={`bg-white border border-gray-200 rounded-2xl min-h-0 flex flex-col overflow-hidden ${
+      standalone ? 'min-h-[420px]' : ''
+    }`}>
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
@@ -29,7 +32,11 @@ export default function UnscheduledStudentsPanel({ students }: UnscheduledStuden
               <Users size={16} />
             </span>
             <div>
-              <h2 className="text-[13.5px] font-semibold text-gray-900">Unscheduled Students</h2>
+              {standalone ? (
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Unscheduled Students</h1>
+              ) : (
+                <h2 className="text-[13.5px] font-semibold text-gray-900">Unscheduled Students</h2>
+              )}
               <p className="text-[11.5px] text-gray-500 mt-0.5">Active students without a weekly lesson slot.</p>
             </div>
           </div>
