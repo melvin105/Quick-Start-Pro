@@ -33,11 +33,11 @@ export default function UnscheduledStudentsPanel({ students, standalone = false 
             </span>
             <div>
               {standalone ? (
-                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Unscheduled Students</h1>
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Unscheduled Driving Students</h1>
               ) : (
                 <h2 className="text-[13.5px] font-semibold text-gray-900">Unscheduled Students</h2>
               )}
-              <p className="text-[11.5px] text-gray-500 mt-0.5">Active students without a weekly lesson slot.</p>
+              <p className="text-[11.5px] text-gray-500 mt-0.5">Active Driving Only and Driving + Licence students without a weekly lesson slot.</p>
             </div>
           </div>
           <span className="text-[11.5px] font-semibold text-warning bg-amber-50 rounded-full px-2.5 py-1">

@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { pool, withUserContext } from '../db';
 import { ApiError } from '../utils/ApiError';
 
@@ -62,6 +63,25 @@ interface UnscheduledStudentRow {
   lessons_left: number | null;
 }
 
+async function assertStudentCanBeScheduled(client: PoolClient, studentId: string) {
+  const { rows } = await client.query(
+    `select id, status, enrolment_type
+     from public.students
+     where id = $1`,
+    [studentId],
+  );
+  const student = rows[0];
+  if (!student) {
+    throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
+  }
+  if (student.status !== 'active') {
+    throw new ApiError(409, 'STUDENT_INACTIVE', 'Only active students can be assigned a lesson schedule.');
+  }
+  if (student.enrolment_type === 'licence_only') {
+    throw new ApiError(409, 'STUDENT_NOT_ELIGIBLE', 'Licence-only students cannot be assigned driving lesson schedules.');
+  }
+}
+
 function startHourOf(startTime: string): number {
   // start_time comes back as "HH:MM:SS"
   return Number(startTime.slice(0, 2));
@@ -108,8 +128,8 @@ async function fetchActiveAssignments(): Promise<AssignmentRow[]> {
   return rows as AssignmentRow[];
 }
 
-// Active driving students with no recurring weekly slot. Licence-only students
-// are intentionally excluded because they do not take driving lessons.
+// Active driving students with no recurring weekly slot. Driving + Licence is
+// included; Licence Only is excluded because it has no driving lessons.
 async function fetchUnscheduledStudents() {
   const { rows } = await pool.query<UnscheduledStudentRow>(
     `select
@@ -172,12 +192,9 @@ export async function assignStudent(slotId: string, input: AssignStudentInput, a
     throw new ApiError(400, 'INVALID_INPUT', 'studentId is required.');
   }
 
-  const { rows: studentRows } = await pool.query(`select id from public.students where id = $1`, [studentId]);
-  if (!studentRows[0]) {
-    throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
-  }
-
   return withUserContext(actingUserId, async (client) => {
+    await assertStudentCanBeScheduled(client, studentId);
+
     // Serialize concurrent assignments to the same slot so the capacity check
     // below can't be bypassed by two requests racing before either commits.
     // A plain row lock won't do — the assignment row we'd insert doesn't exist
@@ -256,6 +273,8 @@ export async function applySlotToDays(
   }
 
   return withUserContext(actingUserId, async (client) => {
+    await assertStudentCanBeScheduled(client, studentId);
+
     const { rows: sourceRows } = await client.query<SlotRow>(
       `${SELECT_SLOT} where sl.id = $1`,
       [sourceSlotId],

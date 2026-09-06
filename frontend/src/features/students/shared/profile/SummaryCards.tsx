@@ -9,12 +9,14 @@ interface SummaryCardsProps {
 }
 
 export default function SummaryCards({ student, onViewReceipts }: SummaryCardsProps) {
+  const showLessonsCard = student.enrolment !== 'Licence Only'
   const showLicenceCard = student.enrolment !== 'Driving Only'
+  const hasThreeCards = showLessonsCard && showLicenceCard
 
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showLicenceCard ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 ${hasThreeCards ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
       <PaymentsCard student={student} onViewReceipts={onViewReceipts} />
-      <LessonsCard student={student} />
+      {showLessonsCard && <LessonsCard student={student} />}
       {showLicenceCard && <LicenceProgressCard student={student} />}
     </div>
   )
