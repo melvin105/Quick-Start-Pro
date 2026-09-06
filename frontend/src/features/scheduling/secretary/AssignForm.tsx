@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Users } from 'lucide-react'
-import { findStudentCellSlots, type ScheduleGridData } from '../shared/schedulingMappers'
+import { findStudentCellSlots, findStudentIdsAssignedOnDay, type ScheduleGridData } from '../shared/schedulingMappers'
 import { useAssignableStudents } from '../shared/useAssignableStudents'
 import { formatSlotLabel } from '../shared/utils'
 import AssignConfirmation from './AssignConfirmation'
@@ -21,13 +21,15 @@ export default function AssignForm({ day, hour, grid, capacity, excludeIds, onAs
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const assignedOnDay = useMemo(() => findStudentIdsAssignedOnDay(grid, day), [day, grid])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     return students
       .filter((s) => !excludeIds.includes(s.id))
+      .filter((s) => !assignedOnDay.has(s.id))
       .filter((s) => q === '' || s.name.toLowerCase().includes(q) || s.studentNumber.toLowerCase().includes(q))
-  }, [students, query, excludeIds])
+  }, [students, query, excludeIds, assignedOnDay])
 
   const selectedStudent = selectedId ? students.find((s) => s.id === selectedId) : undefined
   const slotFull = excludeIds.length >= capacity

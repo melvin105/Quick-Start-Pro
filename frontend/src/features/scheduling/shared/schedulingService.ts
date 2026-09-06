@@ -56,6 +56,12 @@ export interface RemoveSlotFromDaysResult {
   startHour:   number
 }
 
+export interface MoveStudentResult {
+  studentId:  string
+  fromSlotId: string
+  toSlotId:   string
+}
+
 // GET /scheduling/slots — the full Mon–Sat weekly grid (pre-seeded slots), each
 // with its active assignments. Both roles may read.
 export async function listSlots(): Promise<ListSlotsResult> {
@@ -79,6 +85,26 @@ export async function assignStudent(slotId: string, studentId: string): Promise<
       `/scheduling/slots/${slotId}/assignments`,
       { studentId },
     )
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+// POST /scheduling/assignments/move — atomically reschedules an existing
+// assignment. This also supports moves between two times on the same day while
+// preserving the one-active-slot-per-student-per-day rule.
+export async function moveStudent(
+  fromSlotId: string,
+  toSlotId: string,
+  studentId: string,
+): Promise<MoveStudentResult> {
+  try {
+    const { data } = await api.post<MoveStudentResult>('/scheduling/assignments/move', {
+      studentId,
+      fromSlotId,
+      toSlotId,
+    })
     return data
   } catch (err) {
     throw toApiError(err)

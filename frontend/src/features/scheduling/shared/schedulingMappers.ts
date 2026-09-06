@@ -72,3 +72,12 @@ export function findStudentCellSlots(grid: ScheduleGridData, studentId: string):
   }
   return slots
 }
+
+export function findStudentIdsAssignedOnDay(grid: ScheduleGridData, day: Day): Set<string> {
+  const studentIds = new Set<string>()
+  for (const [key, cell] of Object.entries(grid)) {
+    if (!key.startsWith(`${day}-`)) continue
+    for (const assignment of cell.assignments) studentIds.add(assignment.studentId)
+  }
+  return studentIds
+}
