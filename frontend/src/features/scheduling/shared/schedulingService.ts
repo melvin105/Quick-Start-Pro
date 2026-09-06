@@ -34,6 +34,12 @@ export interface ListSlotsResult {
   slots: ApiScheduleSlot[]
 }
 
+export interface ApplySlotToDaysResult {
+  assignedDays:        number[]
+  alreadyAssignedDays: number[]
+  startHour:           number
+}
+
 // GET /scheduling/slots — the full Mon–Sat weekly grid (pre-seeded slots), each
 // with its active assignments. Both roles may read.
 export async function listSlots(): Promise<ListSlotsResult> {
@@ -56,6 +62,24 @@ export async function assignStudent(slotId: string, studentId: string): Promise<
     const { data } = await api.post<ApiScheduleSlot>(
       `/scheduling/slots/${slotId}/assignments`,
       { studentId },
+    )
+    return data
+  } catch (err) {
+    throw toApiError(err)
+  }
+}
+
+// POST /scheduling/slots/:slotId/apply-days — copies an assigned slot's time
+// to multiple weekdays in one capacity-safe transaction.
+export async function applySlotToDays(
+  slotId: string,
+  studentId: string,
+  days: number[],
+): Promise<ApplySlotToDaysResult> {
+  try {
+    const { data } = await api.post<ApplySlotToDaysResult>(
+      `/scheduling/slots/${slotId}/apply-days`,
+      { studentId, days },
     )
     return data
   } catch (err) {

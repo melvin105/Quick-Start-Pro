@@ -22,6 +22,15 @@ export const assign = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(slot);
 });
 
+export const applyToDays = asyncHandler(async (req: Request, res: Response) => {
+  const result = await schedulingService.applySlotToDays(
+    param(req, 'slotId'),
+    req.body ?? {},
+    actingUserId(req),
+  );
+  res.status(201).json(result);
+});
+
 export const unassign = asyncHandler(async (req: Request, res: Response) => {
   const slot = await schedulingService.unassignStudent(
     param(req, 'slotId'),

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, Check, Loader2 } from 'lucide-react'
+import { AlertCircle, CalendarDays, Check, Copy, Loader2, X } from 'lucide-react'
 import { useApiResource } from '../../../../lib/useApiResource'
 import type { ApiError } from '../../../../lib/apiError'
 import {
   assignStudent,
+  applySlotToDays,
   listSlots,
   unassignStudent,
   type ApiScheduleSlot,
@@ -31,6 +32,9 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
   const [busySlotId, setBusySlotId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [copySource, setCopySource] = useState<ApiScheduleSlot | null>(null)
+  const [copyDays, setCopyDays] = useState<Set<number>>(new Set())
+  const [copying, setCopying] = useState(false)
 
   const activeSlots = useMemo(
     () => (data?.slots ?? []).filter((slot) => slot.isActive && slot.day !== null),
@@ -68,6 +72,45 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
       await refetch()
     } finally {
       setBusySlotId(null)
+    }
+  }
+
+  const openCopyDialog = (source: ApiScheduleSlot) => {
+    const availableDays = activeSlots
+      .filter((slot) => slot.startHour === source.startHour && slot.id !== source.id)
+      .filter((slot) => !isAssigned(slot, studentId) && slot.assignments.length < slot.capacity)
+      .map((slot) => slot.dayOfWeek)
+    setCopySource(source)
+    setCopyDays(new Set(availableDays))
+    setActionError(null)
+    setSuccessMessage(null)
+  }
+
+  const toggleCopyDay = (day: number) => {
+    setCopyDays((current) => {
+      const next = new Set(current)
+      if (next.has(day)) next.delete(day)
+      else next.add(day)
+      return next
+    })
+  }
+
+  const handleApplyToDays = async () => {
+    if (!copySource || copyDays.size === 0 || copying) return
+    setCopying(true)
+    setActionError(null)
+    try {
+      const result = await applySlotToDays(copySource.id, studentId, [...copyDays])
+      const total = result.assignedDays.length
+      setSuccessMessage(`Applied ${formatRangeShort(result.startHour)} to ${total} ${total === 1 ? 'day' : 'days'}.`)
+      setCopySource(null)
+      setCopyDays(new Set())
+      await refetch()
+    } catch (err) {
+      setActionError((err as ApiError)?.message ?? 'The time could not be applied. Please try again.')
+      await refetch()
+    } finally {
+      setCopying(false)
     }
   }
 
@@ -123,9 +166,20 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
           <p className="text-[11.5px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Current slots</p>
           <div className="flex flex-wrap gap-2">
             {selectedSlots.map((slot) => (
-              <span key={slot.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-[12px] font-medium">
-                <Check size={12} />
-                {formatSlotLabel(slot.day as Day, slot.startHour, true)}
+              <span key={slot.id} className="inline-flex items-center rounded-lg bg-brand-50 text-brand-700 text-[12px] font-medium overflow-hidden">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5">
+                  <Check size={12} />
+                  {formatSlotLabel(slot.day as Day, slot.startHour, true)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openCopyDialog(slot)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 border-l border-brand-200 hover:bg-brand-100 transition-colors"
+                  aria-label={`Apply ${formatSlotLabel(slot.day as Day, slot.startHour)} to other days`}
+                >
+                  <Copy size={11} />
+                  Apply to days
+                </button>
               </span>
             ))}
           </div>
@@ -210,6 +264,97 @@ export default function StudentWeeklyScheduleCard({ studentId }: StudentWeeklySc
         >
           {actionError ? <AlertCircle size={14} /> : <Check size={14} />}
           {actionError ?? successMessage}
+        </div>
+      )}
+
+      {copySource && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-gray-900/50"
+            onClick={() => !copying && setCopySource(null)}
+            aria-label="Close apply-to-days dialog"
+          />
+          <div className="relative bg-white rounded-2xl shadow-modal max-w-md w-full p-5 flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold text-gray-900">Apply time to other days</h3>
+                <p className="text-[12.5px] text-gray-500 mt-1">
+                  Copy {formatRangeShort(copySource.startHour)} from {DAY_FULL[copySource.day as Day]}.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={copying}
+                onClick={() => setCopySource(null)}
+                className="text-gray-400 hover:text-gray-700 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {DAYS.filter((day) => day !== copySource.day).map((day) => {
+                const slot = activeSlots.find(
+                  (candidate) => candidate.day === day && candidate.startHour === copySource.startHour,
+                )
+                const assigned = slot ? isAssigned(slot, studentId) : false
+                const full = slot ? slot.assignments.length >= slot.capacity : true
+                const unavailable = !slot || assigned || full
+                return (
+                  <label
+                    key={day}
+                    className={`rounded-xl border px-3 py-2.5 text-[12.5px] ${
+                      unavailable
+                        ? 'border-gray-200 bg-gray-50 text-gray-400'
+                        : slot && copyDays.has(slot.dayOfWeek)
+                          ? 'border-brand-600 bg-brand-50 text-brand-700'
+                          : 'border-gray-200 text-gray-700 cursor-pointer hover:border-brand-300'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        disabled={unavailable || copying}
+                        checked={assigned || (slot ? copyDays.has(slot.dayOfWeek) : false)}
+                        onChange={() => slot && toggleCopyDay(slot.dayOfWeek)}
+                        className="accent-brand-600"
+                      />
+                      <span className="font-medium">{DAY_FULL[day]}</span>
+                    </span>
+                    <span className="block text-[10.5px] mt-1 ml-5">
+                      {assigned ? 'Already assigned' : full ? 'Full' : `${slot?.assignments.length ?? 0}/${slot?.capacity ?? 0} booked`}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+
+            <p className="text-[11.5px] text-gray-500">
+              Available days are selected automatically. Deselect any day you do not want to include.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={copying}
+                onClick={() => setCopySource(null)}
+                className="px-4 py-2 text-[13px] font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={copyDays.size === 0 || copying}
+                onClick={() => void handleApplyToDays()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {copying && <Loader2 size={14} className="animate-spin" />}
+                Apply to {copyDays.size} {copyDays.size === 1 ? 'day' : 'days'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>
