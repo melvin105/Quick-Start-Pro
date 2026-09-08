@@ -85,7 +85,11 @@ export default function AttendancePage() {
 
       {showQr && <QrCodePanel onClose={() => setShowQr(false)} />}
       {showManualMark && (
-        <ManualMarkModal onClose={() => setShowManualMark(false)} onMarked={() => void refetch()} />
+        <ManualMarkModal
+          records={scheduled}
+          onClose={() => setShowManualMark(false)}
+          onMarked={() => void refetch()}
+        />
       )}
     </div>
   )

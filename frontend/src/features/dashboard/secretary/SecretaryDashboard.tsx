@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import StatCard from '../../../components/ui/StatCard'
 import PageDataSkeleton from '../../../components/ui/PageDataSkeleton'
 import ErrorState from '../../../components/ui/ErrorState'
@@ -13,6 +14,11 @@ export default function SecretaryDashboard() {
     [],
     { cacheKey: 'dashboard', staleTime: 30_000 },
   )
+
+  useEffect(() => {
+    const interval = setInterval(() => { void refetch() }, 30_000)
+    return () => clearInterval(interval)
+  }, [refetch])
 
   if (loading) return <PageDataSkeleton panels={2} />
   if (error)   return <ErrorState error={error} onRetry={refetch} />

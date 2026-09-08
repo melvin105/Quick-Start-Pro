@@ -7,6 +7,7 @@ function row(overrides: Partial<ApiAttendanceRow> = {}): ApiAttendanceRow {
     student_id:     'stu-1',
     student_number: 'DP-2026-0001',
     student_name:   'John Mensah',
+    slot_id:        'slot-1',
     start_time:     '08:00:00',
     end_time:       '09:00:00',
     attendance_id:  'att-1',
@@ -14,6 +15,7 @@ function row(overrides: Partial<ApiAttendanceRow> = {}): ApiAttendanceRow {
     method:         'manual',
     status:         'present',
     is_walk_in:     false,
+    auto_marked:    false,
     notes:          null,
     driver_id:      'drv-1',
     driver_name:    'Obed Asante',
@@ -27,8 +29,10 @@ describe('toAttendanceRecord', () => {
     expect(toAttendanceRecord(row(), '2026-08-17')).toEqual({
       id:          'att-1',
       studentId:   'stu-1',
+      studentNumber: 'DP-2026-0001',
       studentName: 'John Mensah',
       date:        '2026-08-17',
+      slotId:      'slot-1',
       slotLabel:   '8-9am',
       hasSlot:     true,
       checkInTime: '8:23am',
@@ -69,6 +73,10 @@ describe('toAttendanceRecord', () => {
     }
   })
 
+  it('identifies a system-created absence', () => {
+    expect(toAttendanceRecord(row({ status: 'absent', auto_marked: true }), '2026-08-17').autoMarked).toBe(true)
+  })
+
   it('defaults a null lessons_left to 0', () => {
     expect(toAttendanceRecord(row({ lessons_left: null }), '2026-08-17').lessonsLeft).toBe(0)
   })
@@ -96,14 +104,14 @@ describe('toStudentAttendanceRecord', () => {
     const historyRow: ApiMarkedAttendanceRow = {
       id: 'att-1', student_id: 'stu-1', attendance_date: '2026-08-10', slot_id: 'slot-1',
       check_in_time: '2026-08-10T08:23:00.000Z', method: 'manual', status: 'present',
-      is_walk_in: false, notes: null, driver_id: 'drv-1', marked_by: 'user-1',
+      is_walk_in: false, auto_marked: false, notes: null, driver_id: 'drv-1', marked_by: 'user-1',
       created_at: '2026-08-10T08:23:00.000Z', student_number: 'DP-2026-0001',
       student_name: 'John Mensah', start_time: '08:00:00', end_time: '09:00:00',
       driver_name: 'Obed Asante',
     }
 
     expect(toStudentAttendanceRecord(historyRow)).toMatchObject({
-      id: 'att-1', studentId: 'stu-1', date: '2026-08-10', slotLabel: '8-9am',
+      id: 'att-1', studentId: 'stu-1', studentNumber: 'DP-2026-0001', date: '2026-08-10', slotLabel: '8-9am',
       checkInTime: '8:23am', source: 'manual', status: 'present', driverName: 'Obed Asante',
     })
   })

@@ -28,6 +28,7 @@ import registrationRoutes from './routes/registrations';
 import recordsRoutes from './routes/records';
 import notificationRoutes from './routes/notifications';
 import { ApiError } from './utils/ApiError';
+import { materializeExpiredAbsences } from './services/attendanceService';
 
 export const app = express();
 
@@ -176,5 +177,14 @@ if (require.main === module) {
 
   app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
+
+    const syncAbsences = () => {
+      void materializeExpiredAbsences().catch((err) => {
+        console.error('Could not auto-mark expired attendance:', err);
+      });
+    };
+    syncAbsences();
+    const attendanceTimer = setInterval(syncAbsences, 60_000);
+    attendanceTimer.unref();
   });
 }

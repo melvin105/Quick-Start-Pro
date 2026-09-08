@@ -6,8 +6,10 @@ export type CheckInSource = 'self' | 'manual'
 export interface AttendanceRecord {
   id:            string
   studentId:     string
+  studentNumber: string
   studentName:   string
   date:          string
+  slotId?:       string
   slotLabel?:    string
   hasSlot:       boolean
   checkInTime?:  string

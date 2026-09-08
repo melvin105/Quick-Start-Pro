@@ -39,7 +39,7 @@ function assertMethod(value: string): asserts value is CheckinMethod {
 const SELECT_ATTENDANCE = `
   select
     a.id, a.student_id, a.attendance_date, a.slot_id, a.check_in_time, a.method,
-    a.status, a.is_walk_in, a.notes, a.driver_id, a.marked_by, a.created_at,
+    a.status, a.is_walk_in, a.auto_marked, a.notes, a.driver_id, a.marked_by, a.created_at,
     st.student_number, st.first_name || ' ' || st.last_name as student_name,
     sl.start_time, sl.end_time,
     drv.first_name || ' ' || drv.last_name as driver_name
@@ -48,6 +48,13 @@ const SELECT_ATTENDANCE = `
   left join public.schedule_slots sl on sl.id = a.slot_id
   left join public.staff drv on drv.id = a.driver_id
 `;
+
+export async function materializeExpiredAbsences() {
+  const { rows } = await pool.query<{ marked_count: number }>(
+    `select public.mark_expired_attendance_absent() as marked_count`,
+  );
+  return Number(rows[0]?.marked_count ?? 0);
+}
 
 export async function markAttendance(input: MarkAttendanceInput, actingUserId: string) {
   const { studentId, status } = input;
@@ -59,16 +66,35 @@ export async function markAttendance(input: MarkAttendanceInput, actingUserId: s
   const method = input.method ?? 'manual';
   assertMethod(method);
 
+  const targetDate = input.attendanceDate ?? new Date().toISOString().slice(0, 10);
+
   const { rows: studentRows } = await pool.query(`select id from public.students where id = $1`, [studentId]);
   if (!studentRows[0]) {
     throw new ApiError(404, 'NOT_FOUND', 'Student not found.');
   }
 
-  if (input.slotId) {
-    const { rows: slotRows } = await pool.query(`select id from public.schedule_slots where id = $1`, [input.slotId]);
-    if (!slotRows[0]) {
-      throw new ApiError(404, 'NOT_FOUND', 'Schedule slot not found.');
-    }
+  const { rows: scheduledSlots } = await pool.query<{ id: string }>(
+    `select sl.id
+     from public.slot_assignments sa
+     join public.schedule_slots sl on sl.id = sa.slot_id
+     where sa.student_id = $1
+       and sa.is_active
+       and sl.is_active
+       and sl.day_of_week = extract(isodow from $2::date)
+     order by sl.start_time
+     limit 1`,
+    [studentId, targetDate],
+  );
+  const scheduledSlot = scheduledSlots[0];
+  if (!scheduledSlot) {
+    throw new ApiError(
+      409,
+      'NOT_SCHEDULED',
+      'Attendance can only be marked for a student scheduled on this date.',
+    );
+  }
+  if (input.slotId && input.slotId !== scheduledSlot.id) {
+    throw new ApiError(409, 'SLOT_MISMATCH', 'The selected slot is not this student’s schedule for the date.');
   }
 
   if (input.driverId) {
@@ -81,14 +107,15 @@ export async function markAttendance(input: MarkAttendanceInput, actingUserId: s
     }
   }
 
-  const isWalkIn = input.isWalkIn ?? !input.slotId;
-  const checkInTime = input.checkInTime ?? (status === 'absent' || status === 'excused' ? null : new Date().toISOString());
+  const checkInTime = status === 'absent' || status === 'excused'
+    ? null
+    : input.checkInTime ?? new Date().toISOString();
 
   return withUserContext(actingUserId, async (client) => {
     const { rows } = await client.query(
       `insert into public.attendance
-         (student_id, attendance_date, slot_id, check_in_time, method, status, is_walk_in, driver_id, marked_by, notes)
-       values ($1, coalesce($2, current_date), $3, $4, $5, $6, $7, $8, $9, $10)
+         (student_id, attendance_date, slot_id, check_in_time, method, status, is_walk_in, driver_id, marked_by, notes, auto_marked)
+       values ($1, $2, $3, $4, $5, $6, false, $7, $8, $9, false)
        on conflict (student_id, attendance_date) do update set
          slot_id       = excluded.slot_id,
          check_in_time = excluded.check_in_time,
@@ -97,16 +124,16 @@ export async function markAttendance(input: MarkAttendanceInput, actingUserId: s
          is_walk_in    = excluded.is_walk_in,
          driver_id     = excluded.driver_id,
          marked_by     = excluded.marked_by,
-         notes         = excluded.notes
+         notes         = excluded.notes,
+         auto_marked   = false
        returning id`,
       [
         studentId,
-        input.attendanceDate ?? null,
-        input.slotId ?? null,
+        targetDate,
+        scheduledSlot.id,
         checkInTime,
         method,
         status,
-        isWalkIn,
         input.driverId ?? null,
         actingUserId,
         input.notes ?? null,
@@ -123,7 +150,9 @@ export async function listAttendance(query: ListAttendanceQuery) {
 
   const targetDate = date ?? new Date().toISOString().slice(0, 10);
 
-  const conditions = ['(sl.id is not null or a.id is not null)'];
+  await materializeExpiredAbsences();
+
+  const conditions = ['sl.id is not null'];
   const params: unknown[] = [targetDate];
 
   if (status) {
@@ -134,8 +163,8 @@ export async function listAttendance(query: ListAttendanceQuery) {
   const { rows } = await pool.query(
     `select
        st.id as student_id, st.student_number, st.first_name || ' ' || st.last_name as student_name,
-       sl.start_time, sl.end_time,
-       a.id as attendance_id, a.check_in_time, a.method, a.status, a.is_walk_in, a.notes,
+       sl.id as slot_id, sl.start_time, sl.end_time,
+       a.id as attendance_id, a.check_in_time, a.method, a.status, a.is_walk_in, a.auto_marked, a.notes,
        drv.id as driver_id, drv.first_name || ' ' || drv.last_name as driver_name,
        lr.lessons_left
      from public.students st
