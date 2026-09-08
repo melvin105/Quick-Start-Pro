@@ -5,7 +5,7 @@ export interface ScheduleItem {
   time: string
   initials: string
   name: string
-  status: 'completed' | 'upcoming'
+  status: 'completed' | 'upcoming' | 'absent' | 'excused'
 }
 
 interface TodaysScheduleProps {
@@ -15,11 +15,15 @@ interface TodaysScheduleProps {
 const STATUS_STYLES: Record<ScheduleItem['status'], string> = {
   completed: 'bg-success-bg text-success',
   upcoming:  'bg-warning-bg text-warning',
+  absent:    'bg-danger-bg text-danger',
+  excused:   'bg-gray-100 text-gray-600',
 }
 
 const STATUS_LABEL: Record<ScheduleItem['status'], string> = {
   completed: 'Completed',
   upcoming:  'Upcoming',
+  absent:    'Absent',
+  excused:   'Excused',
 }
 
 export default function TodaysSchedule({ items }: TodaysScheduleProps) {

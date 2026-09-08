@@ -171,15 +171,16 @@ export async function selfCheckIn(input: SelfCheckInInput) {
   // makes race-safe — two rapid scans can't create duplicates or double-write.
   const { rows: upserted } = await pool.query<{ check_in_time: string }>(
     `insert into public.attendance
-       (student_id, attendance_date, slot_id, check_in_time, method, status, is_walk_in, driver_id, marked_by)
-     values ($1, current_date, $2, now(), 'self_qr', 'present', $3, $4, null)
+       (student_id, attendance_date, slot_id, check_in_time, method, status, is_walk_in, driver_id, marked_by, auto_marked)
+     values ($1, current_date, $2, now(), 'self_qr', 'present', $3, $4, null, false)
      on conflict (student_id, attendance_date) do update set
        slot_id       = excluded.slot_id,
        check_in_time = excluded.check_in_time,
        method        = excluded.method,
        status        = excluded.status,
        is_walk_in    = excluded.is_walk_in,
-       driver_id     = excluded.driver_id
+       driver_id     = excluded.driver_id,
+       auto_marked   = false
      where public.attendance.status <> 'present'
      returning check_in_time`,
     [student.id, slot?.id ?? null, isWalkIn, input.instructorId ?? null],

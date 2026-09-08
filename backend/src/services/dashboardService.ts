@@ -1,4 +1,5 @@
 import { pool } from '../db';
+import { materializeExpiredAbsences } from './attendanceService';
 
 type Role = 'manager' | 'secretary';
 
@@ -76,6 +77,8 @@ async function getRecentActivity(userId: string) {
 // Single round-trip for dashboard card figures, today's attendance, and the
 // role-specific manager or secretary data.
 export async function getDashboard(role: Role, userId: string): Promise<DashboardPayload> {
+  await materializeExpiredAbsences();
+
   // Every block below is independent. Starting them together is especially
   // important when the API and Supabase are in different regions: serial
   // round trips multiply network latency even when each SQL query is small.

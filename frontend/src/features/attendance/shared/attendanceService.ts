@@ -10,14 +10,14 @@ export type ApiAttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 export type ApiCheckinMethod = 'self_qr' | 'manual'
 
 // One row of GET /attendance. The backend builds the daily roster by
-// left-joining every active student to their slot for that weekday and to any
-// attendance row for the date, so every field past the student is nullable:
-// a scheduled-but-unmarked student has a slot time but null status, while a
-// walk-in has attendance fields but null slot times.
+// joining active students to their slot for that weekday and any attendance
+// row for the date. A scheduled-but-unmarked student has a slot time but null
+// attendance fields.
 export interface ApiAttendanceRow {
   student_id:     string
   student_number: string
   student_name:   string
+  slot_id:        string | null
   start_time:     string | null
   end_time:       string | null
   attendance_id:  string | null
@@ -25,6 +25,7 @@ export interface ApiAttendanceRow {
   method:         ApiCheckinMethod | null
   status:         ApiAttendanceStatus | null
   is_walk_in:     boolean | null
+  auto_marked:    boolean | null
   notes:          string | null
   driver_id:      string | null
   driver_name:    string | null
@@ -42,8 +43,8 @@ export interface ListAttendanceParams {
 }
 
 // POST /attendance body — camelCase, matching the backend MarkAttendanceInput.
-// Only studentId + status are required; the backend defaults method to 'manual',
-// isWalkIn to `!slotId`, and nulls check_in_time for absent/excused.
+// Only studentId + status are required. The backend resolves and validates the
+// student's slot for that date and nulls check_in_time for absent/excused.
 export interface MarkAttendanceInput {
   studentId:       string
   status:          ApiAttendanceStatus
@@ -68,6 +69,7 @@ export interface ApiMarkedAttendanceRow {
   method:          ApiCheckinMethod
   status:          ApiAttendanceStatus
   is_walk_in:      boolean
+  auto_marked:     boolean
   notes:           string | null
   driver_id:       string | null
   marked_by:       string | null

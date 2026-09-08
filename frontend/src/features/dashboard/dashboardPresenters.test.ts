@@ -93,6 +93,11 @@ describe('toTodaysSchedule', () => {
     expect(item.status).toBe('completed')
   })
 
+  it('shows an absent attendance record as absent instead of upcoming', () => {
+    const [item] = toTodaysSchedule([row({ status: 'absent' })])
+    expect(item.status).toBe('absent')
+  })
+
   it('shows a dash when a row has no start time (e.g. a walk-in)', () => {
     const [item] = toTodaysSchedule([row({ start_time: null })])
     expect(item.time).toBe('—')

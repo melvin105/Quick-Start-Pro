@@ -43,8 +43,10 @@ export function toAttendanceRecord(row: ApiAttendanceRow, date: string): Attenda
     // before they have an attendance row.
     id:          row.attendance_id ?? row.student_id,
     studentId:   row.student_id,
+    studentNumber: row.student_number,
     studentName: row.student_name,
     date,
+    slotId:      row.slot_id ?? undefined,
     slotLabel:   slotLabelFrom(row.start_time),
     hasSlot:     row.start_time !== null,
     checkInTime: formatCheckInTime(row.check_in_time),
@@ -52,6 +54,7 @@ export function toAttendanceRecord(row: ApiAttendanceRow, date: string): Attenda
     driverName:  row.driver_name ?? undefined,
     lessonsLeft: row.lessons_left ?? 0,
     status:      row.status ?? undefined,
+    autoMarked:  row.auto_marked || undefined,
     notes:       row.notes ?? undefined,
   }
 }
@@ -65,6 +68,7 @@ export function toStudentAttendanceRecord(row: ApiMarkedAttendanceRow): Attendan
     student_id: row.student_id,
     student_number: row.student_number,
     student_name: row.student_name,
+    slot_id: row.slot_id,
     start_time: row.start_time,
     end_time: row.end_time,
     attendance_id: row.id,
@@ -72,6 +76,7 @@ export function toStudentAttendanceRecord(row: ApiMarkedAttendanceRow): Attendan
     method: row.method,
     status: row.status,
     is_walk_in: row.is_walk_in,
+    auto_marked: row.auto_marked,
     notes: row.notes,
     driver_id: row.driver_id,
     driver_name: row.driver_name,

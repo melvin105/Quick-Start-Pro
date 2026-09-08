@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Search, AlertCircle, ChevronDown } from 'lucide-react'
 import { useApiResource } from '../../../lib/useApiResource'
-import { listStudents, getStudent } from '../../students/shared/studentService'
 import { listInstructors } from '../../staff/staffService'
 import { markAttendance, type ApiAttendanceStatus } from '../shared/attendanceService'
+import type { AttendanceRecord } from '../shared/types'
 import type { ApiError } from '../../../lib/apiError'
 
 interface ManualMarkModalProps {
   title?: string
+  records: AttendanceRecord[]
   onClose: () => void
   // Called after a successful mark so the page can refetch the roster.
   onMarked: () => void
@@ -32,18 +33,14 @@ function timeToIso(timeHHmm: string): string {
   return d.toISOString()
 }
 
-interface PickedStudent {
-  id:   string
-  name: string
-}
-
-export default function ManualMarkModal({ title = 'Mark Attendance', onClose, onMarked }: ManualMarkModalProps) {
-  // Active students, fetched once when the modal opens (the picker matches
-  // client-side). Licence-only enrolments never take driving lessons, so they're
-  // dropped — the same rule the scheduling assign picker uses.
-  const { data, loading: studentsLoading } = useApiResource(() => listStudents({ status: 'active', limit: 100 }))
+export default function ManualMarkModal({
+  title = 'Mark Attendance',
+  records,
+  onClose,
+  onMarked,
+}: ManualMarkModalProps) {
   // Instructors for the optional Driver dropdown. Only active ones can be
-  // assigned; the field stays optional (a walk-in may not have a driver yet).
+  // assigned; the field stays optional when the driver is not yet known.
   const { data: instructorData } = useApiResource(() => listInstructors())
   const instructors = useMemo(
     () => (instructorData ?? []).filter((i) => i.status === 'active'),
@@ -51,11 +48,7 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
   )
 
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<PickedStudent | null>(null)
-  // The selected student's current lessons remaining — system-calculated and
-  // read-only, shown as context beside the arrival time. Fetched from the
-  // profile on selection; null until known (or if the lookup fails).
-  const [lessonsLeft, setLessonsLeft] = useState<number | null>(null)
+  const [selected, setSelected] = useState<AttendanceRecord | null>(null)
   const [status, setStatus] = useState<ApiAttendanceStatus>('present')
   const [arrivalTime, setArrivalTime] = useState(nowTimeInputValue())
   const [driverId, setDriverId] = useState('')
@@ -65,28 +58,14 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (q === '' || !data) return []
-    return data.students
-      .filter((s) => s.enrolment_type !== 'licence_only')
-      .filter((s) =>
-        `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) ||
-        s.student_number.toLowerCase().includes(q),
+    if (q === '') return []
+    return records
+      .filter((record) =>
+        record.studentName.toLowerCase().includes(q) ||
+        record.studentNumber.toLowerCase().includes(q),
       )
       .slice(0, 6)
-  }, [data, query])
-
-  const pickStudent = async (id: string, name: string) => {
-    setSelected({ id, name })
-    setQuery('')
-    setLessonsLeft(null)
-    // Best-effort context — a failed lookup just leaves the field blank.
-    try {
-      const profile = await getStudent(id)
-      setLessonsLeft(profile.lessons_left)
-    } catch {
-      setLessonsLeft(null)
-    }
-  }
+  }, [query, records])
 
   // Present marks capture arrival time, remaining lessons and the driver; an
   // absent student has none of those.
@@ -98,7 +77,8 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
     setError(null)
     try {
       await markAttendance({
-        studentId:   selected.id,
+        studentId:   selected.studentId,
+        slotId:      selected.slotId,
         status,
         method:      'manual',
         checkInTime: recordsCheckIn ? timeToIso(arrivalTime) : undefined,
@@ -126,10 +106,10 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
             </label>
             {selected ? (
               <div className="flex items-center justify-between px-3 py-2 border border-gray-200 rounded-lg bg-gray-50">
-                <span className="text-[13.5px] font-medium text-gray-900">{selected.name}</span>
+                <span className="text-[13.5px] font-medium text-gray-900">{selected.studentName}</span>
                 <button
                   type="button"
-                  onClick={() => { setSelected(null); setLessonsLeft(null) }}
+                  onClick={() => setSelected(null)}
                   className="text-[12px] text-brand-600 hover:text-brand-700"
                 >
                   Change
@@ -142,24 +122,28 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={studentsLoading ? 'Loading students…' : 'Search student name…'}
-                  disabled={studentsLoading}
+                  placeholder="Search today's scheduled students…"
                   className="w-full pl-8 pr-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 disabled:bg-gray-50"
                 />
                 {results.length > 0 && (
                   <div className="mt-1 border border-gray-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                    {results.map((s) => (
+                    {results.map((record) => (
                       <button
-                        key={s.id}
+                        key={record.studentId}
                         type="button"
-                        onClick={() => void pickStudent(s.id, `${s.first_name} ${s.last_name}`)}
+                        onClick={() => { setSelected(record); setQuery('') }}
                         className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors"
                       >
-                        <p className="font-medium text-gray-900">{s.first_name} {s.last_name}</p>
-                        <p className="text-[11px] text-gray-500">{s.student_number}</p>
+                        <p className="font-medium text-gray-900">{record.studentName}</p>
+                        <p className="text-[11px] text-gray-500">{record.studentNumber} · {record.slotLabel}</p>
                       </button>
                     ))}
                   </div>
+                )}
+                {query.trim() !== '' && results.length === 0 && (
+                  <p className="mt-2 px-1 text-[11.5px] text-gray-500">
+                    No matching student is scheduled today.
+                  </p>
                 )}
               </div>
             )}
@@ -201,7 +185,7 @@ export default function ManualMarkModal({ title = 'Mark Attendance', onClose, on
                   <label className="block text-[13px] font-medium text-gray-800 mb-1.5">Lessons Left</label>
                   {/* System-calculated, read-only context (not an editable field). */}
                   <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700">
-                    {selected ? (lessonsLeft ?? '—') : '—'}
+                    {selected ? selected.lessonsLeft : '—'}
                   </div>
                 </div>
               </div>

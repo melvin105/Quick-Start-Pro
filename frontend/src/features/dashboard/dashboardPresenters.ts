@@ -49,7 +49,13 @@ export function toTodaysSchedule(attendance: TodayAttendance[]): ScheduleItem[] 
     time:     formatLessonTime(row.start_time) || '—',
     initials: initialsFrom(row.student_name),
     name:     row.student_name,
-    status:   row.check_in_time ? 'completed' : 'upcoming',
+    status:   row.status === 'absent'
+      ? 'absent'
+      : row.status === 'excused'
+        ? 'excused'
+        : row.check_in_time || row.status === 'present' || row.status === 'late'
+          ? 'completed'
+          : 'upcoming',
   }))
 }
 
