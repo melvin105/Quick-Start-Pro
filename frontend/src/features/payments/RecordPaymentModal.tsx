@@ -17,6 +17,8 @@ interface RecordPaymentModalProps {
   initialStudentId?: string
 }
 
+type PaymentAmountChoice = 'full' | 'custom'
+
 export default function RecordPaymentModal({
   onClose,
   onRecorded,
@@ -28,6 +30,7 @@ export default function RecordPaymentModal({
 }: RecordPaymentModalProps) {
   const [query, setQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId ?? null)
+  const [amountChoice, setAmountChoice] = useState<PaymentAmountChoice | null>(null)
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('Cash')
   const [date, setDate] = useState(todayIso())
@@ -48,18 +51,33 @@ export default function RecordPaymentModal({
   const packageFee = selectedStudent?.total_fees ?? 0
   const currentBalance = selectedStudent?.balance ?? 0
   const totalPaidSoFar = packageFee - currentBalance
-  const amountNumber = Number(amount) || 0
+  const amountNumber = amountChoice === 'full' ? currentBalance : Number(amount) || 0
   const remainingAfter = Math.max(currentBalance - amountNumber, 0)
 
   const handleSelectStudent = (id: string) => {
     setSelectedStudentId(id)
     setQuery('')
+    setAmountChoice(null)
+    setAmount('')
+    setError('')
+  }
+
+  const handleChangeStudent = () => {
+    setSelectedStudentId(null)
+    setAmountChoice(null)
+    setAmount('')
+    setError('')
+  }
+
+  const handleAmountChoice = (choice: PaymentAmountChoice) => {
+    setAmountChoice(choice)
     setAmount('')
     setError('')
   }
 
   const handleSubmit = async () => {
     if (!selectedStudent) return
+    if (!amountChoice) { setError('Choose how much the student is paying'); return }
     if (amountNumber <= 0) { setError('Enter an amount greater than zero'); return }
     if (amountNumber > currentBalance) { setError('Amount cannot exceed the outstanding balance'); return }
 
@@ -97,7 +115,7 @@ export default function RecordPaymentModal({
                 <span className="text-[13.5px] font-medium text-gray-900">
                   {selectedStudent.first_name} {selectedStudent.last_name}
                 </span>
-                <button type="button" onClick={() => setSelectedStudentId(null)} className="text-[12px] text-brand-600 hover:text-brand-700">
+                <button type="button" onClick={handleChangeStudent} className="text-[12px] text-brand-600 hover:text-brand-700">
                   Change
                 </button>
               </div>
@@ -169,27 +187,76 @@ export default function RecordPaymentModal({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
-                  Amount <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={amount}
-                  onChange={(e) => { setAmount(e.target.value); setError('') }}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="GHS 0"
-                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
-                    error ? 'border-danger focus:ring-danger/20' : 'border-gray-200 focus:ring-brand-600/20 focus:border-brand-600'
-                  }`}
-                />
-                {error ? (
-                  <p className="text-[12px] text-danger mt-1">{error}</p>
-                ) : (
-                  <p className="text-[11px] text-gray-400 mt-1">Cannot exceed outstanding balance</p>
+              <fieldset>
+                <legend className="block text-[13px] font-medium text-gray-800 mb-1.5">
+                  Payment Amount <span className="text-danger">*</span>
+                </legend>
+                <div className="grid grid-cols-1 gap-2">
+                  <label className={`flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    amountChoice === 'full' ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:bg-gray-50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="payment-amount-choice"
+                      checked={amountChoice === 'full'}
+                      onChange={() => handleAmountChoice('full')}
+                      className="mt-0.5 accent-brand-600"
+                    />
+                    <span>
+                      <span className="block text-[13.5px] font-medium text-gray-900">Pay full package</span>
+                      <span className="block text-[11.5px] text-gray-500 mt-0.5">
+                        Pay the outstanding balance of {formatGHS(currentBalance)}
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className={`flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    amountChoice === 'custom' ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:bg-gray-50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="payment-amount-choice"
+                      checked={amountChoice === 'custom'}
+                      onChange={() => handleAmountChoice('custom')}
+                      className="mt-0.5 accent-brand-600"
+                    />
+                    <span>
+                      <span className="block text-[13.5px] font-medium text-gray-900">Enter another amount</span>
+                      <span className="block text-[11.5px] text-gray-500 mt-0.5">Record a partial payment</span>
+                    </span>
+                  </label>
+                </div>
+                {error && amountChoice !== 'custom' && (
+                  <p className="text-[12px] text-danger mt-1.5">{error}</p>
                 )}
-              </div>
+              </fieldset>
+
+              {amountChoice === 'custom' && (
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-800 mb-1.5" htmlFor="custom-payment-amount">
+                    Amount <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="custom-payment-amount"
+                    type="number"
+                    min={0.01}
+                    max={currentBalance}
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => { setAmount(e.target.value); setError('') }}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="GHS 0"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+                      error ? 'border-danger focus:ring-danger/20' : 'border-gray-200 focus:ring-brand-600/20 focus:border-brand-600'
+                    }`}
+                  />
+                  {error ? (
+                    <p className="text-[12px] text-danger mt-1">{error}</p>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 mt-1">Cannot exceed outstanding balance</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-[13px] font-medium text-gray-800 mb-1.5">
@@ -244,7 +311,7 @@ export default function RecordPaymentModal({
           </button>
           <button
             type="button"
-            disabled={!selectedStudent || submitting}
+            disabled={!selectedStudent || !amountChoice || currentBalance <= 0 || submitting}
             onClick={() => void handleSubmit()}
             className="px-4 py-2 text-[13px] font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
