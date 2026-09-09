@@ -39,7 +39,7 @@ export default function ReceiptPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-start justify-center p-6 print:bg-white print:p-0">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-card print:shadow-none print:rounded-none p-6 flex flex-col gap-4">
+      <div className="print-area w-full max-w-sm bg-white rounded-2xl shadow-card print:shadow-none print:rounded-none p-6 flex flex-col gap-4">
         <div className="text-center border-b border-gray-200 pb-3">
           <p className="text-[15px] font-bold text-gray-900 uppercase tracking-wide">
             {receipt.school.name ?? 'Quick Start Driving School'}
